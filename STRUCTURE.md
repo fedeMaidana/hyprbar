@@ -1,0 +1,30 @@
+```
+└── 📁hyprbar
+    └── 📁.cargo
+        └── config.toml
+    └── 📁src
+        ├── 📁app
+            ├── layout.rs
+            ├── messages.rs
+            ├── mod.rs
+            └── state.rs
+        ├── 📁components
+            ├── arch.rs
+            ├── control_center.rs
+            ├── date.rs
+            ├── mod.rs
+            ├── notifications.rs
+            ├── profile.rs
+            ├── time.rs
+            ├── weather.rs
+            ├── workspaces.rs
+            └── wrapper.rs
+        ├── main.rs
+        └── theme.rs
+    ├── .gitignore
+    ├── Cargo.lock
+    ├── Cargo.toml
+    ├── LICENSE
+    ├── STRUCTURE.md
+    └── README.md
+```

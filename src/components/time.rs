@@ -1,11 +1,10 @@
 use iced::widget::text;
 use iced::Element;
-use crate::theme;
+use crate::theme::palette;
 
-// CORRECCIÓN: time_str: &'a str
 pub fn view<'a, Message>(time_str: &'a str) -> Element<'a, Message> {
     text(time_str)
-        .size(theme::FONT_SIZE)
-        .color(theme::TEXT_MAIN)
+        .size(palette::typography::F_SIZE_MAIN)
+        .color(palette::colors::C_TEXT)
         .into()
 }

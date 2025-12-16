@@ -1,12 +1,11 @@
 use iced::widget::text;
 use iced::{Element};
-use crate::theme;
+use crate::theme::palette;
 
-// Por ahora es estático, luego le pasaremos temperatura real
 pub fn view<'a, Message>() -> Element<'a, Message> {
     text(" +22°C")
-        .size(theme::FONT_SIZE)
-        .color(theme::TEXT_MAIN)
-        .font(theme::FONT)
+        .size(palette::typography::F_SIZE_MAIN)
+        .color(palette::colors::C_TEXT)
+        .font(palette::typography::FONT)
         .into()
 }

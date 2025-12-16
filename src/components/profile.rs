@@ -1,10 +1,10 @@
 use iced::widget::{text};
 use iced::{Element};
-use crate::theme;
+use crate::theme::palette;
 
 pub fn view<'a, Message>() -> Element<'a, Message> where Message: 'a {
     text("User")
-        .size(theme::FONT_SIZE)
-        .color(theme::TEXT_MAIN)
+        .size(palette::typography::F_SIZE_MAIN)
+        .color(palette::colors::C_TEXT)
         .into()
 }
