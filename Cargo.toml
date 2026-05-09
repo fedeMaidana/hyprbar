@@ -1,0 +1,43 @@
+[package]
+name = "hyprbar"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+smithay-client-toolkit = "0.20"
+wayland-client = "0.31"
+wayland-backend = { version = "0.3", features = ["client_system"] }
+raw-window-handle = "0.6"
+
+calloop = "0.14"
+calloop-wayland-source = "0.4"
+
+vello = "0.8"
+pollster = "0.4"
+parley = "0.9"
+
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+
+ureq = { version = "3.3.0", default-features = false, features = ["rustls"] }
+serde_json = "1"
+
+# Decoding de imágenes para la pill de perfil. JPEG y PNG cubren los casos
+# comunes; si más adelante querés WebP o GIF, agregá la feature correspondiente.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+
+# IPC con Hyprland: lo hacemos a mano con Unix sockets.
+# (hyprland-rs 0.3 busca el socket en /tmp/hypr/, pero desde
+# Hyprland 0.42+ vive en $XDG_RUNTIME_DIR/hypr/.)
+
+anyhow = "1"
+thiserror = "2"
+
+log = "0.4"
+env_logger = "0.11"
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
