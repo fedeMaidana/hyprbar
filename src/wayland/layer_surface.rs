@@ -1,6 +1,8 @@
 //! Configuración del layer-surface (qué borde, qué capa, exclusive zone).
 
-use smithay_client_toolkit::shell::wlr_layer::{Anchor as SctkAnchor, KeyboardInteractivity, Layer as SctkLayer, LayerSurface};
+use smithay_client_toolkit::shell::wlr_layer::{
+    Anchor as SctkAnchor, KeyboardInteractivity, Layer as SctkLayer, LayerSurface,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum LayerPosition {

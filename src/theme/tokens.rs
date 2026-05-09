@@ -15,7 +15,6 @@ pub struct Tokens {
     pub pill_radius: f32,
 
     pub shadow_offset_y: f32,
-    pub shadow_blur: f32,
 }
 
 impl Default for Tokens {
@@ -28,11 +27,10 @@ impl Default for Tokens {
             pill_height: 26.0,
             pill_gap: 5.0,
             pill_padding_x: 9.0,
-            pill_padding_y: 4.0,
+            pill_padding_y: 6.0,
             pill_radius: 12.0,
 
             shadow_offset_y: 1.0,
-            shadow_blur: 6.0,
         }
     }
 }

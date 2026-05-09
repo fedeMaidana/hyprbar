@@ -1,68 +1,203 @@
-# arch-bar
+# Hyprbar
 
-Status bar para Hyprland (Wayland) construida sobre SCTK + wgpu + vello.
+A custom status bar for Hyprland built with Rust, Wayland, SCTK, wgpu, Vello, and Parley.
+
+The goal of this project is to build a clean, minimal, and highly customizable desktop bar for a Wayland/Hyprland environment.
+
+## Features
+
+- Wayland layer-shell surface.
+- GPU-based rendering with wgpu and Vello.
+- Text rendering with Parley.
+- Centralized theme system.
+- Pill-based UI components.
+- Date and clock widgets.
+- Weather widget using Open-Meteo.
+- Hyprland workspace integration through IPC sockets.
+- Static command center and notification pills.
+- Profile avatar pill loaded from disk.
 
 ## Stack
 
-- **smithay-client-toolkit**: cliente Wayland + layer-shell.
-- **wgpu**: backend gráfico.
-- **vello**: 2D scene API sobre wgpu.
-- **parley**: shaping y layout de texto.
-- **chrono**: fecha/hora.
+- **Rust**: main language.
+- **smithay-client-toolkit**: Wayland client abstractions and layer-shell support.
+- **wayland-client**: low-level Wayland protocol interaction.
+- **calloop**: event loop integration.
+- **wgpu**: graphics backend.
+- **vello**: 2D scene rendering.
+- **parley**: text shaping and layout.
+- **chrono**: date and time.
+- **ureq**: weather API requests.
+- **serde_json**: JSON parsing.
+- **image**: profile avatar decoding and resizing.
+- **anyhow**: application-level error handling.
+- **env_logger**: logging.
 
-## Estructura
+## Project Structure
 
-```
+```txt
 src/
-├── main.rs              # Entry point
-├── app.rs               # Coordinator: Wayland ↔ render loop
-├── theme/               # Sistema de diseño centralizado
-│   ├── colors.rs        # Paleta
-│   ├── tokens.rs        # Spacing, radio, sizing
-│   └── typography.rs    # Fuente, tamaños
-├── wayland/             # Abstracción sobre SCTK
-│   ├── connection.rs    # Estado Wayland + dispatch traits
-│   └── layer_surface.rs # Config de layer-shell (anchor, capa, etc.)
-├── render/              # Pipeline gráfico
-│   ├── context.rs       # wgpu + vello renderer
-│   └── text.rs          # parley + vello text rendering
-├── components/          # Primitives reutilizables
-│   ├── component.rs     # Trait Component
-│   └── pill.rs          # Primitive visual: pill con sombra
-└── bar/                 # La barra concreta
-    ├── layout.rs        # Layout 3 secciones (left/center/right)
-    └── date_pill.rs     # Pill de fecha (dd/mm)
+├── main.rs                  # Application entry point
+├── app.rs                   # Main application coordinator
+├── hyprland_ipc.rs          # Hyprland IPC client
+├── theme/                   # Centralized design system
+│   ├── colors.rs            # Color palette
+│   ├── tokens.rs            # Spacing, radius, sizing
+│   └── typography.rs        # Font families and text sizes
+├── wayland/                 # Wayland / SCTK integration
+│   ├── handlers.rs          # SCTK trait implementations
+│   ├── init.rs              # Wayland initialization
+│   └── layer_surface.rs     # Layer-shell configuration
+├── render/                  # Rendering pipeline
+│   ├── context.rs           # wgpu + Vello render context
+│   ├── geometry.rs          # Basic geometry types
+│   └── text.rs              # Parley + Vello text rendering
+├── components/              # Reusable UI primitives
+│   ├── component.rs         # Component trait
+│   ├── mod.rs
+│   └── pill.rs              # Base pill background
+└── bar/                     # Concrete bar components
+    ├── layout.rs            # Left / center / right layout
+    ├── arch_logo_pill.rs
+    ├── date_pill.rs
+    ├── clock_pill.rs
+    ├── weather_pill.rs
+    ├── command_center_pill.rs
+    ├── workspaces_pill.rs
+    ├── notifications_pill.rs
+    └── profile_pill.rs
 ```
 
-## Reglas de arquitectura
+## Architecture Rules
 
-1. **El theme es la única fuente de estilos.** Ningún componente hardcodea colores, tamaños ni radios. Todo sale de `Theme`.
-2. **El módulo wayland es opaco hacia adentro.** El resto del código no toca `wayland-client` ni `sctk` directamente.
-3. **Los componentes implementan `Component`.** Trait con `measure` (intrinsic size) y `render` (dibujar en bounds).
-4. **`Pill::draw` es el chasis visual de todo.** Cualquier componente que quiera el look glassy lo llama primero, después dibuja su contenido.
+1. **Theme is the single source of visual truth.**  
+   Components should not hardcode colors, sizes, radii, or spacing when those values belong in `Theme`.
 
-## Cómo crece
+2. **Wayland details stay inside the `wayland` module.**  
+   The rest of the application should not directly depend on low-level Wayland setup logic.
 
-- **Nuevo componente** → archivo en `bar/`, implementar `Component`, agregar al `Bar::new()`.
-- **Cambiar look** → editar `theme/`. Todos los componentes se actualizan.
-- **Más interacción (click, hover)** → agregar input handling en `wayland/` y métodos al trait `Component`.
-- **Animaciones** → reemplazar `blocking_dispatch` por un timer de 16ms en `app.rs` y agregar estado animable en componentes.
-- **Cuando haya 5+ componentes** → migrar `bar/layout.rs` a `taffy` para flexbox real.
+3. **UI elements implement `Component`.**  
+   Components expose:
+   - `measure`: calculate intrinsic size.
+   - `render`: draw inside the provided bounds.
 
-## Build
+4. **`Pill::draw` is the visual base for pill components.**  
+   Components draw the shared background first, then render their own content on top.
+
+5. **The app state is intentionally centralized.**  
+   The Wayland event queue and the calloop loop need a single shared state type, so `AppState` coordinates Wayland, rendering, theme, and UI state.
+
+## Requirements
+
+- Linux.
+- A Wayland compositor with `wlr-layer-shell` support.
+- Hyprland recommended.
+- Rust stable or nightly with edition 2024 support.
+- Fonts:
+  - `Inter` or a compatible fallback.
+  - `Symbols Nerd Font` for icons.
+
+## Running
+
+```sh
+cargo run
+```
+
+For a release build:
 
 ```sh
 cargo run --release
 ```
 
-Requiere un compositor con soporte de `wlr-layer-shell` (Hyprland, Sway, river, etc.).
+Enable logs with:
 
-## Estado actual
+```sh
+RUST_LOG=info cargo run
+```
 
-Skeleton funcional. Renderiza una pill con la fecha en formato dd/mm en la esquina superior izquierda. Listo para crecer.
+Or for more detailed Hyprland event logs:
 
-## Limitaciones conocidas
+```sh
+RUST_LOG=debug cargo run
+```
 
-- **Sombra fake.** Vello no tiene blur built-in. Para sombra con blur real, pre-renderizar la pill a una textura y aplicar un compute shader de blur. Para glassmorphism con blur del wallpaper detrás, no es posible con `wlr-layer-shell` actualmente — el compositor tendría que exponer una extensión.
-- **Re-render solo en eventos.** El loop bloquea con `blocking_dispatch`. Para refrescar la fecha cada minuto o animar, necesitás un timer paralelo (usar `calloop` o `tokio` + integración con el event queue).
-- **Sin input.** El layer está en `KeyboardInteractivity::None` y no hay handling de mouse aún. Cuando agregues popovers/click, hay que manejar `wl_pointer`.
+## Assets
+
+The profile pill currently tries to load:
+
+```txt
+assets/profile.jpeg
+```
+
+If the image is missing or cannot be decoded, the bar falls back to a simple placeholder circle.
+
+## Hyprland IPC
+
+Hyprbar talks to Hyprland directly through its Unix sockets.
+
+Hyprland exposes sockets under:
+
+```txt
+$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/
+```
+
+Used sockets:
+
+- `.socket.sock`: request/response queries.
+- `.socket2.sock`: event stream.
+
+This is implemented manually instead of using `hyprland-rs`, because older versions of that crate may look for sockets in deprecated locations.
+
+## Current State
+
+Hyprbar currently renders a functional top bar with several pill-based widgets:
+
+- Arch logo.
+- Date.
+- Clock.
+- Weather.
+- Command center placeholder.
+- Hyprland workspaces.
+- Notifications placeholder.
+- Profile avatar.
+
+The project is still early-stage, but the current structure is ready to grow component by component.
+
+## Known Limitations
+
+- **No real blur yet.**  
+  The pill shadow is currently a simple solid shadow. Real blur would require rendering to an intermediate texture and applying a blur pass.
+
+- **No wallpaper/background blur.**  
+  True glassmorphism blur behind the bar is not currently available through standard `wlr-layer-shell`. That would require compositor-level support.
+
+- **Limited input handling.**  
+  The current bar focuses on rendering. Clicks, hover states, popovers, and interactive panels still need proper pointer/input handling.
+
+- **Weather location is hardcoded.**  
+  The weather widget currently uses a fixed location. This should eventually move to configuration.
+
+- **Notifications are static for now.**  
+  The notification pill is present visually, but it does not yet connect to a notification daemon.
+
+## Roadmap Ideas
+
+- Config file support.
+- Click handling.
+- Hover states.
+- Command center popover.
+- Notification daemon integration.
+- Configurable weather location.
+- Workspace animations.
+- More robust font fallback.
+- Optional Taffy-based layout if the layout becomes more complex.
+- CI with `cargo fmt`, `cargo clippy`, and `cargo test`.
+
+## Development Philosophy
+
+Build it in this order:
+
+1. Make it work.
+2. Make it clear.
+3. Make it beautiful.
+4. Then scale the complexity.

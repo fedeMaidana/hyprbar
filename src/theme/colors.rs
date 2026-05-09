@@ -8,7 +8,6 @@ pub struct Palette {
     pub text_primary: Color,
     pub text_secondary: Color,
     pub accent: Color,
-    pub arch_blue: Color,
     pub shadow: Color,
 
     /// Fondo de un slot de workspace activo (resaltado claro).
@@ -28,7 +27,6 @@ impl Palette {
             text_primary: Color::from_rgba8(0xf5, 0xf5, 0xf7, 0xff),
             text_secondary: Color::from_rgba8(0xa0, 0xa0, 0xa8, 0xff),
             accent: Color::from_rgba8(0x9a, 0x8c, 0xff, 0xff),
-            arch_blue: Color::from_rgba8(0x17, 0x93, 0xd1, 0xff),
             shadow: Color::from_rgba8(0x00, 0x00, 0x00, 0x40),
 
             // Slot activo: lavanda muy claro casi blanco

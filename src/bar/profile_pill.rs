@@ -10,11 +10,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use vello::{
-    kurbo::{Affine, Circle},
-    peniko::{
-        Blob, BlendMode, Compose, Fill, ImageAlphaType, ImageData, ImageFormat, Mix,
-    },
     Scene,
+    kurbo::{Affine, Circle},
+    peniko::{BlendMode, Blob, Compose, Fill, ImageAlphaType, ImageData, ImageFormat, Mix},
 };
 
 use crate::components::{Component, RenderCtx};

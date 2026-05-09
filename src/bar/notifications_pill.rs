@@ -6,9 +6,9 @@
 //! compartido (mismo patrón que workspaces).
 
 use vello::{
+    Scene,
     kurbo::{Affine, Circle},
     peniko::Fill,
-    Scene,
 };
 
 use crate::components::{Component, Pill, RenderCtx};
@@ -69,9 +69,11 @@ impl Component for NotificationsPill {
         // Solo visible cuando hay notificaciones pendientes.
         let count = self.count();
         if count > 0 {
-            let (iw, _) = ctx
-                .text
-                .measure(BELL_GLYPH, icon_size, &ctx.theme.typography.icon_font_family);
+            let (iw, _) = ctx.text.measure(
+                BELL_GLYPH,
+                icon_size,
+                &ctx.theme.typography.icon_font_family,
+            );
 
             let dot_radius = 3.5_f32;
             let dot_cx = bounds.x + pad_x + iw - dot_radius * 0.5;

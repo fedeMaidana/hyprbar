@@ -12,8 +12,8 @@ use smithay_client_toolkit::{
     shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
 };
 use wayland_client::{
-    protocol::{wl_output, wl_surface},
     Connection, QueueHandle,
+    protocol::{wl_output, wl_surface},
 };
 
 use crate::app::AppState;

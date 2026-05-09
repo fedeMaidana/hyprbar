@@ -13,11 +13,11 @@ use smithay_client_toolkit::{
     output::OutputState,
     registry::RegistryState,
     shell::{
-        wlr_layer::{LayerShell, LayerSurface},
         WaylandSurface,
+        wlr_layer::{LayerShell, LayerSurface},
     },
 };
-use wayland_client::{globals::registry_queue_init, Connection, EventQueue, QueueHandle};
+use wayland_client::{Connection, EventQueue, QueueHandle, globals::registry_queue_init};
 
 use crate::app::AppState;
 
@@ -32,10 +32,7 @@ pub struct WaylandInit {
     pub layer: LayerSurface,
 }
 
-pub fn init(
-    conn: &Connection,
-    config: LayerConfig,
-) -> Result<(WaylandInit, EventQueue<AppState>)> {
+pub fn init(conn: &Connection, config: LayerConfig) -> Result<(WaylandInit, EventQueue<AppState>)> {
     let (globals, event_queue) =
         registry_queue_init::<AppState>(conn).context("registry_queue_init failed")?;
     let qh: QueueHandle<AppState> = event_queue.handle();
@@ -48,13 +45,8 @@ pub fn init(
         .context("zwlr_layer_shell_v1 no disponible — el compositor no soporta layer-shell")?;
 
     let surface = compositor_state.create_surface(&qh);
-    let layer = layer_shell.create_layer_surface(
-        &qh,
-        surface,
-        config.layer.into(),
-        Some("hyprbar"),
-        None,
-    );
+    let layer =
+        layer_shell.create_layer_surface(&qh, surface, config.layer.into(), Some("hyprbar"), None);
 
     config.apply_to(&layer);
     layer.commit();

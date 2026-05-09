@@ -7,9 +7,9 @@ use std::time::Duration;
 use calloop::channel::Sender;
 use serde_json::Value;
 use vello::{
+    Scene,
     kurbo::{Affine, RoundedRect},
     peniko::Fill,
-    Scene,
 };
 
 use crate::components::{Component, Pill, RenderCtx};
@@ -74,12 +74,11 @@ struct SlotGeometry {
     slot_box_height: f32,
     gap: f32,
     h_padding: f32,
-    v_padding: f32,
 }
 
 impl SlotGeometry {
     fn from_theme(theme: &crate::theme::Theme) -> Self {
-        let v_padding = 6.0;
+        let v_padding = theme.tokens.pill_padding_y;
         let cell_height = theme.tokens.pill_height - v_padding * 2.0;
         // Activo: más ancho que alto y muy redondeado (look de pill ovalada)
         let active_height = cell_height;
@@ -104,7 +103,6 @@ impl SlotGeometry {
             // Mismo padding lateral que las otras pills, para mantener
             // consistencia de espaciado interno.
             h_padding: theme.tokens.pill_padding_x,
-            v_padding,
         }
     }
 
@@ -191,9 +189,9 @@ impl Component for WorkspacesPill {
             if is_active {
                 let label = slot_id.to_string();
                 let size = ctx.theme.typography.size_base;
-                let (tw, _) =
-                    ctx.text
-                        .measure(&label, size, &ctx.theme.typography.font_family);
+                let (tw, _) = ctx
+                    .text
+                    .measure(&label, size, &ctx.theme.typography.font_family);
                 let text_x = x + (slot_w - tw) / 2.0;
                 ctx.text.draw_centered_v(
                     scene,
@@ -248,16 +246,20 @@ fn listener_loop(state: Arc<Mutex<WorkspaceData>>, redraw: Sender<()>) {
 
     for event in stream {
         match event {
-            Ok(ev) => match ev.name.as_str() {
-                "workspace" | "createworkspace" | "destroyworkspace" | "focusedmon" => {
-                    if let Err(e) = refresh(&state) {
-                        log::warn!("refresh tras evento {}: {e}", ev.name);
-                    } else {
-                        let _ = redraw.send(());
+            Ok(ev) => {
+                log::debug!("hyprland event: {}>>{}", ev.name, ev.data);
+
+                match ev.name.as_str() {
+                    "workspace" | "createworkspace" | "destroyworkspace" | "focusedmon" => {
+                        if let Err(e) = refresh(&state) {
+                            log::warn!("refresh tras evento {}: {e}", ev.name);
+                        } else {
+                            let _ = redraw.send(());
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
-            },
+            }
             Err(e) => log::warn!("event parse: {e}"),
         }
     }

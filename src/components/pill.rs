@@ -5,9 +5,9 @@
 //! para el fondo, y después dibuja su contenido encima.
 
 use vello::{
-    kurbo::{Affine, RoundedRect},
-    peniko::{Color, Fill},
     Scene,
+    kurbo::{Affine, RoundedRect},
+    peniko::Fill
 };
 
 use crate::render::Rect;
@@ -54,18 +54,5 @@ impl Pill {
             None,
             &body,
         );
-    }
-
-    /// Variante con color de fondo custom (útil para pills con acento, ej: Arch logo).
-    pub fn draw_with_color(scene: &mut Scene, bounds: Rect, theme: &Theme, color: Color) {
-        let radius = theme.tokens.pill_radius as f64;
-        let body = RoundedRect::new(
-            bounds.x as f64,
-            bounds.y as f64,
-            (bounds.x + bounds.width) as f64,
-            (bounds.y + bounds.height) as f64,
-            radius,
-        );
-        scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &body);
     }
 }

@@ -5,11 +5,11 @@
 //! La razón por la que es un state único: `calloop_wayland_source` exige
 //! que el state del calloop loop sea el mismo que dispatchea el EventQueue.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use calloop::{
-    channel::{channel, Event as ChannelEvent},
-    timer::{TimeoutAction, Timer},
     EventLoop,
+    channel::{Event as ChannelEvent, channel},
+    timer::{TimeoutAction, Timer},
 };
 use calloop_wayland_source::WaylandSource;
 use raw_window_handle::{
@@ -21,8 +21,8 @@ use smithay_client_toolkit::{
     output::OutputState,
     registry::RegistryState,
     shell::{
-        wlr_layer::{LayerShell, LayerSurface},
         WaylandSurface,
+        wlr_layer::{LayerShell, LayerSurface},
     },
 };
 use std::{ptr::NonNull, time::Duration};
@@ -47,8 +47,8 @@ impl SurfaceHandle {
     fn new(conn: &Connection, surface: &wayland_client::protocol::wl_surface::WlSurface) -> Self {
         let display_ptr = NonNull::new(conn.backend().display_ptr() as *mut _)
             .expect("display ptr no debería ser null");
-        let surface_ptr = NonNull::new(surface.id().as_ptr() as *mut _)
-            .expect("surface ptr no debería ser null");
+        let surface_ptr =
+            NonNull::new(surface.id().as_ptr() as *mut _).expect("surface ptr no debería ser null");
         Self {
             display_ptr,
             surface_ptr,
@@ -74,8 +74,9 @@ pub struct AppState {
     // === Wayland ===
     pub registry_state: RegistryState,
     pub output_state: OutputState,
-    pub compositor_state: CompositorState,
-    pub layer_shell: LayerShell,
+    // Keep these SCTK handles alive for the lifetime of the app.
+    _compositor_state: CompositorState,
+    _layer_shell: LayerShell,
     pub layer: LayerSurface,
     pub configured: bool,
     pub width: u32,
@@ -108,8 +109,12 @@ impl AppState {
             theme: &self.theme,
             text: &mut self.text_engine,
         };
-        self.bar
-            .render(&mut self.render_ctx.scene, surface_rect, &self.theme, &mut ctx);
+        self.bar.render(
+            &mut self.render_ctx.scene,
+            surface_rect,
+            &self.theme,
+            &mut ctx,
+        );
 
         self.render_ctx.render()?;
         Ok(())
@@ -143,8 +148,8 @@ impl App {
         let mut app = AppState {
             registry_state: wl_init.registry_state,
             output_state: wl_init.output_state,
-            compositor_state: wl_init.compositor_state,
-            layer_shell: wl_init.layer_shell,
+            _compositor_state: wl_init.compositor_state,
+            _layer_shell: wl_init.layer_shell,
             layer: wl_init.layer,
             configured: false,
             width: 0,

@@ -1,13 +1,10 @@
 //! Text rendering vía parley (shaping/layout) + vello (glyph drawing).
 
-use parley::{
-    style::FontFamily,
-    FontContext, Layout, LayoutContext, StyleProperty,
-};
+use parley::{FontContext, Layout, LayoutContext, StyleProperty, style::FontFamily};
 use vello::{
+    Scene,
     kurbo::Affine,
     peniko::{Brush, Color, Fill},
-    Scene,
 };
 
 pub struct TextEngine {
@@ -35,7 +32,10 @@ impl TextEngine {
         builder.push_default(StyleProperty::FontFamily(fam));
         let mut layout = builder.build(text);
         layout.break_all_lines(None);
-        layout.align(parley::Alignment::Start, parley::AlignmentOptions::default());
+        layout.align(
+            parley::Alignment::Start,
+            parley::AlignmentOptions::default(),
+        );
         layout
     }
 

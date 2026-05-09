@@ -4,11 +4,12 @@
 //! 1. Renderizar la scene a una textura intermedia (Rgba8Unorm con STORAGE_BINDING).
 //! 2. Blittear esa textura al surface usando `wgpu::util::TextureBlitter`.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use vello::{
+    AaConfig, Renderer, RendererOptions, Scene,
     util::{RenderContext as VelloUtilContext, RenderSurface},
-    wgpu, AaConfig, Renderer, RendererOptions, Scene,
+    wgpu,
 };
 
 pub struct RenderContext {
@@ -61,7 +62,9 @@ impl RenderContext {
         {
             log::info!("alpha_mode: {:?}", alpha_mode);
             surface.config.alpha_mode = alpha_mode;
-            surface.surface.configure(&device_handle.device, &surface.config);
+            surface
+                .surface
+                .configure(&device_handle.device, &surface.config);
         } else {
             log::warn!(
                 "compositor no soporta alpha_modes transparentes. Disponibles: {:?}",
@@ -113,12 +116,6 @@ impl RenderContext {
             self.vello_ctx.resize_surface(s, width, height);
             self.rebuild_intermediate(width, height);
         }
-    }
-
-    pub fn size(&self) -> Option<(u32, u32)> {
-        self.surface
-            .as_ref()
-            .map(|s| (s.config.width, s.config.height))
     }
 
     pub fn render(&mut self) -> Result<()> {

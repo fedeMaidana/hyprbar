@@ -9,9 +9,6 @@ pub struct Typography {
     /// que hay que pedírsela explícitamente.
     pub icon_font_family: String,
     pub size_base: f32,
-    pub size_small: f32,
-    pub weight_regular: f32,
-    pub weight_medium: f32,
 }
 
 impl Default for Typography {
@@ -21,9 +18,6 @@ impl Default for Typography {
             // Nombre típico; ajustar según `fc-list | grep -i nerd`.
             icon_font_family: "Symbols Nerd Font".to_string(),
             size_base: 10.0,
-            size_small: 7.0,
-            weight_regular: 400.0,
-            weight_medium: 500.0,
         }
     }
 }
