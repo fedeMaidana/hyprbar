@@ -11,3 +11,14 @@ mod state;
 
 pub use config::WeatherConfig;
 pub use pill::WeatherPill;
+
+// ─── < Tests > ────────────────────────────────────────────────────
+
+#[doc(hidden)]
+pub use icons::{UNKNOWN_WEATHER_ICON, weather_icon};
+
+#[doc(hidden)]
+pub use mapper::parse_weather_snapshot;
+
+#[doc(hidden)]
+pub use state::WeatherSnapshot;

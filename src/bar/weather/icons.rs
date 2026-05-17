@@ -19,18 +19,3 @@ pub fn weather_icon(code: u32) -> &'static str {
         _ => UNKNOWN_WEATHER_ICON,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn maps_clear_sky_icon() {
-        assert_eq!(weather_icon(0), "\u{e30d}");
-    }
-
-    #[test]
-    fn maps_unknown_weather_code_to_fallback_icon() {
-        assert_eq!(weather_icon(999), UNKNOWN_WEATHER_ICON);
-    }
-}
