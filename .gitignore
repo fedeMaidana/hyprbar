@@ -1,5 +1,6 @@
 /target
 
 /assets/*
+!/assets/.gitkeep
 /assets/profile.*
 /assets/avatar.*
