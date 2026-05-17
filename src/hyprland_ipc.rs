@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::env;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -11,6 +11,7 @@ use std::time::Duration;
 // ─── < Constants > ────────────────────────────────────────────────────
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
+const EVENT_STREAM_TIMEOUT: Duration = Duration::from_millis(500);
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -24,18 +25,40 @@ pub struct HyprEvent {
     pub data: String,
 }
 
+// ─── < Enums > ────────────────────────────────────────────────────
+
+pub enum EventStreamRead {
+    Event(HyprEvent),
+    Timeout,
+    Closed,
+}
+
 // ─── < Implementations > ────────────────────────────────────────────────────
+
+impl EventStream {
+    pub fn next_event(&mut self) -> Result<EventStreamRead> {
+        let mut line = String::new();
+
+        match self.reader.read_line(&mut line) {
+            Ok(0) => Ok(EventStreamRead::Closed),
+            Ok(_) => Ok(EventStreamRead::Event(parse_event(&line)?)),
+            Err(error) if is_timeout_error(&error) => Ok(EventStreamRead::Timeout),
+            Err(error) => Err(anyhow!("read_line: {error}")),
+        }
+    }
+}
 
 impl Iterator for EventStream {
     type Item = Result<HyprEvent>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut line = String::new();
-
-        match self.reader.read_line(&mut line) {
-            Ok(0) => None,
-            Ok(_) => Some(parse_event(&line)),
-            Err(error) => Some(Err(anyhow!("read_line: {error}"))),
+        loop {
+            match self.next_event() {
+                Ok(EventStreamRead::Event(event)) => return Some(Ok(event)),
+                Ok(EventStreamRead::Timeout) => continue,
+                Ok(EventStreamRead::Closed) => return None,
+                Err(error) => return Some(Err(error)),
+            }
         }
     }
 }
@@ -70,6 +93,10 @@ pub fn dispatch_workspace(workspace_id: i32) -> Result<()> {
 pub fn event_stream() -> Result<EventStream> {
     let path = socket_dir()?.join(".socket2.sock");
     let stream = UnixStream::connect(&path).with_context(|| format!("conectando a {}", path.display()))?;
+
+    stream
+        .set_read_timeout(Some(EVENT_STREAM_TIMEOUT))
+        .context("configurando read timeout para event stream de Hyprland")?;
 
     Ok(EventStream {
         reader: BufReader::new(stream),
@@ -121,4 +148,8 @@ fn parse_event(line: &str) -> Result<HyprEvent> {
         name: name.to_string(),
         data: data.to_string(),
     })
+}
+
+fn is_timeout_error(error: &std::io::Error) -> bool {
+    matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut)
 }

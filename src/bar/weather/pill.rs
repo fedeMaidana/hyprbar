@@ -2,6 +2,7 @@
 
 use vello::Scene;
 
+use crate::app::WorkerHandle;
 use crate::components::{Component, Pill, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
@@ -19,6 +20,7 @@ const ICON_SCALE: f32 = 1.2;
 
 pub struct WeatherPill {
     store: WeatherStore,
+    _fetcher: Option<WorkerHandle>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -26,10 +28,9 @@ pub struct WeatherPill {
 impl WeatherPill {
     pub fn new(config: WeatherConfig) -> Self {
         let store = WeatherStore::new();
+        let fetcher = spawn_fetcher(config, store.clone());
 
-        spawn_fetcher(config, store.clone());
-
-        Self { store }
+        Self { store, _fetcher: fetcher }
     }
 
     fn current_parts(&self) -> (&'static str, String) {

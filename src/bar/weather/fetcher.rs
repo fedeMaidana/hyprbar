@@ -1,7 +1,8 @@
-// ─── < Implementations > ────────────────────────────────────────────────────
+// ─── < Imports > ────────────────────────────────────────────────────
 
 use anyhow::Result;
-use std::thread;
+
+use crate::app::{ShutdownToken, WorkerHandle};
 
 use super::config::WeatherConfig;
 use super::mapper::parse_weather_snapshot;
@@ -9,20 +10,20 @@ use super::state::{WeatherSnapshot, WeatherStore};
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
-pub fn spawn_fetcher(config: WeatherConfig, store: WeatherStore) {
-    match thread::Builder::new()
-        .name("weather-fetcher".to_string())
-        .spawn(move || fetcher_loop(config, store))
-    {
-        Ok(_handle) => {}
-        Err(error) => log::error!("weather fetcher spawn failed: {error}"),
+pub fn spawn_fetcher(config: WeatherConfig, store: WeatherStore) -> Option<WorkerHandle> {
+    match WorkerHandle::spawn("weather-fetcher", move |shutdown| fetcher_loop(config, store, shutdown)) {
+        Ok(worker) => Some(worker),
+        Err(error) => {
+            log::error!("weather fetcher spawn failed: {error}");
+            None
+        }
     }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn fetcher_loop(config: WeatherConfig, store: WeatherStore) {
-    loop {
+fn fetcher_loop(config: WeatherConfig, store: WeatherStore, shutdown: ShutdownToken) {
+    while !shutdown.should_stop() {
         match fetch_once(&config) {
             Ok(snapshot) => {
                 log::info!("weather: {}°C code={}", snapshot.temp_c.round() as i32, snapshot.weather_code);
@@ -34,8 +35,12 @@ fn fetcher_loop(config: WeatherConfig, store: WeatherStore) {
             }
         }
 
-        thread::sleep(config.fetch_interval);
+        if shutdown.sleep(config.fetch_interval) {
+            break;
+        }
     }
+
+    log::info!("weather fetcher stopped");
 }
 
 fn fetch_once(config: &WeatherConfig) -> Result<WeatherSnapshot> {

@@ -5,6 +5,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::{Color, Fill};
 
+use crate::app::WorkerHandle;
 use crate::components::{Component, Interaction, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
@@ -16,6 +17,7 @@ use super::state::{WorkspaceData, WorkspaceStore};
 
 pub struct WorkspacesPill {
     store: WorkspaceStore,
+    _listener: Option<WorkerHandle>,
 }
 
 struct SlotVisual {
@@ -36,10 +38,12 @@ struct SlotHitBox {
 impl WorkspacesPill {
     pub fn new(redraw_signal: Sender<()>) -> Self {
         let store = WorkspaceStore::new();
+        let listener = spawn_listener(store.clone(), redraw_signal);
 
-        spawn_listener(store.clone(), redraw_signal);
-
-        Self { store }
+        Self {
+            store,
+            _listener: listener,
+        }
     }
 
     fn snapshot(&self) -> WorkspaceData {

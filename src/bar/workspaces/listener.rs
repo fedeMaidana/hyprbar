@@ -2,10 +2,10 @@
 
 use anyhow::Result;
 use calloop::channel::Sender;
-use std::thread;
 use std::time::Duration;
 
-use crate::hyprland_ipc;
+use crate::app::{ShutdownToken, WorkerHandle};
+use crate::hyprland_ipc::{self, EventStreamRead};
 
 use super::mapper::parse_workspace_data;
 use super::state::WorkspaceStore;
@@ -17,18 +17,24 @@ const INITIAL_FETCH_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
-pub fn spawn_listener(store: WorkspaceStore, redraw_signal: Sender<()>) {
-    thread::spawn(move || listener_loop(store, redraw_signal));
+pub fn spawn_listener(store: WorkspaceStore, redraw_signal: Sender<()>) -> Option<WorkerHandle> {
+    match WorkerHandle::spawn("hyprland-workspaces-listener", move |shutdown| listener_loop(store, redraw_signal, shutdown)) {
+        Ok(worker) => Some(worker),
+        Err(error) => {
+            log::error!("hyprland listener spawn failed: {error}");
+            None
+        }
+    }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn listener_loop(store: WorkspaceStore, redraw: Sender<()>) {
-    if !wait_for_initial_refresh(&store, &redraw) {
+fn listener_loop(store: WorkspaceStore, redraw: Sender<()>, shutdown: ShutdownToken) {
+    if !wait_for_initial_refresh(&store, &redraw, &shutdown) {
         return;
     }
 
-    let stream = match hyprland_ipc::event_stream() {
+    let mut stream = match hyprland_ipc::event_stream() {
         Ok(stream) => stream,
         Err(error) => {
             log::error!("hyprland event_stream: {error}");
@@ -36,26 +42,41 @@ fn listener_loop(store: WorkspaceStore, redraw: Sender<()>) {
         }
     };
 
-    for event in stream {
-        match event {
-            Ok(event) => {
+    loop {
+        if shutdown.should_stop() {
+            break;
+        }
+
+        match stream.next_event() {
+            Ok(EventStreamRead::Event(event)) => {
                 log::debug!("hyprland event: {}>>{}", event.name, event.data);
 
                 if should_refresh_after_event(&event.name) {
                     refresh_or_log(&store, &redraw, &event.name);
                 }
             }
-            Err(error) => log::warn!("event parse: {error}"),
+            Ok(EventStreamRead::Timeout) => {}
+            Ok(EventStreamRead::Closed) => {
+                log::warn!("hyprland event stream terminó (socket cerrado)");
+                break;
+            }
+            Err(error) => {
+                log::warn!("event parse: {error}");
+            }
         }
     }
 
-    log::warn!("hyprland event stream terminó (socket cerrado)");
+    log::info!("hyprland workspaces listener stopped");
 }
 
-fn wait_for_initial_refresh(store: &WorkspaceStore, redraw: &Sender<()>) -> bool {
+fn wait_for_initial_refresh(store: &WorkspaceStore, redraw: &Sender<()>, shutdown: &ShutdownToken) -> bool {
     let mut retries = 0;
 
     loop {
+        if shutdown.should_stop() {
+            return false;
+        }
+
         match refresh(store) {
             Ok(()) => {
                 let _ = redraw.send(());
@@ -72,7 +93,9 @@ fn wait_for_initial_refresh(store: &WorkspaceStore, redraw: &Sender<()>) -> bool
 
                 log::warn!("hyprland fetch (retry {retries}/{MAX_INITIAL_FETCH_RETRIES}): {error}");
 
-                thread::sleep(INITIAL_FETCH_RETRY_DELAY);
+                if shutdown.sleep(INITIAL_FETCH_RETRY_DELAY) {
+                    return false;
+                }
             }
         }
     }
