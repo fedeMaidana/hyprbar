@@ -1,6 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -35,10 +35,22 @@ impl WorkspaceStore {
     }
 
     pub fn snapshot(&self) -> WorkspaceData {
-        self.inner.lock().unwrap().clone()
+        self.lock().clone()
     }
 
     pub fn replace(&self, data: WorkspaceData) {
-        *self.inner.lock().unwrap() = data;
+        let mut guard = self.lock();
+
+        *guard = data;
+    }
+
+    fn lock(&self) -> MutexGuard<'_, WorkspaceData> {
+        match self.inner.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::warn!("workspace store mutex was poisoned; recovering latest value");
+                poisoned.into_inner()
+            }
+        }
     }
 }

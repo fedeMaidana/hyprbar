@@ -1,6 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -29,10 +29,22 @@ impl WeatherStore {
     }
 
     pub fn snapshot(&self) -> Option<WeatherSnapshot> {
-        *self.inner.lock().unwrap()
+        *self.lock()
     }
 
     pub fn replace(&self, snapshot: WeatherSnapshot) {
-        *self.inner.lock().unwrap() = Some(snapshot);
+        let mut guard = self.lock();
+
+        *guard = Some(snapshot);
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Option<WeatherSnapshot>> {
+        match self.inner.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::warn!("weather store mutex was poisoned; recovering latest value");
+                poisoned.into_inner()
+            }
+        }
     }
 }
