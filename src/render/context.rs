@@ -36,13 +36,8 @@ impl RenderContext {
     where
         H: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static,
     {
-        let mut surface = pollster::block_on(self.vello_ctx.create_surface(
-            handle,
-            width,
-            height,
-            wgpu::PresentMode::AutoVsync,
-        ))
-        .map_err(|error| anyhow!("vello create_surface failed: {error:?}"))?;
+        let mut surface = pollster::block_on(self.vello_ctx.create_surface(handle, width, height, wgpu::PresentMode::AutoVsync))
+            .map_err(|error| anyhow!("vello create_surface failed: {error:?}"))?;
 
         let device_handle = &self.vello_ctx.devices[surface.dev_id];
         let caps = surface.surface.get_capabilities(device_handle.adapter());
@@ -53,21 +48,13 @@ impl RenderContext {
             wgpu::CompositeAlphaMode::Inherit,
         ];
 
-        if let Some(&alpha_mode) = preferred_alpha_modes
-            .iter()
-            .find(|mode| caps.alpha_modes.contains(mode))
-        {
+        if let Some(&alpha_mode) = preferred_alpha_modes.iter().find(|mode| caps.alpha_modes.contains(mode)) {
             log::info!("alpha_mode: {:?}", alpha_mode);
 
             surface.config.alpha_mode = alpha_mode;
-            surface
-                .surface
-                .configure(&device_handle.device, &surface.config);
+            surface.surface.configure(&device_handle.device, &surface.config);
         } else {
-            log::warn!(
-                "compositor no soporta alpha_modes transparentes. Disponibles: {:?}",
-                caps.alpha_modes
-            );
+            log::warn!("compositor no soporta alpha_modes transparentes. Disponibles: {:?}", caps.alpha_modes);
         }
 
         if self.renderer.is_none() {
@@ -99,19 +86,14 @@ impl RenderContext {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_SRC,
+            usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let blitter = wgpu::util::TextureBlitter::new(device, surface_format);
 
-        self.intermediate = Some(IntermediateTarget {
-            _texture: texture,
-            view,
-        });
+        self.intermediate = Some(IntermediateTarget { _texture: texture, view });
         self.blitter = Some(blitter);
     }
 
@@ -125,21 +107,13 @@ impl RenderContext {
     pub fn render(&mut self) -> Result<()> {
         let surface = self.surface.as_ref().context("surface no inicializado")?;
         let renderer = self.renderer.as_mut().context("renderer no inicializado")?;
-        let intermediate = self
-            .intermediate
-            .as_ref()
-            .context("intermediate no inicializado")?;
+        let intermediate = self.intermediate.as_ref().context("intermediate no inicializado")?;
         let blitter = self.blitter.as_ref().context("blitter no inicializado")?;
         let device_handle = &self.vello_ctx.devices[surface.dev_id];
 
-        let frame = surface
-            .surface
-            .get_current_texture()
-            .context("get_current_texture failed")?;
+        let frame = surface.surface.get_current_texture().context("get_current_texture failed")?;
 
-        let frame_view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+        let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         renderer
             .render_to_texture(
@@ -156,19 +130,11 @@ impl RenderContext {
             )
             .map_err(|error| anyhow!("render_to_texture failed: {error:?}"))?;
 
-        let mut encoder =
-            device_handle
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("blit"),
-                });
+        let mut encoder = device_handle
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("blit") });
 
-        blitter.copy(
-            &device_handle.device,
-            &mut encoder,
-            &intermediate.view,
-            &frame_view,
-        );
+        blitter.copy(&device_handle.device, &mut encoder, &intermediate.view, &frame_view);
 
         device_handle.queue.submit([encoder.finish()]);
 

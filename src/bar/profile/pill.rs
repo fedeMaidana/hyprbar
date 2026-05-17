@@ -26,9 +26,7 @@ impl ProfilePill {
             Ok(avatar) => {
                 log::info!("profile avatar cargado: {}", path.display());
 
-                Self {
-                    avatar: Some(avatar),
-                }
+                Self { avatar: Some(avatar) }
             }
             Err(error) => {
                 log::warn!("no pude cargar {}: {error}", path.display());
@@ -81,28 +79,16 @@ impl AvatarLayout {
     }
 
     fn outer_circle(&self) -> Circle {
-        Circle::new(
-            (self.center_x as f64, self.center_y as f64),
-            self.outer_radius as f64,
-        )
+        Circle::new((self.center_x as f64, self.center_y as f64), self.outer_radius as f64)
     }
 
     fn inner_circle(&self) -> Circle {
-        Circle::new(
-            (self.center_x as f64, self.center_y as f64),
-            self.inner_radius as f64,
-        )
+        Circle::new((self.center_x as f64, self.center_y as f64), self.inner_radius as f64)
     }
 }
 
 fn draw_border(scene: &mut Scene, ctx: &RenderCtx<'_>, layout: &AvatarLayout) {
-    scene.fill(
-        Fill::NonZero,
-        Affine::IDENTITY,
-        ctx.theme.palette.pill_bg,
-        None,
-        &layout.outer_circle(),
-    );
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.pill_bg, None, &layout.outer_circle());
 }
 
 fn draw_avatar(scene: &mut Scene, avatar: &ImageData, layout: &AvatarLayout) {
@@ -118,13 +104,7 @@ fn draw_avatar(scene: &mut Scene, avatar: &ImageData, layout: &AvatarLayout) {
 }
 
 fn draw_placeholder(scene: &mut Scene, ctx: &RenderCtx<'_>, layout: &AvatarLayout) {
-    scene.fill(
-        Fill::NonZero,
-        Affine::IDENTITY,
-        ctx.theme.palette.text_secondary,
-        None,
-        &layout.inner_circle(),
-    );
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.text_secondary, None, &layout.inner_circle());
 }
 
 fn avatar_cover_transform(avatar: &ImageData, layout: &AvatarLayout) -> Affine {

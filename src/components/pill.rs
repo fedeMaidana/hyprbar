@@ -31,28 +31,11 @@ impl Pill {
             (bounds.y + bounds.height) as f64 + shadow_offset,
             radius,
         );
-        scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            theme.palette.shadow,
-            None,
-            &shadow,
-        );
+        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.shadow, None, &shadow);
 
         // Cuerpo de la pill
-        let body = RoundedRect::new(
-            bounds.x as f64,
-            bounds.y as f64,
-            (bounds.x + bounds.width) as f64,
-            (bounds.y + bounds.height) as f64,
-            radius,
-        );
-        scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            theme.palette.pill_bg,
-            None,
-            &body,
-        );
+        let body =
+            RoundedRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64, radius);
+        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.pill_bg, None, &body);
     }
 }

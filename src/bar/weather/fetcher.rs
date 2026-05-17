@@ -20,11 +20,7 @@ fn fetcher_loop(config: WeatherConfig, store: WeatherStore) {
     loop {
         match fetch_once(&config) {
             Ok(snapshot) => {
-                log::info!(
-                    "weather: {}°C code={}",
-                    snapshot.temp_c.round() as i32,
-                    snapshot.weather_code
-                );
+                log::info!("weather: {}°C code={}", snapshot.temp_c.round() as i32, snapshot.weather_code);
 
                 store.replace(snapshot);
             }

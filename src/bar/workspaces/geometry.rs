@@ -44,11 +44,7 @@ impl SlotGeometry {
     pub fn pill_width(&self, data: &WorkspaceData) -> f32 {
         let count = data.visible_count();
 
-        let active_count = if data.active_id >= 1 && data.active_id <= count {
-            1
-        } else {
-            0
-        };
+        let active_count = if data.active_id >= 1 && data.active_id <= count { 1 } else { 0 };
 
         let inactive_count = count - active_count;
         let total_slots = active_count + inactive_count;

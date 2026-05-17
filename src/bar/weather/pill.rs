@@ -39,13 +39,9 @@ impl Component for WeatherPill {
         let icon_size = icon_size(ctx);
         let text_size = text_size(ctx);
 
-        let (icon_width, _) =
-            ctx.text
-                .measure(icon, icon_size, &ctx.theme.typography.icon_font_family);
+        let (icon_width, _) = ctx.text.measure(icon, icon_size, &ctx.theme.typography.icon_font_family);
 
-        let (text_width, _) = ctx
-            .text
-            .measure(&text, text_size, &ctx.theme.typography.font_family);
+        let (text_width, _) = ctx.text.measure(&text, text_size, &ctx.theme.typography.font_family);
 
         let width = icon_width + INNER_GAP + text_width + ctx.theme.tokens.pill_padding_x * 2.0;
 
@@ -79,28 +75,16 @@ fn draw_weather_icon(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, i
         bounds.x + pad_x,
         bounds.y,
         bounds.height,
-        TextStyle::new(
-            size,
-            &ctx.theme.typography.icon_font_family,
-            ctx.theme.palette.text_primary,
-        ),
+        TextStyle::new(size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_primary),
     );
 }
 
-fn draw_weather_text(
-    scene: &mut Scene,
-    bounds: Rect,
-    ctx: &mut RenderCtx<'_>,
-    icon: &str,
-    text: &str,
-) {
+fn draw_weather_text(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, icon: &str, text: &str) {
     let pad_x = ctx.theme.tokens.pill_padding_x;
     let icon_size = icon_size(ctx);
     let size = text_size(ctx);
 
-    let (icon_width, _) = ctx
-        .text
-        .measure(icon, icon_size, &ctx.theme.typography.icon_font_family);
+    let (icon_width, _) = ctx.text.measure(icon, icon_size, &ctx.theme.typography.icon_font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -108,11 +92,7 @@ fn draw_weather_text(
         bounds.x + pad_x + icon_width + INNER_GAP,
         bounds.y,
         bounds.height,
-        TextStyle::new(
-            size,
-            &ctx.theme.typography.font_family,
-            ctx.theme.palette.text_primary,
-        ),
+        TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 }
 

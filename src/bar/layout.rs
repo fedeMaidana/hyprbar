@@ -1,6 +1,6 @@
 use vello::Scene;
 
-use crate::components::{Component, RenderCtx};
+use crate::components::{Component, Interaction, Point, RenderCtx};
 use crate::render::Rect;
 use crate::theme::Theme;
 
@@ -12,34 +12,43 @@ pub struct Bar {
     center: Components,
     right: Components,
     center_sizes: ComponentSizes,
+    left_bounds: Vec<Rect>,
+    center_bounds: Vec<Rect>,
+    right_bounds: Vec<Rect>,
 }
 
 impl Bar {
     pub fn new(left: Components, center: Components, right: Components) -> Self {
         let center_sizes = Vec::with_capacity(center.len());
+        let left_bounds = Vec::with_capacity(left.len());
+        let center_bounds = Vec::with_capacity(center.len());
+        let right_bounds = Vec::with_capacity(right.len());
 
         Self {
             left,
             center,
             right,
             center_sizes,
+            left_bounds,
+            center_bounds,
+            right_bounds,
         }
     }
 
-    pub fn render(
-        &mut self,
-        scene: &mut Scene,
-        surface: Rect,
-        theme: &Theme,
-        ctx: &mut RenderCtx<'_>,
-    ) {
+    pub fn render(&mut self, scene: &mut Scene, surface: Rect, theme: &Theme, ctx: &mut RenderCtx<'_>) {
         let layout = BarLayout::new(surface, theme);
 
-        render_left_section(&mut self.left, scene, layout, ctx);
+        render_left_section(&mut self.left, &mut self.left_bounds, scene, layout, ctx);
 
-        render_center_section(&mut self.center, &mut self.center_sizes, scene, layout, ctx);
+        render_center_section(&mut self.center, &mut self.center_sizes, &mut self.center_bounds, scene, layout, ctx);
 
-        render_right_section(&mut self.right, scene, layout, ctx);
+        render_right_section(&mut self.right, &mut self.right_bounds, scene, layout, ctx);
+    }
+
+    pub fn hit_test(&self, point: Point, theme: &Theme) -> Option<Interaction> {
+        hit_test_section(&self.left, &self.left_bounds, point, theme)
+            .or_else(|| hit_test_section(&self.center, &self.center_bounds, point, theme))
+            .or_else(|| hit_test_section(&self.right, &self.right_bounds, point, theme))
     }
 }
 
@@ -68,16 +77,20 @@ impl BarLayout {
 
 fn render_left_section(
     components: &mut [Box<dyn Component>],
+    bounds_buffer: &mut Vec<Rect>,
     scene: &mut Scene,
     layout: BarLayout,
     ctx: &mut RenderCtx<'_>,
 ) {
+    bounds_buffer.clear();
+
     let mut x = layout.surface.x + layout.pad_x;
 
     for component in components {
         let (width, height) = component.measure(ctx);
         let bounds = Rect::new(x, layout.y(), width, height);
 
+        bounds_buffer.push(bounds);
         component.render(scene, bounds, ctx);
 
         x += width + layout.gap;
@@ -87,10 +100,13 @@ fn render_left_section(
 fn render_center_section(
     components: &mut [Box<dyn Component>],
     sizes: &mut ComponentSizes,
+    bounds_buffer: &mut Vec<Rect>,
     scene: &mut Scene,
     layout: BarLayout,
     ctx: &mut RenderCtx<'_>,
 ) {
+    bounds_buffer.clear();
+
     if components.is_empty() {
         return;
     }
@@ -103,6 +119,7 @@ fn render_center_section(
     for (component, (width, height)) in components.iter_mut().zip(sizes.iter().copied()) {
         let bounds = Rect::new(x, layout.y(), width, height);
 
+        bounds_buffer.push(bounds);
         component.render(scene, bounds, ctx);
 
         x += width + layout.gap;
@@ -111,10 +128,13 @@ fn render_center_section(
 
 fn render_right_section(
     components: &mut [Box<dyn Component>],
+    bounds_buffer: &mut Vec<Rect>,
     scene: &mut Scene,
     layout: BarLayout,
     ctx: &mut RenderCtx<'_>,
 ) {
+    bounds_buffer.clear();
+
     let mut x = layout.surface.x + layout.surface.width - layout.pad_x;
 
     for component in components.iter_mut().rev() {
@@ -124,24 +144,31 @@ fn render_right_section(
 
         let bounds = Rect::new(x, layout.y(), width, height);
 
+        bounds_buffer.push(bounds);
         component.render(scene, bounds, ctx);
 
         x -= layout.gap;
     }
+
+    bounds_buffer.reverse();
 }
 
-fn measure_components_into(
-    components: &mut [Box<dyn Component>],
-    sizes: &mut ComponentSizes,
-    ctx: &mut RenderCtx<'_>,
-) {
+fn hit_test_section(components: &[Box<dyn Component>], bounds: &[Rect], point: Point, theme: &Theme) -> Option<Interaction> {
+    for (component, bounds) in components.iter().zip(bounds.iter().copied()) {
+        if bounds.contains_point(point.x, point.y)
+            && let Some(interaction) = component.hit_test(point, bounds, theme)
+        {
+            return Some(interaction);
+        }
+    }
+
+    None
+}
+
+fn measure_components_into(components: &mut [Box<dyn Component>], sizes: &mut ComponentSizes, ctx: &mut RenderCtx<'_>) {
     sizes.clear();
 
-    sizes.extend(
-        components
-            .iter_mut()
-            .map(|component| component.measure(ctx)),
-    );
+    sizes.extend(components.iter_mut().map(|component| component.measure(ctx)));
 }
 
 fn total_section_width(sizes: &[(f32, f32)], gap: f32) -> f32 {

@@ -1,3 +1,4 @@
+mod input;
 mod render;
 mod runner;
 mod sources;

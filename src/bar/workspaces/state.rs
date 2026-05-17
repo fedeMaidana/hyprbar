@@ -10,13 +10,7 @@ pub struct WorkspaceData {
 
 impl WorkspaceData {
     pub fn visible_count(&self) -> i32 {
-        let max_id = self
-            .existing
-            .iter()
-            .copied()
-            .max()
-            .unwrap_or(0)
-            .max(self.active_id);
+        let max_id = self.existing.iter().copied().max().unwrap_or(0).max(self.active_id);
 
         max_id.max(MIN_VISIBLE_WORKSPACES)
     }

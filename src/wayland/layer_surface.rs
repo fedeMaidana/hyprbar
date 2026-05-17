@@ -1,8 +1,6 @@
 //! Configuración del layer-surface (qué borde, qué capa, exclusive zone).
 
-use smithay_client_toolkit::shell::wlr_layer::{
-    Anchor as SctkAnchor, KeyboardInteractivity, Layer as SctkLayer, LayerSurface,
-};
+use smithay_client_toolkit::shell::wlr_layer::{Anchor as SctkAnchor, KeyboardInteractivity, Layer as SctkLayer, LayerSurface};
 
 #[derive(Debug, Clone, Copy)]
 pub enum LayerPosition {
@@ -91,12 +89,7 @@ impl LayerConfig {
         layer.set_anchor(self.anchor.to_sctk());
         layer.set_size(self.initial_width, self.initial_height);
         layer.set_exclusive_zone(self.exclusive_zone);
-        layer.set_margin(
-            self.margin_top,
-            self.margin_right,
-            self.margin_bottom,
-            self.margin_left,
-        );
+        layer.set_margin(self.margin_top, self.margin_right, self.margin_bottom, self.margin_left);
         layer.set_keyboard_interactivity(KeyboardInteractivity::None);
     }
 }

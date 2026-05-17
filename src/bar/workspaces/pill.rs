@@ -5,7 +5,7 @@ use vello::{
     peniko::{Color, Fill},
 };
 
-use crate::components::{Component, Pill, RenderCtx};
+use crate::components::{Component, Interaction, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
 use super::geometry::SlotGeometry;
@@ -46,15 +46,31 @@ impl Component for WorkspacesPill {
 
         render_workspace_slots(scene, bounds, ctx, &data, &geometry);
     }
+
+    fn hit_test(&self, point: Point, bounds: Rect, theme: &crate::theme::Theme) -> Option<Interaction> {
+        let data = self.snapshot();
+        let geometry = SlotGeometry::from_theme(theme);
+
+        let mut x = bounds.x + geometry.h_padding;
+        let box_y = bounds.y + (bounds.height - geometry.slot_box_height) / 2.0;
+
+        for slot_id in 1..=data.visible_count() {
+            let slot = SlotHitBox::from_workspace(slot_id, &data, &geometry);
+            let slot_y = box_y + (geometry.slot_box_height - slot.height) / 2.0;
+            let slot_bounds = Rect::new(x, slot_y, slot.width, slot.height);
+
+            if slot_bounds.contains_point(point.x, point.y) {
+                return Some(Interaction::Workspace(slot_id));
+            }
+
+            x += slot.width + geometry.gap;
+        }
+
+        None
+    }
 }
 
-fn render_workspace_slots(
-    scene: &mut Scene,
-    bounds: Rect,
-    ctx: &mut RenderCtx<'_>,
-    data: &WorkspaceData,
-    geometry: &SlotGeometry,
-) {
+fn render_workspace_slots(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, data: &WorkspaceData, geometry: &SlotGeometry) {
     let mut x = bounds.x + geometry.h_padding;
     let box_y = bounds.y + (bounds.height - geometry.slot_box_height) / 2.0;
 
@@ -73,37 +89,16 @@ fn render_workspace_slots(
 }
 
 fn draw_slot(scene: &mut Scene, x: f32, y: f32, slot: &SlotVisual) {
-    let slot_rect = RoundedRect::new(
-        x as f64,
-        y as f64,
-        (x + slot.width) as f64,
-        (y + slot.height) as f64,
-        slot.radius as f64,
-    );
+    let slot_rect = RoundedRect::new(x as f64, y as f64, (x + slot.width) as f64, (y + slot.height) as f64, slot.radius as f64);
 
-    scene.fill(
-        Fill::NonZero,
-        Affine::IDENTITY,
-        slot.background,
-        None,
-        &slot_rect,
-    );
+    scene.fill(Fill::NonZero, Affine::IDENTITY, slot.background, None, &slot_rect);
 }
 
-fn draw_active_label(
-    scene: &mut Scene,
-    ctx: &mut RenderCtx<'_>,
-    slot_id: i32,
-    slot_x: f32,
-    slot_y: f32,
-    slot: &SlotVisual,
-) {
+fn draw_active_label(scene: &mut Scene, ctx: &mut RenderCtx<'_>, slot_id: i32, slot_x: f32, slot_y: f32, slot: &SlotVisual) {
     let label = slot_id.to_string();
     let size = ctx.theme.typography.size_base;
 
-    let (text_width, _) = ctx
-        .text
-        .measure(&label, size, &ctx.theme.typography.font_family);
+    let (text_width, _) = ctx.text.measure(&label, size, &ctx.theme.typography.font_family);
 
     let text_x = slot_x + (slot.width - text_width) / 2.0;
 
@@ -113,11 +108,7 @@ fn draw_active_label(
         text_x,
         slot_y,
         slot.height,
-        TextStyle::new(
-            size,
-            &ctx.theme.typography.font_family,
-            ctx.theme.palette.slot_active_text,
-        ),
+        TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.slot_active_text),
     );
 }
 
@@ -130,12 +121,7 @@ struct SlotVisual {
 }
 
 impl SlotVisual {
-    fn from_workspace(
-        slot_id: i32,
-        data: &WorkspaceData,
-        geometry: &SlotGeometry,
-        ctx: &RenderCtx<'_>,
-    ) -> Self {
+    fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry, ctx: &RenderCtx<'_>) -> Self {
         let exists = data.existing.contains(&slot_id);
         let is_active = slot_id == data.active_id;
 
@@ -165,6 +151,27 @@ impl SlotVisual {
             width: geometry.inactive_width,
             height: geometry.inactive_height,
             radius: geometry.inactive_radius,
+        }
+    }
+}
+
+struct SlotHitBox {
+    width: f32,
+    height: f32,
+}
+
+impl SlotHitBox {
+    fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry) -> Self {
+        if slot_id == data.active_id {
+            return Self {
+                width: geometry.active_width,
+                height: geometry.active_height,
+            };
+        }
+
+        Self {
+            width: geometry.inactive_width,
+            height: geometry.inactive_height,
         }
     }
 }

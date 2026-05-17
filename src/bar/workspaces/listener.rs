@@ -92,8 +92,5 @@ fn refresh(store: &WorkspaceStore) -> Result<()> {
 }
 
 fn should_refresh_after_event(event_name: &str) -> bool {
-    matches!(
-        event_name,
-        "workspace" | "createworkspace" | "destroyworkspace" | "focusedmon"
-    )
+    matches!(event_name, "workspace" | "createworkspace" | "destroyworkspace" | "focusedmon")
 }

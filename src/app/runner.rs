@@ -21,8 +21,7 @@ impl App {
         let conn = Connection::connect_to_env().context("no se pudo conectar a Wayland")?;
         let (wl_init, mut event_queue) = wayland::init(&conn, LayerConfig::top_bar(height))?;
 
-        let mut event_loop: EventLoop<AppState> =
-            EventLoop::try_new().context("calloop EventLoop::try_new")?;
+        let mut event_loop: EventLoop<AppState> = EventLoop::try_new().context("calloop EventLoop::try_new")?;
 
         let (redraw_sender, redraw_channel) = channel::<()>();
         let bar = default_bar(redraw_sender);
@@ -42,14 +41,10 @@ impl App {
 }
 
 fn wait_until_configured(event_queue: &mut EventQueue<AppState>, app: &mut AppState) -> Result<()> {
-    event_queue
-        .roundtrip(app)
-        .context("roundtrip inicial falló")?;
+    event_queue.roundtrip(app).context("roundtrip inicial falló")?;
 
     while !app.configured {
-        event_queue
-            .blocking_dispatch(app)
-            .context("dispatch en espera de configure")?;
+        event_queue.blocking_dispatch(app).context("dispatch en espera de configure")?;
     }
 
     Ok(())
@@ -59,8 +54,7 @@ fn create_render_surface(conn: &Connection, app: &mut AppState) -> Result<()> {
     let wl_surface = app.layer_surface().wl_surface().clone();
     let handle = SurfaceHandle::new(conn, &wl_surface);
 
-    app.render_ctx
-        .create_surface(handle, app.width, app.height)?;
+    app.render_ctx.create_surface(handle, app.width, app.height)?;
 
     app.pending_resize = false;
 
@@ -69,9 +63,7 @@ fn create_render_surface(conn: &Connection, app: &mut AppState) -> Result<()> {
 
 fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Result<()> {
     loop {
-        event_loop
-            .dispatch(None, &mut app)
-            .context("event_loop dispatch")?;
+        event_loop.dispatch(None, &mut app).context("event_loop dispatch")?;
 
         if app.should_close {
             log::info!("close requested");

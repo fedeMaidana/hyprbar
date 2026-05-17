@@ -19,12 +19,7 @@ impl AppState {
             text: &mut self.text_engine,
         };
 
-        self.bar.render(
-            &mut self.render_ctx.scene,
-            surface_rect,
-            &self.theme,
-            &mut ctx,
-        );
+        self.bar.render(&mut self.render_ctx.scene, surface_rect, &self.theme, &mut ctx);
 
         self.render_ctx.render()?;
 

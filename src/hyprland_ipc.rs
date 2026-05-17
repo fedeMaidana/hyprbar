@@ -19,9 +19,8 @@ use anyhow::{Context, Result, anyhow};
 /// para la instancia actual: `$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/`.
 fn socket_dir() -> Result<PathBuf> {
     let runtime = env::var("XDG_RUNTIME_DIR").context("XDG_RUNTIME_DIR no definida")?;
-    let sig = env::var("HYPRLAND_INSTANCE_SIGNATURE").context(
-        "HYPRLAND_INSTANCE_SIGNATURE no definida — ¿estás corriendo dentro de Hyprland?",
-    )?;
+    let sig = env::var("HYPRLAND_INSTANCE_SIGNATURE")
+        .context("HYPRLAND_INSTANCE_SIGNATURE no definida — ¿estás corriendo dentro de Hyprland?")?;
     Ok(PathBuf::from(runtime).join("hypr").join(sig))
 }
 
@@ -29,8 +28,7 @@ fn socket_dir() -> Result<PathBuf> {
 /// Para queries JSON, prefijar el comando con `j/` (ej: `j/workspaces`).
 pub fn query(cmd: &str) -> Result<String> {
     let path = socket_dir()?.join(".socket.sock");
-    let mut stream =
-        UnixStream::connect(&path).with_context(|| format!("conectando a {}", path.display()))?;
+    let mut stream = UnixStream::connect(&path).with_context(|| format!("conectando a {}", path.display()))?;
     stream.write_all(cmd.as_bytes())?;
     let mut response = String::new();
     stream.read_to_string(&mut response)?;
@@ -44,8 +42,7 @@ pub fn query(cmd: &str) -> Result<String> {
 /// consumirse en un thread dedicado.
 pub fn event_stream() -> Result<EventStream> {
     let path = socket_dir()?.join(".socket2.sock");
-    let stream =
-        UnixStream::connect(&path).with_context(|| format!("conectando a {}", path.display()))?;
+    let stream = UnixStream::connect(&path).with_context(|| format!("conectando a {}", path.display()))?;
     Ok(EventStream {
         reader: BufReader::new(stream),
     })
@@ -78,9 +75,7 @@ pub struct HyprEvent {
 
 fn parse_event(line: &str) -> Result<HyprEvent> {
     let line = line.trim_end();
-    let (name, data) = line
-        .split_once(">>")
-        .ok_or_else(|| anyhow!("evento mal formado: {line}"))?;
+    let (name, data) = line.split_once(">>").ok_or_else(|| anyhow!("evento mal formado: {line}"))?;
     Ok(HyprEvent {
         name: name.to_string(),
         data: data.to_string(),

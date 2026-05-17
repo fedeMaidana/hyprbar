@@ -25,12 +25,7 @@ fn colors_json_path() -> Option<PathBuf> {
         return Some(PathBuf::from(cache_home).join("hyprcolors/colors.json"));
     }
 
-    env::var_os("HOME").map(|home| {
-        PathBuf::from(home)
-            .join(".cache")
-            .join("hyprcolors")
-            .join("colors.json")
-    })
+    env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache").join("hyprcolors").join("colors.json"))
 }
 
 fn parse_json_color(json: &Value, key: &str) -> Option<Color> {

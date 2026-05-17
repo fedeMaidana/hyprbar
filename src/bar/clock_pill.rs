@@ -25,11 +25,9 @@ impl Default for ClockPill {
 impl Component for ClockPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
         let text = self.current_text();
-        let (tw, _) = ctx.text.measure(
-            &text,
-            ctx.theme.typography.size_base,
-            &ctx.theme.typography.font_family,
-        );
+        let (tw, _) = ctx
+            .text
+            .measure(&text, ctx.theme.typography.size_base, &ctx.theme.typography.font_family);
         let w = tw + ctx.theme.tokens.pill_padding_x * 2.0;
         (w, ctx.theme.tokens.pill_height)
     }
@@ -47,11 +45,7 @@ impl Component for ClockPill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            TextStyle::new(
-                size,
-                &ctx.theme.typography.font_family,
-                ctx.theme.palette.text_primary,
-            ),
+            TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
         );
     }
 }

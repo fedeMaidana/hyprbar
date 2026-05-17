@@ -38,10 +38,7 @@ fn insert_wayland_source(
     Ok(())
 }
 
-fn insert_redraw_source(
-    loop_handle: calloop::LoopHandle<'_, AppState>,
-    redraw_channel: Channel<()>,
-) -> Result<()> {
+fn insert_redraw_source(loop_handle: calloop::LoopHandle<'_, AppState>, redraw_channel: Channel<()>) -> Result<()> {
     loop_handle
         .insert_source(redraw_channel, |event, _meta, app| {
             if let ChannelEvent::Msg(()) = event {

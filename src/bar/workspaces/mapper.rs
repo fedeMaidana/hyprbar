@@ -29,10 +29,7 @@ pub fn parse_workspace_data(workspaces_json: &str, active_json: &str) -> Result<
         .and_then(|value| value.as_i64())
         .ok_or_else(|| anyhow!("activeworkspace sin id"))? as i32;
 
-    Ok(WorkspaceData {
-        existing,
-        active_id,
-    })
+    Ok(WorkspaceData { existing, active_id })
 }
 
 #[cfg(test)]
