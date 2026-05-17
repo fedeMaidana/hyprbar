@@ -11,14 +11,14 @@ use super::state::AppState;
 
 impl AppState {
     pub(crate) fn render(&mut self) -> Result<()> {
-        if self.pending_resize {
-            self.render_ctx.resize(self.width, self.height);
-            self.pending_resize = false;
+        if self.surface.pending_resize {
+            self.render_ctx.resize(self.surface.width, self.surface.height);
+            self.surface.pending_resize = false;
         }
 
         self.theme.refresh_dynamic_colors();
 
-        let surface_rect = Rect::new(0.0, 0.0, self.width as f32, self.height as f32);
+        let surface_rect = Rect::new(0.0, 0.0, self.surface.width as f32, self.surface.height as f32);
 
         let mut ctx = RenderCtx {
             theme: &self.theme,

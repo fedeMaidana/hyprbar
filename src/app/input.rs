@@ -11,7 +11,7 @@ use crate::hyprland_ipc;
 
 impl AppState {
     pub fn handle_pointer_enter_or_motion(&mut self, conn: &Connection, point: Point, force_cursor_reload: bool) {
-        self.pointer_position = Some(point);
+        self.pointer.position = Some(point);
 
         let cursor_icon = if self.bar.hit_test(point, &self.theme).is_some() {
             CursorIcon::Pointer
@@ -23,12 +23,12 @@ impl AppState {
     }
 
     pub fn handle_pointer_leave(&mut self, conn: &Connection) {
-        self.pointer_position = None;
+        self.pointer.position = None;
         self.set_cursor_icon(conn, CursorIcon::Default, true);
     }
 
     pub fn handle_pointer_press(&mut self) {
-        let Some(point) = self.pointer_position else {
+        let Some(point) = self.pointer.position else {
             return;
         };
 
@@ -42,11 +42,11 @@ impl AppState {
     }
 
     fn set_cursor_icon(&mut self, conn: &Connection, icon: CursorIcon, force_reload: bool) {
-        if !force_reload && self.cursor_icon == icon {
+        if !force_reload && self.pointer.icon == icon {
             return;
         }
 
-        let Some(pointer) = self.themed_pointer.as_mut() else {
+        let Some(pointer) = self.pointer.themed_pointer.as_mut() else {
             return;
         };
 
@@ -55,7 +55,7 @@ impl AppState {
             return;
         }
 
-        self.cursor_icon = icon;
+        self.pointer.icon = icon;
     }
 }
 

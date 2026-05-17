@@ -36,7 +36,7 @@ impl App {
 
         wait_until_configured(&mut event_queue, &mut app)?;
 
-        log::info!("configured: {}x{}", app.width, app.height);
+        log::info!("configured: {}x{}", app.surface.width, app.surface.height);
 
         create_render_surface(&conn, &mut app)?;
 
@@ -51,7 +51,7 @@ impl App {
 fn wait_until_configured(event_queue: &mut EventQueue<AppState>, app: &mut AppState) -> Result<()> {
     event_queue.roundtrip(app).context("roundtrip inicial falló")?;
 
-    while !app.configured {
+    while !app.surface.configured {
         event_queue.blocking_dispatch(app).context("dispatch en espera de configure")?;
     }
 
@@ -62,9 +62,9 @@ fn create_render_surface(conn: &Connection, app: &mut AppState) -> Result<()> {
     let wl_surface = app.layer_surface().wl_surface().clone();
     let handle = SurfaceHandle::new(conn, &wl_surface);
 
-    app.render_ctx.create_surface(handle, app.width, app.height)?;
+    app.render_ctx.create_surface(handle, app.surface.width, app.surface.height)?;
 
-    app.pending_resize = false;
+    app.surface.pending_resize = false;
 
     Ok(())
 }

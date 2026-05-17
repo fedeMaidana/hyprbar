@@ -62,7 +62,7 @@ impl CompositorHandler for AppState {
 
 impl OutputHandler for AppState {
     fn output_state(&mut self) -> &mut OutputState {
-        &mut self.output_state
+        &mut self.wayland.output_state
     }
 
     fn new_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
@@ -87,34 +87,35 @@ impl LayerShellHandler for AppState {
     ) {
         let (w, h) = configure.new_size;
 
-        if w > 0 && h > 0 && (w != self.width || h != self.height) {
-            self.width = w;
-            self.height = h;
-            self.pending_resize = true;
+        if w > 0 && h > 0 && (w != self.surface.width || h != self.surface.height) {
+            self.surface.width = w;
+            self.surface.height = h;
+            self.surface.pending_resize = true;
             self.needs_redraw = true;
         }
 
-        self.configured = true;
+        self.surface.configured = true;
     }
 }
 
 impl SeatHandler for AppState {
     fn seat_state(&mut self) -> &mut SeatState {
-        &mut self.seat_state
+        &mut self.wayland.seat_state
     }
 
     fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
 
     fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
-        if capability == Capability::Pointer && self.themed_pointer.is_none() {
+        if capability == Capability::Pointer && self.pointer.themed_pointer.is_none() {
             let surface = self.create_cursor_surface(qh);
 
             match self
+                .wayland
                 .seat_state
-                .get_pointer_with_theme(qh, &seat, self.shm_state.wl_shm(), surface, ThemeSpec::default())
+                .get_pointer_with_theme(qh, &seat, self.wayland.shm_state.wl_shm(), surface, ThemeSpec::default())
             {
                 Ok(pointer) => {
-                    self.themed_pointer = Some(pointer);
+                    self.pointer.themed_pointer = Some(pointer);
                     log::info!("pointer capability enabled");
                 }
                 Err(error) => {
@@ -126,12 +127,12 @@ impl SeatHandler for AppState {
 
     fn remove_capability(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat, capability: Capability) {
         if capability == Capability::Pointer {
-            if let Some(pointer) = self.themed_pointer.take() {
+            if let Some(pointer) = self.pointer.themed_pointer.take() {
                 pointer.pointer().release();
             }
 
-            self.pointer_position = None;
-            self.cursor_icon = CursorIcon::Default;
+            self.pointer.position = None;
+            self.pointer.icon = CursorIcon::Default;
 
             log::info!("pointer capability removed");
         }
@@ -162,7 +163,7 @@ impl PointerHandler for AppState {
                 }
                 PointerEventKind::Press { button, .. } => {
                     if button == BTN_LEFT {
-                        self.pointer_position = Some(point);
+                        self.pointer.position = Some(point);
                         self.handle_pointer_press();
                     }
                 }
@@ -174,13 +175,13 @@ impl PointerHandler for AppState {
 
 impl ShmHandler for AppState {
     fn shm_state(&mut self) -> &mut Shm {
-        &mut self.shm_state
+        &mut self.wayland.shm_state
     }
 }
 
 impl ProvidesRegistryState for AppState {
     fn registry(&mut self) -> &mut RegistryState {
-        &mut self.registry_state
+        &mut self.wayland.registry_state
     }
 
     registry_handlers![OutputState, SeatState];
