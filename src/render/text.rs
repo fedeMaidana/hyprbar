@@ -61,52 +61,6 @@ impl TextEngine {
         (layout.width(), layout.height())
     }
 
-    pub fn draw(&mut self, scene: &mut Scene, text: &str, x: f32, y: f32, style: TextStyle<'_>) {
-        let layout = self.layout(text, style.size, style.family);
-        let brush = Brush::Solid(style.color);
-
-        for line in layout.lines() {
-            for item in line.items() {
-                let parley::PositionedLayoutItem::GlyphRun(glyph_run) = item else {
-                    continue;
-                };
-
-                let run = glyph_run.run();
-                let font = run.font();
-                let font_size = run.font_size();
-                let synthesis = run.synthesis();
-                let glyph_xform = synthesis
-                    .skew()
-                    .map(|skew| Affine::skew(skew.to_radians().tan() as f64, 0.0));
-
-                let mut x_pos = glyph_run.offset();
-                let y_pos = glyph_run.baseline();
-
-                scene
-                    .draw_glyphs(font)
-                    .brush(&brush)
-                    .transform(Affine::translate((x as f64, y as f64)))
-                    .glyph_transform(glyph_xform)
-                    .font_size(font_size)
-                    .normalized_coords(run.normalized_coords())
-                    .draw(
-                        Fill::NonZero,
-                        glyph_run.glyphs().map(|glyph| {
-                            let gx = x_pos + glyph.x;
-                            let gy = y_pos - glyph.y;
-                            x_pos += glyph.advance;
-
-                            vello::Glyph {
-                                id: glyph.id,
-                                x: gx,
-                                y: gy,
-                            }
-                        }),
-                    );
-            }
-        }
-    }
-
     pub fn draw_centered_v(
         &mut self,
         scene: &mut Scene,
@@ -116,10 +70,56 @@ impl TextEngine {
         box_height: f32,
         style: TextStyle<'_>,
     ) {
-        let (_, text_height) = self.measure(text, style.size, style.family);
-        let y = box_y + (box_height - text_height) / 2.0;
+        let layout = self.layout(text, style.size, style.family);
+        let y = box_y + (box_height - layout.height()) / 2.0;
 
-        self.draw(scene, text, x, y, style);
+        draw_layout(scene, &layout, x, y, style.color);
+    }
+}
+
+fn draw_layout(scene: &mut Scene, layout: &Layout<Brush>, x: f32, y: f32, color: Color) {
+    let brush = Brush::Solid(color);
+
+    for line in layout.lines() {
+        for item in line.items() {
+            let parley::PositionedLayoutItem::GlyphRun(glyph_run) = item else {
+                continue;
+            };
+
+            let run = glyph_run.run();
+            let font = run.font();
+            let font_size = run.font_size();
+            let synthesis = run.synthesis();
+
+            let glyph_xform = synthesis
+                .skew()
+                .map(|skew| Affine::skew(skew.to_radians().tan() as f64, 0.0));
+
+            let mut x_pos = glyph_run.offset();
+            let y_pos = glyph_run.baseline();
+
+            scene
+                .draw_glyphs(font)
+                .brush(&brush)
+                .transform(Affine::translate((x as f64, y as f64)))
+                .glyph_transform(glyph_xform)
+                .font_size(font_size)
+                .normalized_coords(run.normalized_coords())
+                .draw(
+                    Fill::NonZero,
+                    glyph_run.glyphs().map(|glyph| {
+                        let gx = x_pos + glyph.x;
+                        let gy = y_pos - glyph.y;
+                        x_pos += glyph.advance;
+
+                        vello::Glyph {
+                            id: glyph.id,
+                            x: gx,
+                            y: gy,
+                        }
+                    }),
+                );
+        }
     }
 }
 
