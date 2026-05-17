@@ -8,6 +8,12 @@ The goal of this project is to build a clean, minimal, and maintainable desktop 
   <img src="docs/screenshots/hyprbar-hero.png" width="900" alt="Hyprbar desktop preview">
 </p>
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/hyprbar-hero.png" width="900" alt="Hyprbar desktop preview">
+</p>
+
 ## Features
 
 - Wayland layer-shell top bar.
@@ -22,7 +28,7 @@ The goal of this project is to build a clean, minimal, and maintainable desktop 
 - Workspace hover feedback.
 - Dynamic accent colors loaded from `hyprcolors`.
 - Static command center and notification pills.
-- Profile avatar pill loaded from disk.
+- Optional local profile avatar.
 - Integration tests for parsers, layout, and hit testing.
 - CI checks for formatting, tests, and Clippy warnings.
 
@@ -36,7 +42,7 @@ The goal of this project is to build a clean, minimal, and maintainable desktop 
 - **vello**: 2D scene rendering.
 - **parley**: text shaping and layout.
 - **chrono**: date and time.
-- **ureq**: weather API requests.
+- **ureq**: weather and IP-based location requests.
 - **serde / serde_json**: typed JSON deserialization.
 - **image**: profile avatar decoding and resizing.
 - **anyhow**: application-level error handling.
@@ -50,7 +56,10 @@ The goal of this project is to build a clean, minimal, and maintainable desktop 
 │   └── workflows/
 │       └── ci.yml                 # Formatting, test, and Clippy checks
 ├── assets/
-│   └── profile.jpeg               # Optional profile avatar image
+│   └── .gitkeep                   # Keeps the local assets directory in Git
+├── docs/
+│   └── screenshots/
+│       └── hyprbar-hero.png       # README preview image
 ├── src/
 │   ├── lib.rs                     # Library crate exports
 │   ├── main.rs                    # Binary entry point
@@ -82,6 +91,7 @@ The goal of this project is to build a clean, minimal, and maintainable desktop 
 │   │   │   ├── config.rs
 │   │   │   ├── fetcher.rs
 │   │   │   ├── icons.rs
+│   │   │   ├── location.rs
 │   │   │   ├── mapper.rs
 │   │   │   ├── pill.rs
 │   │   │   └── state.rs
@@ -109,6 +119,7 @@ The goal of this project is to build a clean, minimal, and maintainable desktop 
 └── tests/
     ├── bar_layout.rs              # Layout and hit-test integration tests
     ├── weather_icons.rs
+    ├── weather_location.rs
     ├── weather_mapper.rs
     └── workspaces_mapper.rs
 ```
@@ -146,7 +157,7 @@ The goal of this project is to build a clean, minimal, and maintainable desktop 
 
 - Linux.
 - A Wayland compositor with `wlr-layer-shell` support.
-- Hyprland (recommended).
+- Hyprland recommended.
 - Rust stable with edition 2024 support.
 - Fonts:
   - `Inter` or a compatible fallback.
@@ -186,21 +197,29 @@ cargo test --all-targets --all-features
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-Or during local development:
+For a cleaner local test output, install `cargo-nextest`:
+
+```sh
+cargo install cargo-nextest --locked
+```
+
+Then during local development:
 
 ```sh
 cargo fmt
-cargo test
+cargo nextest run
 cargo clippy -- -D warnings
 ```
 
 ## Assets
 
-The profile pill currently tries to load:
+The profile pill can load a local image from:
 
 ```txt
 assets/profile.jpeg
 ```
+
+Profile images and private assets are intentionally ignored by Git.
 
 If the image is missing or cannot be decoded, the bar falls back to a simple placeholder circle.
 
@@ -230,6 +249,14 @@ Expected fields:
 ```
 
 The accent color is used by the active workspace slot and other accent-driven UI elements.
+
+## Weather
+
+Hyprbar uses Open-Meteo for weather data.
+
+By default, the weather pill detects the approximate location through an IP-based lookup and then requests the current weather for those coordinates.
+
+This means the detected location may reflect the current VPN, proxy, ISP, or network exit point.
 
 ## Hyprland IPC
 
@@ -261,7 +288,7 @@ Hyprbar currently renders a functional top bar with several pill-based widgets:
 - Command center placeholder.
 - Hyprland workspaces.
 - Notifications placeholder.
-- Profile avatar.
+- Optional local profile avatar.
 
 The project is still early-stage, but the current structure is designed to keep the code maintainable while the bar grows component by component.
 
