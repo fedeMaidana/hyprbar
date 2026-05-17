@@ -1,3 +1,5 @@
 /target
 
 /assets/*
+/assets/profile.*
+/assets/avatar.*
