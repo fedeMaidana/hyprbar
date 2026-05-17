@@ -3,8 +3,7 @@ use vello::Scene;
 use crate::components::{Component, Pill, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
-/// Glyph de toggle/sliders (Nerd Font, Material Design Icons): 󰒓
-const TOGGLE_GLYPH: &str = "\u{f0493}";
+const TOGGLE_GLYPH: &str = "\u{f062e}";
 
 pub struct CommandCenterPill;
 

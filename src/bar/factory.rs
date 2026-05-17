@@ -11,6 +11,8 @@ use crate::bar::weather::{WeatherConfig, WeatherPill};
 use crate::bar::workspaces::WorkspacesPill;
 use crate::components::Component;
 
+const PROFILE_IMAGE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/profile.jpeg");
+
 pub fn default_bar(redraw_signal: Sender<()>) -> Bar {
     Bar::new(
         vec![
@@ -24,6 +26,6 @@ pub fn default_bar(redraw_signal: Sender<()>) -> Bar {
             Box::new(WorkspacesPill::new(redraw_signal)),
             Box::new(NotificationsPill::new()),
         ],
-        vec![Box::new(ProfilePill::from_path("assets/profile.jpeg"))],
+        vec![Box::new(ProfilePill::from_path(PROFILE_IMAGE_PATH))],
     )
 }
