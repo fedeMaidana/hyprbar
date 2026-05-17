@@ -5,19 +5,24 @@ use crate::render::Rect;
 use crate::theme::Theme;
 
 type Components = Vec<Box<dyn Component>>;
+type ComponentSizes = Vec<(f32, f32)>;
 
 pub struct Bar {
     left: Components,
     center: Components,
     right: Components,
+    center_sizes: ComponentSizes,
 }
 
 impl Bar {
     pub fn new(left: Components, center: Components, right: Components) -> Self {
+        let center_sizes = Vec::with_capacity(center.len());
+
         Self {
             left,
             center,
             right,
+            center_sizes,
         }
     }
 
@@ -33,7 +38,17 @@ impl Bar {
         let gap = theme.tokens.pill_gap;
 
         render_left_section(&mut self.left, scene, surface, pad_x, pad_top, gap, ctx);
-        render_center_section(&mut self.center, scene, surface, pad_top, gap, ctx);
+
+        render_center_section(
+            &mut self.center,
+            &mut self.center_sizes,
+            scene,
+            surface,
+            pad_top,
+            gap,
+            ctx,
+        );
+
         render_right_section(&mut self.right, scene, surface, pad_x, pad_top, gap, ctx);
     }
 }
@@ -61,6 +76,7 @@ fn render_left_section(
 
 fn render_center_section(
     components: &mut [Box<dyn Component>],
+    sizes: &mut ComponentSizes,
     scene: &mut Scene,
     surface: Rect,
     pad_top: f32,
@@ -71,9 +87,9 @@ fn render_center_section(
         return;
     }
 
-    let sizes = measure_components(components, ctx);
-    let total_width = total_section_width(&sizes, gap);
+    measure_components_into(components, sizes, ctx);
 
+    let total_width = total_section_width(sizes, gap);
     let mut x = surface.x + (surface.width - total_width) / 2.0;
 
     for (component, (width, height)) in components.iter_mut().zip(sizes.iter().copied()) {
@@ -108,14 +124,18 @@ fn render_right_section(
     }
 }
 
-fn measure_components(
+fn measure_components_into(
     components: &mut [Box<dyn Component>],
+    sizes: &mut ComponentSizes,
     ctx: &mut RenderCtx<'_>,
-) -> Vec<(f32, f32)> {
-    components
-        .iter_mut()
-        .map(|component| component.measure(ctx))
-        .collect()
+) {
+    sizes.clear();
+
+    sizes.extend(
+        components
+            .iter_mut()
+            .map(|component| component.measure(ctx)),
+    );
 }
 
 fn total_section_width(sizes: &[(f32, f32)], gap: f32) -> f32 {
