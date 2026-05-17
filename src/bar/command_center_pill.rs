@@ -3,7 +3,7 @@ use vello::Scene;
 use crate::components::{Component, Pill, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
-const TOGGLE_GLYPH: &str = "\u{f062e}";
+const TOGGLE_GLYPH: &str = "\u{f1542}";
 
 pub struct CommandCenterPill;
 
