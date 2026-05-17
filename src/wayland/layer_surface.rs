@@ -58,30 +58,35 @@ impl Anchor {
 
     fn to_sctk(self) -> SctkAnchor {
         let mut a = SctkAnchor::empty();
+
         if self.top {
             a |= SctkAnchor::TOP;
         }
+
         if self.bottom {
             a |= SctkAnchor::BOTTOM;
         }
+
         if self.left {
             a |= SctkAnchor::LEFT;
         }
+
         if self.right {
             a |= SctkAnchor::RIGHT;
         }
+
         a
     }
 }
 
 impl LayerConfig {
-    pub fn top_bar(height: u32) -> Self {
+    pub fn top_bar(surface_height: u32, exclusive_zone: i32) -> Self {
         Self {
             layer: LayerPosition::Top,
             anchor: Anchor::TOP_BAR,
-            exclusive_zone: height as i32,
-            initial_width: 0, // 0 = el compositor decide (full width gracias a anchor L+R)
-            initial_height: height,
+            exclusive_zone,
+            initial_width: 0,
+            initial_height: surface_height,
             margin_top: 0,
             margin_bottom: 0,
             margin_left: 0,

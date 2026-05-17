@@ -45,11 +45,18 @@ impl AppState {
         };
 
         let Some(interaction) = self.bar.hit_test(point, &self.theme) else {
+            self.close_dropdown();
             return;
         };
 
         match interaction {
-            Interaction::Workspace(workspace_id) => activate_workspace(workspace_id),
+            Interaction::Workspace(workspace_id) => {
+                self.close_dropdown();
+                activate_workspace(workspace_id);
+            }
+            Interaction::Dropdown(dropdown_id) => {
+                self.toggle_dropdown(dropdown_id);
+            }
         }
     }
 

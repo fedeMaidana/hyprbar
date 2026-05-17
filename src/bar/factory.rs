@@ -22,16 +22,25 @@ const PROFILE_IMAGE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/pr
 pub fn default_bar(redraw_signal: Sender<()>) -> Bar {
     Bar::new(
         vec![
-            Box::new(ArchLogoPill::new()) as Box<dyn Component>,
-            Box::new(DatePill::new()),
-            Box::new(ClockPill::new()),
-            Box::new(WeatherPill::new(WeatherConfig::auto_detect())),
+            component(ArchLogoPill::new()),
+            component(DatePill::new()),
+            component(ClockPill::new()),
+            component(WeatherPill::new(WeatherConfig::auto_detect())),
         ],
         vec![
-            Box::new(CommandCenterPill::new()) as Box<dyn Component>,
-            Box::new(WorkspacesPill::new(redraw_signal)),
-            Box::new(NotificationsPill::new()),
+            component(CommandCenterPill::new()),
+            component(WorkspacesPill::new(redraw_signal)),
+            component(NotificationsPill::new()),
         ],
-        vec![Box::new(ProfilePill::from_path(PROFILE_IMAGE_PATH))],
+        vec![component(ProfilePill::from_path(PROFILE_IMAGE_PATH))],
     )
+}
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
+
+fn component<C>(component: C) -> Box<dyn Component>
+where
+    C: Component + 'static,
+{
+    Box::new(component)
 }

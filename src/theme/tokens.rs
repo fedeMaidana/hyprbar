@@ -12,6 +12,16 @@ pub struct Tokens {
     pub pill_padding_y: f32,
     pub pill_radius: f32,
 
+    pub dropdown_width: f32,
+    pub dropdown_height: f32,
+    pub dropdown_margin_top: f32,
+    pub dropdown_margin_bottom: f32,
+    pub dropdown_padding_x: f32,
+    pub dropdown_padding_y: f32,
+    pub dropdown_item_height: f32,
+    pub dropdown_item_gap: f32,
+    pub dropdown_radius: f32,
+
     pub icon_scale: f32,
 
     pub weather_inner_gap: f32,
@@ -47,6 +57,16 @@ impl Default for Tokens {
             pill_padding_x: 11.0,
             pill_padding_y: 6.0,
             pill_radius: 13.0,
+
+            dropdown_width: 220.0,
+            dropdown_height: 150.0,
+            dropdown_margin_top: 8.0,
+            dropdown_margin_bottom: 8.0,
+            dropdown_padding_x: 12.0,
+            dropdown_padding_y: 10.0,
+            dropdown_item_height: 34.0,
+            dropdown_item_gap: 4.0,
+            dropdown_radius: 14.0,
 
             icon_scale: 1.2,
 

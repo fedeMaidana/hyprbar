@@ -2,6 +2,8 @@
 
 use vello::Scene;
 
+use super::dropdown::DropdownId;
+
 use crate::bar::workspaces::WorkspaceId;
 use crate::render::{Rect, TextEngine};
 use crate::theme::Theme;
@@ -12,6 +14,7 @@ pub struct RenderCtx<'a> {
     pub theme: &'a Theme,
     pub text: &'a mut TextEngine,
     pub hovered_interaction: Option<Interaction>,
+    pub open_dropdown: Option<DropdownId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -25,6 +28,7 @@ pub struct Point {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Interaction {
     Workspace(WorkspaceId),
+    Dropdown(DropdownId),
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -45,4 +49,10 @@ pub trait Component {
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
         None
     }
+
+    fn dropdown_id(&self) -> Option<DropdownId> {
+        None
+    }
+
+    fn render_dropdown(&mut self, _scene: &mut Scene, _surface: Rect, _anchor: Rect, _ctx: &mut RenderCtx<'_>) {}
 }
