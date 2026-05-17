@@ -10,9 +10,14 @@ pub struct RenderContext {
     vello_ctx: VelloUtilContext,
     surface: Option<RenderSurface<'static>>,
     renderer: Option<Renderer>,
-    intermediate: Option<wgpu::Texture>,
+    intermediate: Option<IntermediateTarget>,
     blitter: Option<wgpu::util::TextureBlitter>,
     pub scene: Scene,
+}
+
+struct IntermediateTarget {
+    _texture: wgpu::Texture,
+    view: wgpu::TextureView,
 }
 
 impl RenderContext {
@@ -37,21 +42,23 @@ impl RenderContext {
             height,
             wgpu::PresentMode::AutoVsync,
         ))
-        .map_err(|e| anyhow!("vello create_surface failed: {e:?}"))?;
+        .map_err(|error| anyhow!("vello create_surface failed: {error:?}"))?;
 
         let device_handle = &self.vello_ctx.devices[surface.dev_id];
         let caps = surface.surface.get_capabilities(device_handle.adapter());
 
-        let preferred_alpha = [
+        let preferred_alpha_modes = [
             wgpu::CompositeAlphaMode::PreMultiplied,
             wgpu::CompositeAlphaMode::PostMultiplied,
             wgpu::CompositeAlphaMode::Inherit,
         ];
-        if let Some(&alpha_mode) = preferred_alpha
+
+        if let Some(&alpha_mode) = preferred_alpha_modes
             .iter()
-            .find(|m| caps.alpha_modes.contains(m))
+            .find(|mode| caps.alpha_modes.contains(mode))
         {
             log::info!("alpha_mode: {:?}", alpha_mode);
+
             surface.config.alpha_mode = alpha_mode;
             surface
                 .surface
@@ -65,12 +72,14 @@ impl RenderContext {
 
         if self.renderer.is_none() {
             let renderer = Renderer::new(&device_handle.device, RendererOptions::default())
-                .map_err(|e| anyhow!("Renderer::new failed: {e:?}"))?;
+                .map_err(|error| anyhow!("Renderer::new failed: {error:?}"))?;
+
             self.renderer = Some(renderer);
         }
 
         self.surface = Some(surface);
         self.rebuild_intermediate(width, height);
+
         Ok(())
     }
 
@@ -79,7 +88,7 @@ impl RenderContext {
         let device = &self.vello_ctx.devices[surface.dev_id].device;
         let surface_format = surface.format;
 
-        let tex = device.create_texture(&wgpu::TextureDescriptor {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello-intermediate"),
             size: wgpu::Extent3d {
                 width,
@@ -96,15 +105,19 @@ impl RenderContext {
             view_formats: &[],
         });
 
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let blitter = wgpu::util::TextureBlitter::new(device, surface_format);
 
-        self.intermediate = Some(tex);
+        self.intermediate = Some(IntermediateTarget {
+            _texture: texture,
+            view,
+        });
         self.blitter = Some(blitter);
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
-        if let Some(s) = &mut self.surface {
-            self.vello_ctx.resize_surface(s, width, height);
+        if let Some(surface) = &mut self.surface {
+            self.vello_ctx.resize_surface(surface, width, height);
             self.rebuild_intermediate(width, height);
         }
     }
@@ -127,14 +140,13 @@ impl RenderContext {
         let frame_view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let intermediate_view = intermediate.create_view(&wgpu::TextureViewDescriptor::default());
 
         renderer
             .render_to_texture(
                 &device_handle.device,
                 &device_handle.queue,
                 &self.scene,
-                &intermediate_view,
+                &intermediate.view,
                 &vello::RenderParams {
                     base_color: vello::peniko::Color::TRANSPARENT,
                     width: surface.config.width,
@@ -142,7 +154,7 @@ impl RenderContext {
                     antialiasing_method: AaConfig::Area,
                 },
             )
-            .map_err(|e| anyhow!("render_to_texture failed: {e:?}"))?;
+            .map_err(|error| anyhow!("render_to_texture failed: {error:?}"))?;
 
         let mut encoder =
             device_handle
@@ -150,16 +162,19 @@ impl RenderContext {
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("blit"),
                 });
+
         blitter.copy(
             &device_handle.device,
             &mut encoder,
-            &intermediate_view,
+            &intermediate.view,
             &frame_view,
         );
+
         device_handle.queue.submit([encoder.finish()]);
 
         frame.present();
         self.scene.reset();
+
         Ok(())
     }
 }
