@@ -54,3 +54,20 @@ fn fails_when_active_workspace_has_no_id() {
 
     assert!(error.to_string().contains("activeworkspace sin id"));
 }
+
+#[test]
+fn ignores_workspace_ids_outside_i32_range() {
+    let workspaces_json = r#"
+        [
+            { "id": 1 },
+            { "id": 999999999999 }
+        ]
+    "#;
+
+    let active_json = r#"{ "id": 1 }"#;
+
+    let data = parse_workspace_data(workspaces_json, active_json).unwrap();
+
+    assert_eq!(data.existing, vec![1]);
+    assert_eq!(data.active_id, 1);
+}

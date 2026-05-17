@@ -729,6 +729,7 @@ dependencies = [
  "parley",
  "pollster",
  "raw-window-handle",
+ "serde",
  "serde_json",
  "smithay-client-toolkit",
  "thiserror",

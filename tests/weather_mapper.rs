@@ -54,3 +54,19 @@ fn fails_when_weather_code_is_missing() {
 
     assert!(error.to_string().contains("missing weather_code"));
 }
+
+#[test]
+fn fails_when_weather_code_is_out_of_range() {
+    let body = r#"
+        {
+            "current": {
+                "temperature_2m": 18.7,
+                "weather_code": 999999999999
+            }
+        }
+    "#;
+
+    let error = parse_weather_snapshot(body).unwrap_err();
+
+    assert!(error.to_string().contains("weather_code out of range"));
+}

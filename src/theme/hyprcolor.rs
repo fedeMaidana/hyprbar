@@ -1,6 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use serde_json::Value;
+use serde::Deserialize;
 use std::{env, fs, path::PathBuf};
 use vello::peniko::Color;
 
@@ -12,16 +12,22 @@ pub struct HyprcolorPalette {
     pub foreground: Color,
 }
 
+#[derive(Debug, Deserialize)]
+struct HyprcolorFile {
+    accent: String,
+    foreground: String,
+}
+
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn load() -> Option<HyprcolorPalette> {
     let path = colors_json_path()?;
     let content = fs::read_to_string(path).ok()?;
-    let json: Value = serde_json::from_str(&content).ok()?;
+    let colors: HyprcolorFile = serde_json::from_str(&content).ok()?;
 
     Some(HyprcolorPalette {
-        accent: parse_json_color(&json, "accent")?,
-        foreground: parse_json_color(&json, "foreground")?,
+        accent: parse_hex_color(&colors.accent)?,
+        foreground: parse_hex_color(&colors.foreground)?,
     })
 }
 
@@ -33,11 +39,6 @@ fn colors_json_path() -> Option<PathBuf> {
     }
 
     env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache").join("hyprcolors").join("colors.json"))
-}
-
-fn parse_json_color(json: &Value, key: &str) -> Option<Color> {
-    let value = json.get(key)?.as_str()?;
-    parse_hex_color(value)
 }
 
 fn parse_hex_color(value: &str) -> Option<Color> {
