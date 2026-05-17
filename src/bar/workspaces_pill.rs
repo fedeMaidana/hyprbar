@@ -1,5 +1,3 @@
-//! Pill de workspaces de Hyprland.
-
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -14,10 +12,8 @@ use vello::{
 
 use crate::components::{Component, Pill, RenderCtx};
 use crate::hyprland_ipc;
-use crate::render::Rect;
+use crate::render::{Rect, TextStyle};
 
-/// Cantidad mínima de slots siempre visibles. Si Hyprland tiene más
-/// workspaces (id mayor), se agregan al final dinámicamente.
 const MIN_VISIBLE_WORKSPACES: i32 = 3;
 
 #[derive(Debug, Clone, Default)]
@@ -27,7 +23,6 @@ struct WorkspaceData {
 }
 
 impl WorkspaceData {
-    /// Cuántos slots dibujar: el mínimo garantizado o el id más alto, lo que sea mayor.
     fn visible_count(&self) -> i32 {
         let max_id = self
             .existing
@@ -59,18 +54,13 @@ impl WorkspacesPill {
     }
 }
 
-/// Geometría de cada slot. Los slots respetan `pill_height` del theme
-/// para mantener alineación con las otras pills.
 struct SlotGeometry {
-    /// Dimensiones del slot activo (más grande, más ovalado)
     active_width: f32,
     active_height: f32,
     active_radius: f32,
-    /// Dimensiones de los slots inactivo/vacío
     inactive_width: f32,
     inactive_height: f32,
     inactive_radius: f32,
-    /// Altura visible de cualquier slot (todos comparten esta caja vertical)
     slot_box_height: f32,
     gap: f32,
     h_padding: f32,
@@ -80,12 +70,10 @@ impl SlotGeometry {
     fn from_theme(theme: &crate::theme::Theme) -> Self {
         let v_padding = theme.tokens.pill_padding_y;
         let cell_height = theme.tokens.pill_height - v_padding * 2.0;
-        // Activo: más ancho que alto y muy redondeado (look de pill ovalada)
         let active_height = cell_height;
         let active_width = active_height * 1.7;
         let active_radius = active_height * 0.5;
 
-        // Inactivos: mismo height (vos lo ajustaste a 1.0), un poco más anchos que alto
         let inactive_scale = 1.0;
         let inactive_height = active_height * inactive_scale;
         let inactive_width = inactive_height * 1.1;
@@ -100,13 +88,10 @@ impl SlotGeometry {
             inactive_radius,
             slot_box_height: cell_height,
             gap: 6.0,
-            // Mismo padding lateral que las otras pills, para mantener
-            // consistencia de espaciado interno.
             h_padding: theme.tokens.pill_padding_x,
         }
     }
 
-    /// Ancho total de la pill dado cuántos slots de cada tipo van a haber.
     fn pill_width(&self, active_count: i32, inactive_count: i32) -> f32 {
         let total_slots = active_count + inactive_count;
         let inner_w = self.active_width * active_count as f32
@@ -140,9 +125,7 @@ impl Component for WorkspacesPill {
         let geom = SlotGeometry::from_theme(ctx.theme);
         let palette = &ctx.theme.palette;
 
-        // Cursor X que se va moviendo a medida que dibujamos slots reales.
         let mut x = bounds.x + geom.h_padding;
-        // Caja vertical centrada en la pill (no offset desde arriba)
         let box_y = bounds.y + (bounds.height - geom.slot_box_height) / 2.0;
 
         for slot_id in 1..=data.visible_count() {
@@ -172,9 +155,6 @@ impl Component for WorkspacesPill {
                 )
             };
 
-            // Centrado vertical: todos los slots respetan el mismo eje vertical
-            // (el centro de la caja de slot). Los inactivos pueden ser más bajos
-            // pero quedan centrados verticalmente con el activo.
             let slot_y = box_y + (geom.slot_box_height - slot_h) / 2.0;
 
             let slot_rect = RoundedRect::new(
@@ -199,21 +179,18 @@ impl Component for WorkspacesPill {
                     text_x,
                     slot_y,
                     slot_h,
-                    size,
-                    &ctx.theme.typography.font_family,
-                    palette.slot_active_text,
+                    TextStyle::new(
+                        size,
+                        &ctx.theme.typography.font_family,
+                        palette.slot_active_text,
+                    ),
                 );
             }
 
-            // Avanzar el cursor por el ancho real del slot que acabo de dibujar
             x += slot_w + geom.gap;
         }
     }
 }
-
-// ============================================================
-// Background listener
-// ============================================================
 
 fn listener_loop(state: Arc<Mutex<WorkspaceData>>, redraw: Sender<()>) {
     let mut retries = 0;

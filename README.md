@@ -70,21 +70,21 @@ src/
 
 ## Architecture Rules
 
-1. **Theme is the single source of visual truth.**  
+1. **Theme is the single source of visual truth.**
    Components should not hardcode colors, sizes, radii, or spacing when those values belong in `Theme`.
 
-2. **Wayland details stay inside the `wayland` module.**  
+2. **Wayland details stay inside the `wayland` module.**
    The rest of the application should not directly depend on low-level Wayland setup logic.
 
-3. **UI elements implement `Component`.**  
+3. **UI elements implement `Component`.**
    Components expose:
    - `measure`: calculate intrinsic size.
    - `render`: draw inside the provided bounds.
 
-4. **`Pill::draw` is the visual base for pill components.**  
+4. **`Pill::draw` is the visual base for pill components.**
    Components draw the shared background first, then render their own content on top.
 
-5. **The app state is intentionally centralized.**  
+5. **The app state is intentionally centralized.**
    The Wayland event queue and the calloop loop need a single shared state type, so `AppState` coordinates Wayland, rendering, theme, and UI state.
 
 ## Requirements
@@ -165,19 +165,19 @@ The project is still early-stage, but the current structure is ready to grow com
 
 ## Known Limitations
 
-- **No real blur yet.**  
+- **No real blur yet.**
   The pill shadow is currently a simple solid shadow. Real blur would require rendering to an intermediate texture and applying a blur pass.
 
-- **No wallpaper/background blur.**  
+- **No wallpaper/background blur.**
   True glassmorphism blur behind the bar is not currently available through standard `wlr-layer-shell`. That would require compositor-level support.
 
-- **Limited input handling.**  
+- **Limited input handling.**
   The current bar focuses on rendering. Clicks, hover states, popovers, and interactive panels still need proper pointer/input handling.
 
-- **Weather location is hardcoded.**  
+- **Weather location is hardcoded.**
   The weather widget currently uses a fixed location. This should eventually move to configuration.
 
-- **Notifications are static for now.**  
+- **Notifications are static for now.**
   The notification pill is present visually, but it does not yet connect to a notification daemon.
 
 ## Roadmap Ideas
@@ -192,12 +192,3 @@ The project is still early-stage, but the current structure is ready to grow com
 - More robust font fallback.
 - Optional Taffy-based layout if the layout becomes more complex.
 - CI with `cargo fmt`, `cargo clippy`, and `cargo test`.
-
-## Development Philosophy
-
-Build it in this order:
-
-1. Make it work.
-2. Make it clear.
-3. Make it beautiful.
-4. Then scale the complexity.

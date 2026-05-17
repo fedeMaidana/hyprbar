@@ -7,7 +7,7 @@
 use vello::{
     Scene,
     kurbo::{Affine, RoundedRect},
-    peniko::Fill
+    peniko::Fill,
 };
 
 use crate::render::Rect;

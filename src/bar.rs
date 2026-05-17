@@ -1,6 +1,3 @@
-//! La barra en sí: organiza componentes en secciones (left/center/right)
-//! y dibuja todo en orden.
-
 pub mod arch_logo_pill;
 pub mod clock_pill;
 pub mod command_center_pill;

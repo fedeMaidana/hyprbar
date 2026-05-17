@@ -1,13 +1,9 @@
-//! Pipeline de rendering: wgpu como backend, vello como 2D scene API,
-//! parley para layout de texto.
-
 pub mod context;
 pub mod text;
 
 pub use context::RenderContext;
-pub use text::TextEngine;
+pub use text::{TextEngine, TextStyle};
 
-/// Rectángulo en coordenadas de pantalla (px).
 #[derive(Debug, Clone, Copy)]
 pub struct Rect {
     pub x: f32,

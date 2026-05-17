@@ -1,5 +1,3 @@
-//! Pill del clima.
-
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -7,7 +5,7 @@ use std::time::Duration;
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
-use crate::render::Rect;
+use crate::render::{Rect, TextStyle};
 
 #[derive(Debug, Clone)]
 pub struct WeatherConfig {
@@ -95,9 +93,11 @@ impl Component for WeatherPill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            icon_size,
-            &ctx.theme.typography.icon_font_family,
-            ctx.theme.palette.text_primary,
+            TextStyle::new(
+                icon_size,
+                &ctx.theme.typography.icon_font_family,
+                ctx.theme.palette.text_primary,
+            ),
         );
 
         ctx.text.draw_centered_v(
@@ -106,16 +106,14 @@ impl Component for WeatherPill {
             bounds.x + pad_x + iw + inner_gap,
             bounds.y,
             bounds.height,
-            text_size,
-            &ctx.theme.typography.font_family,
-            ctx.theme.palette.text_primary,
+            TextStyle::new(
+                text_size,
+                &ctx.theme.typography.font_family,
+                ctx.theme.palette.text_primary,
+            ),
         );
     }
 }
-
-// ============================================================
-// Fetcher en background
-// ============================================================
 
 fn fetcher_loop(config: WeatherConfig, state: Arc<Mutex<Option<WeatherSnapshot>>>) {
     loop {
@@ -141,7 +139,7 @@ fn fetch_once(config: &WeatherConfig) -> anyhow::Result<WeatherSnapshot> {
         "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code",
         config.latitude, config.longitude
     );
-    // ureq 3: Response<Body>, leemos via body_mut().read_to_string()
+
     let mut response = ureq::get(&url).call()?;
     let body = response.body_mut().read_to_string()?;
     let json: serde_json::Value = serde_json::from_str(&body)?;

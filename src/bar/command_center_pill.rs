@@ -1,12 +1,7 @@
-//! Pill del command center.
-//!
-//! Por ahora es estática: solo un ícono de toggle. Cuando implementemos
-//! input handling, click sobre la pill va a abrir el panel de comandos.
-
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
-use crate::render::Rect;
+use crate::render::{Rect, TextStyle};
 
 /// Glyph de toggle/sliders (Nerd Font, Material Design Icons): 󰒓
 const TOGGLE_GLYPH: &str = "\u{f0493}";
@@ -49,9 +44,11 @@ impl Component for CommandCenterPill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            icon_size,
-            &ctx.theme.typography.icon_font_family,
-            ctx.theme.palette.text_primary,
+            TextStyle::new(
+                icon_size,
+                &ctx.theme.typography.icon_font_family,
+                ctx.theme.palette.text_primary,
+            ),
         );
     }
 }

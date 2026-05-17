@@ -1,10 +1,3 @@
-//! Pill de notificaciones (estática por ahora).
-//!
-//! Muestra un ícono de campana y un badge cuando haya notificaciones.
-//! El contador está hardcoded en 0; cuando implementemos el daemon de
-//! notificaciones, reemplazar `count()` por una lectura de estado
-//! compartido (mismo patrón que workspaces).
-
 use vello::{
     Scene,
     kurbo::{Affine, Circle},
@@ -12,9 +5,8 @@ use vello::{
 };
 
 use crate::components::{Component, Pill, RenderCtx};
-use crate::render::Rect;
+use crate::render::{Rect, TextStyle};
 
-/// Glyph de campana (Nerd Font, Material Design Icons): 󰂚
 const BELL_GLYPH: &str = "\u{f009a}";
 
 pub struct NotificationsPill;
@@ -24,9 +16,6 @@ impl NotificationsPill {
         Self
     }
 
-    /// Cantidad de notificaciones pendientes. Hardcoded en 0 hasta que
-    /// implementemos el daemon. Cuando exista, esto va a leer de un
-    /// `Arc<Mutex<usize>>` igual que workspaces.
     fn count(&self) -> usize {
         0
     }
@@ -60,13 +49,13 @@ impl Component for NotificationsPill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            icon_size,
-            &ctx.theme.typography.icon_font_family,
-            ctx.theme.palette.text_primary,
+            TextStyle::new(
+                icon_size,
+                &ctx.theme.typography.icon_font_family,
+                ctx.theme.palette.text_primary,
+            ),
         );
 
-        // Badge (dot de color) en esquina superior-derecha del ícono.
-        // Solo visible cuando hay notificaciones pendientes.
         let count = self.count();
         if count > 0 {
             let (iw, _) = ctx.text.measure(

@@ -1,10 +1,8 @@
-//! Pill que muestra la fecha en formato dd/mm.
-
 use chrono::Local;
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
-use crate::render::Rect;
+use crate::render::{Rect, TextStyle};
 
 pub struct DatePill;
 
@@ -49,9 +47,11 @@ impl Component for DatePill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            size,
-            &ctx.theme.typography.font_family,
-            ctx.theme.palette.text_primary,
+            TextStyle::new(
+                size,
+                &ctx.theme.typography.font_family,
+                ctx.theme.palette.text_primary,
+            ),
         );
     }
 }

@@ -1,9 +1,7 @@
-//! Pill con el logo de Arch Linux.
-
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
-use crate::render::Rect;
+use crate::render::{Rect, TextStyle};
 
 const ARCH_GLYPH: &str = "\u{f08c7}";
 
@@ -43,9 +41,11 @@ impl Component for ArchLogoPill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            size,
-            &ctx.theme.typography.icon_font_family,
-            ctx.theme.palette.text_primary,
+            TextStyle::new(
+                size,
+                &ctx.theme.typography.icon_font_family,
+                ctx.theme.palette.text_primary,
+            ),
         );
     }
 }

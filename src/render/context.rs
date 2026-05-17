@@ -1,9 +1,3 @@
-//! `RenderContext` encapsula wgpu (device/queue/surface) + vello (renderer).
-//!
-//! Vello 0.5+ no expone `render_to_surface`. El flujo es:
-//! 1. Renderizar la scene a una textura intermedia (Rgba8Unorm con STORAGE_BINDING).
-//! 2. Blittear esa textura al surface usando `wgpu::util::TextureBlitter`.
-
 use anyhow::{Context, Result, anyhow};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use vello::{
@@ -45,11 +39,8 @@ impl RenderContext {
         ))
         .map_err(|e| anyhow!("vello create_surface failed: {e:?}"))?;
 
-        // === Configurar alpha_mode para transparencia ===
-        // Hyprland respeta surfaces transparentes solo si el alpha_mode es
-        // PreMultiplied o PostMultiplied. Auto/Opaque rellena con negro.
         let device_handle = &self.vello_ctx.devices[surface.dev_id];
-        let caps = surface.surface.get_capabilities(&device_handle.adapter());
+        let caps = surface.surface.get_capabilities(device_handle.adapter());
 
         let preferred_alpha = [
             wgpu::CompositeAlphaMode::PreMultiplied,
