@@ -56,9 +56,10 @@ impl SlotGeometry {
         let inactive_count = count - active_count;
         let total_slots = active_count + inactive_count;
 
-        let inner_width = self.active_width * active_count as f32
-            + self.inactive_width * inactive_count as f32
-            + self.gap * (total_slots - 1).max(0) as f32;
+        let gaps_count = total_slots.saturating_sub(1);
+
+        let inner_width =
+            self.active_width * active_count as f32 + self.inactive_width * inactive_count as f32 + self.gap * gaps_count as f32;
 
         inner_width + self.h_padding * 2.0
     }

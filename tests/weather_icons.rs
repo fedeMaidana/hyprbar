@@ -7,5 +7,5 @@ fn maps_clear_sky_icon() {
 
 #[test]
 fn maps_unknown_weather_code_to_fallback_icon() {
-    assert_eq!(weather_icon(999), UNKNOWN_WEATHER_ICON);
+    assert_eq!(weather_icon(250), UNKNOWN_WEATHER_ICON);
 }

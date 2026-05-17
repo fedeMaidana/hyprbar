@@ -29,7 +29,7 @@ pub fn parse_weather_snapshot(body: &str) -> Result<WeatherSnapshot> {
 
     let weather_code = current.weather_code.ok_or_else(|| anyhow!("missing weather_code"))?;
 
-    let weather_code = u32::try_from(weather_code).map_err(|_| anyhow!("weather_code out of range"))?;
+    let weather_code = u8::try_from(weather_code).map_err(|_| anyhow!("weather_code out of range"))?;
 
     Ok(WeatherSnapshot::new(temp_c, weather_code))
 }

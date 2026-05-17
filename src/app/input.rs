@@ -73,7 +73,7 @@ impl AppState {
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn activate_workspace(workspace_id: i32) {
+fn activate_workspace(workspace_id: crate::bar::workspaces::WorkspaceId) {
     match hyprland_ipc::dispatch_workspace(workspace_id) {
         Ok(()) => {
             log::info!("workspace {workspace_id} dispatch sent");

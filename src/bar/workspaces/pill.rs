@@ -11,7 +11,7 @@ use crate::render::{Rect, TextStyle};
 
 use super::geometry::SlotGeometry;
 use super::listener::spawn_listener;
-use super::state::{WorkspaceData, WorkspaceStore};
+use super::state::{WorkspaceData, WorkspaceId, WorkspaceStore};
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -102,7 +102,7 @@ impl Component for WorkspacesPill {
 }
 
 impl SlotVisual {
-    fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry, ctx: &RenderCtx<'_>) -> Self {
+    fn from_workspace(slot_id: WorkspaceId, data: &WorkspaceData, geometry: &SlotGeometry, ctx: &RenderCtx<'_>) -> Self {
         let exists = data.existing.contains(&slot_id);
         let is_active = slot_id == data.active_id;
         let is_hovered = ctx.hovered_interaction == Some(Interaction::Workspace(slot_id));
@@ -148,7 +148,7 @@ impl SlotVisual {
 }
 
 impl SlotHitBox {
-    fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry) -> Self {
+    fn from_workspace(slot_id: WorkspaceId, data: &WorkspaceData, geometry: &SlotGeometry) -> Self {
         if slot_id == data.active_id {
             return Self {
                 width: geometry.active_width,
@@ -189,7 +189,7 @@ fn draw_slot(scene: &mut Scene, x: f32, y: f32, slot: &SlotVisual) {
     scene.fill(Fill::NonZero, Affine::IDENTITY, slot.background, None, &slot_rect);
 }
 
-fn draw_active_label(scene: &mut Scene, ctx: &mut RenderCtx<'_>, slot_id: i32, slot_x: f32, slot_y: f32, slot: &SlotVisual) {
+fn draw_active_label(scene: &mut Scene, ctx: &mut RenderCtx<'_>, slot_id: WorkspaceId, slot_x: f32, slot_y: f32, slot: &SlotVisual) {
     let label = slot_id.to_string();
     let size = ctx.theme.typography.size_base;
 

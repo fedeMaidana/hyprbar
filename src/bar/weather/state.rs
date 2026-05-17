@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WeatherSnapshot {
     pub temp_c: f32,
-    pub weather_code: u32,
+    pub weather_code: u8,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -18,7 +18,7 @@ pub struct WeatherStore {
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl WeatherSnapshot {
-    pub fn new(temp_c: f32, weather_code: u32) -> Self {
+    pub fn new(temp_c: f32, weather_code: u8) -> Self {
         Self { temp_c, weather_code }
     }
 }

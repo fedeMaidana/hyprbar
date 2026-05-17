@@ -1,4 +1,5 @@
 use hyprbar::bar::Bar;
+use hyprbar::bar::workspaces::WorkspaceId;
 use hyprbar::components::{Component, Interaction, Point, RenderCtx};
 use hyprbar::render::{Rect, TextEngine};
 use hyprbar::theme::Theme;
@@ -32,7 +33,7 @@ impl Component for FixedComponent {
     }
 }
 
-fn fixed_workspace(id: i32, width: f32, height: f32) -> Box<dyn Component> {
+fn fixed_workspace(id: WorkspaceId, width: f32, height: f32) -> Box<dyn Component> {
     Box::new(FixedComponent::new(width, height, Interaction::Workspace(id)))
 }
 

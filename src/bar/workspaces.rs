@@ -16,4 +16,4 @@ pub use pill::WorkspacesPill;
 pub use mapper::parse_workspace_data;
 
 #[doc(hidden)]
-pub use state::WorkspaceData;
+pub use state::{WorkspaceData, WorkspaceId};

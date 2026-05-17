@@ -2,6 +2,7 @@
 
 use vello::Scene;
 
+use crate::bar::workspaces::WorkspaceId;
 use crate::render::{Rect, TextEngine};
 use crate::theme::Theme;
 
@@ -23,7 +24,7 @@ pub struct Point {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Interaction {
-    Workspace(i32),
+    Workspace(WorkspaceId),
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────

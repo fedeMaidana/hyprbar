@@ -4,7 +4,7 @@ pub const UNKNOWN_WEATHER_ICON: &str = "\u{e374}";
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
-pub fn weather_icon(code: u32) -> &'static str {
+pub fn weather_icon(code: u8) -> &'static str {
     match code {
         0 => "\u{e30d}",
         1 | 2 => "\u{e302}",

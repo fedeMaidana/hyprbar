@@ -83,7 +83,7 @@ pub fn query(command: &str) -> Result<String> {
     Ok(response)
 }
 
-pub fn dispatch_workspace(workspace_id: i32) -> Result<()> {
+pub fn dispatch_workspace(workspace_id: crate::bar::workspaces::WorkspaceId) -> Result<()> {
     let command = format!(r#"/dispatch hl.dsp.focus({{ workspace = "{workspace_id}" }})"#);
     let response = query(&command)?;
 

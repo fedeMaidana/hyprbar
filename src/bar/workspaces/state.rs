@@ -2,16 +2,20 @@
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
+// ─── < Types > ────────────────────────────────────────────────────
+
+pub type WorkspaceId = u8;
+
 // ─── < Constants > ────────────────────────────────────────────────────
 
-const MIN_VISIBLE_WORKSPACES: i32 = 3;
+const MIN_VISIBLE_WORKSPACES: WorkspaceId = 3;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkspaceData {
-    pub existing: Vec<i32>,
-    pub active_id: i32,
+    pub existing: Vec<WorkspaceId>,
+    pub active_id: WorkspaceId,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -22,7 +26,7 @@ pub struct WorkspaceStore {
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl WorkspaceData {
-    pub fn visible_count(&self) -> i32 {
+    pub fn visible_count(&self) -> WorkspaceId {
         let max_id = self.existing.iter().copied().max().unwrap_or(0).max(self.active_id);
 
         max_id.max(MIN_VISIBLE_WORKSPACES)
