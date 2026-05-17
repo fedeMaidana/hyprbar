@@ -8,7 +8,7 @@ use crate::bar::layout::Bar;
 use crate::bar::notifications_pill::NotificationsPill;
 use crate::bar::profile_pill::ProfilePill;
 use crate::bar::weather_pill::{WeatherConfig, WeatherPill};
-use crate::bar::workspaces_pill::WorkspacesPill;
+use crate::bar::workspaces::WorkspacesPill;
 use crate::components::Component;
 
 pub fn default_bar(redraw_signal: Sender<()>) -> Bar {
