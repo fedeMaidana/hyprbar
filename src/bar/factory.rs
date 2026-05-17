@@ -25,7 +25,7 @@ pub fn default_bar(redraw_signal: Sender<()>) -> Bar {
             Box::new(ArchLogoPill::new()) as Box<dyn Component>,
             Box::new(DatePill::new()),
             Box::new(ClockPill::new()),
-            Box::new(WeatherPill::new(WeatherConfig::mar_del_plata())),
+            Box::new(WeatherPill::new(WeatherConfig::auto_detect())),
         ],
         vec![
             Box::new(CommandCenterPill::new()) as Box<dyn Component>,

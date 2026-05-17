@@ -12,7 +12,7 @@ The goal of this project is to build a clean, minimal, and maintainable desktop 
 - Centralized theme and visual token system.
 - Pill-based UI components.
 - Date and clock pills.
-- Weather pill using Open-Meteo.
+- Weather pill using Open-Meteo with IP-based location detection.
 - Hyprland workspace integration through IPC sockets.
 - Workspace click handling.
 - Workspace hover feedback.
@@ -269,8 +269,8 @@ The project is still early-stage, but the current structure is designed to keep 
 - **No wallpaper/background blur.**
   True glassmorphism blur behind the bar is not currently available through standard `wlr-layer-shell`. That would require compositor-level support.
 
-- **Weather location is hardcoded.**
-  The weather widget currently uses a fixed location.
+- **Weather location is IP-based.**
+  Location detection is approximate and may reflect the current VPN, proxy, or ISP location.
 
 - **Notifications are static for now.**
   The notification pill is present visually, but it does not yet connect to a notification daemon.

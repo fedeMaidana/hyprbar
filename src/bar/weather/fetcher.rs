@@ -5,6 +5,7 @@ use anyhow::Result;
 use crate::app::{ShutdownToken, WorkerHandle};
 
 use super::config::WeatherConfig;
+use super::location::{Coordinates, detect_location};
 use super::mapper::parse_weather_snapshot;
 use super::state::{WeatherSnapshot, WeatherStore};
 
@@ -23,8 +24,36 @@ pub fn spawn_fetcher(config: WeatherConfig, store: WeatherStore) -> Option<Worke
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn fetcher_loop(config: WeatherConfig, store: WeatherStore, shutdown: ShutdownToken) {
+    let mut coordinates = config.location.coordinates();
+
     while !shutdown.should_stop() {
-        match fetch_once(&config) {
+        let current_coordinates = match coordinates {
+            Some(coordinates) => coordinates,
+            None => match detect_location() {
+                Ok(location) => {
+                    if let Some(label) = location.label {
+                        log::info!("weather location detected: {label}");
+                    } else {
+                        log::info!("weather location detected: {}, {}", location.coordinates.latitude, location.coordinates.longitude);
+                    }
+
+                    coordinates = Some(location.coordinates);
+
+                    location.coordinates
+                }
+                Err(error) => {
+                    log::warn!("weather location detection failed: {error}");
+
+                    if shutdown.sleep(config.location_retry_interval) {
+                        break;
+                    }
+
+                    continue;
+                }
+            },
+        };
+
+        match fetch_once(current_coordinates) {
             Ok(snapshot) => {
                 log::info!("weather: {}°C code={}", snapshot.temp_c.round() as i32, snapshot.weather_code);
 
@@ -43,10 +72,10 @@ fn fetcher_loop(config: WeatherConfig, store: WeatherStore, shutdown: ShutdownTo
     log::info!("weather fetcher stopped");
 }
 
-fn fetch_once(config: &WeatherConfig) -> Result<WeatherSnapshot> {
+fn fetch_once(coordinates: Coordinates) -> Result<WeatherSnapshot> {
     let url = format!(
         "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code",
-        config.latitude, config.longitude
+        coordinates.latitude, coordinates.longitude
     );
 
     let mut response = ureq::get(&url).call()?;
