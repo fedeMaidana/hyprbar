@@ -4,6 +4,10 @@ A custom status bar for Hyprland built with Rust, Wayland, SCTK, wgpu, Vello, an
 
 The goal of this project is to build a clean, minimal, and maintainable desktop bar for a Wayland/Hyprland environment.
 
+<p align="center">
+  <img src="docs/screenshots/hyprbar-hero.png" width="900" alt="Hyprbar desktop preview">
+</p>
+
 ## Features
 
 - Wayland layer-shell top bar.
