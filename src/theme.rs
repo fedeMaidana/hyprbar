@@ -30,6 +30,10 @@ impl Theme {
             typography: Typography::default(),
         }
     }
+
+    pub fn refresh_dynamic_colors(&mut self) {
+        self.palette.refresh_from_hyprcolor();
+    }
 }
 
 impl Default for Theme {

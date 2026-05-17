@@ -1,10 +1,16 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use std::env;
 use std::io::{BufRead, BufReader, Read, Write};
+use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::time::Duration;
+
+// ─── < Constants > ────────────────────────────────────────────────────
+
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -25,45 +31,92 @@ impl Iterator for EventStream {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut line = String::new();
+
         match self.reader.read_line(&mut line) {
-            Ok(0) => None, // EOF: el socket se cerró
+            Ok(0) => None,
             Ok(_) => Some(parse_event(&line)),
-            Err(e) => Some(Err(anyhow!("read_line: {e}"))),
+            Err(error) => Some(Err(anyhow!("read_line: {error}"))),
         }
     }
 }
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
-pub fn query(cmd: &str) -> Result<String> {
-    let path = socket_dir()?.join(".socket.sock");
-    let mut stream = UnixStream::connect(&path).with_context(|| format!("conectando a {}", path.display()))?;
-    stream.write_all(cmd.as_bytes())?;
+pub fn query(command: &str) -> Result<String> {
+    let mut stream = connect_request_socket()?;
+
+    stream
+        .write_all(command.as_bytes())
+        .with_context(|| format!("escribiendo request de Hyprland: {command}"))?;
+
+    let _ = stream.shutdown(Shutdown::Write);
+
     let mut response = String::new();
-    stream.read_to_string(&mut response)?;
+
+    stream
+        .read_to_string(&mut response)
+        .with_context(|| format!("leyendo respuesta de Hyprland para: {command}"))?;
+
     Ok(response)
+}
+
+pub fn dispatch_workspace(workspace_id: i32) -> Result<()> {
+    let command = format!(r#"/dispatch hl.dsp.focus({{ workspace = "{workspace_id}" }})"#);
+    let response = query(&command)?;
+
+    ensure_ok_response("workspace dispatch", &response)
 }
 
 pub fn event_stream() -> Result<EventStream> {
     let path = socket_dir()?.join(".socket2.sock");
     let stream = UnixStream::connect(&path).with_context(|| format!("conectando a {}", path.display()))?;
+
     Ok(EventStream {
         reader: BufReader::new(stream),
     })
 }
 
-// ─── < Private Funtions > ────────────────────────────────────────────────────
+// ─── < Private Functions > ────────────────────────────────────────────────────
+
+fn connect_request_socket() -> Result<UnixStream> {
+    let path = socket_dir()?.join(".socket.sock");
+    let stream = UnixStream::connect(&path).with_context(|| format!("conectando a {}", path.display()))?;
+
+    stream
+        .set_read_timeout(Some(REQUEST_TIMEOUT))
+        .context("configurando read timeout para socket de Hyprland")?;
+
+    stream
+        .set_write_timeout(Some(REQUEST_TIMEOUT))
+        .context("configurando write timeout para socket de Hyprland")?;
+
+    Ok(stream)
+}
 
 fn socket_dir() -> Result<PathBuf> {
     let runtime = env::var("XDG_RUNTIME_DIR").context("XDG_RUNTIME_DIR no definida")?;
+
     let sig = env::var("HYPRLAND_INSTANCE_SIGNATURE")
         .context("HYPRLAND_INSTANCE_SIGNATURE no definida — ¿estás corriendo dentro de Hyprland?")?;
+
     Ok(PathBuf::from(runtime).join("hypr").join(sig))
+}
+
+fn ensure_ok_response(action: &str, response: &str) -> Result<()> {
+    let response = response.trim();
+
+    if response.is_empty() || response == "ok" {
+        return Ok(());
+    }
+
+    bail!("{action} falló: {response}")
 }
 
 fn parse_event(line: &str) -> Result<HyprEvent> {
     let line = line.trim_end();
+
     let (name, data) = line.split_once(">>").ok_or_else(|| anyhow!("evento mal formado: {line}"))?;
+
     Ok(HyprEvent {
         name: name.to_string(),
         data: data.to_string(),

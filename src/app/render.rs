@@ -16,6 +16,8 @@ impl AppState {
             self.pending_resize = false;
         }
 
+        self.theme.refresh_dynamic_colors();
+
         let surface_rect = Rect::new(0.0, 0.0, self.width as f32, self.height as f32);
 
         let mut ctx = RenderCtx {

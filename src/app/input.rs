@@ -62,17 +62,9 @@ impl AppState {
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn activate_workspace(workspace_id: i32) {
-    let command = format!(r#"/dispatch hl.dsp.focus({{ workspace = "{workspace_id}" }})"#);
-
-    match hyprland_ipc::query(&command) {
-        Ok(response) => {
-            let response = response.trim();
-
-            if response.is_empty() {
-                log::info!("workspace {workspace_id} dispatch sent");
-            } else {
-                log::info!("workspace {workspace_id} dispatch response: {response}");
-            }
+    match hyprland_ipc::dispatch_workspace(workspace_id) {
+        Ok(()) => {
+            log::info!("workspace {workspace_id} dispatch sent");
         }
         Err(error) => {
             log::warn!("workspace dispatch failed for {workspace_id}: {error}");
