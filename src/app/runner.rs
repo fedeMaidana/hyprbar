@@ -3,7 +3,7 @@ use calloop::{EventLoop, channel::channel};
 use smithay_client_toolkit::shell::WaylandSurface;
 use wayland_client::{Connection, EventQueue};
 
-use crate::bar::Bar;
+use crate::bar::default_bar;
 use crate::theme::Theme;
 use crate::wayland::{self, LayerConfig};
 
@@ -25,7 +25,7 @@ impl App {
             EventLoop::try_new().context("calloop EventLoop::try_new")?;
 
         let (redraw_sender, redraw_channel) = channel::<()>();
-        let bar = Bar::new(redraw_sender);
+        let bar = default_bar(redraw_sender);
 
         let mut app = AppState::new(wl_init, theme, bar);
 
