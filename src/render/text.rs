@@ -1,9 +1,11 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use parley::{FontContext, Layout, LayoutContext, StyleProperty, style::FontFamily};
-use vello::{
-    Scene,
-    kurbo::Affine,
-    peniko::{Brush, Color, Fill},
-};
+use vello::Scene;
+use vello::kurbo::Affine;
+use vello::peniko::{Brush, Color, Fill};
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy)]
 pub struct TextStyle<'a> {
@@ -12,15 +14,17 @@ pub struct TextStyle<'a> {
     pub color: Color,
 }
 
+pub struct TextEngine {
+    font_cx: FontContext,
+    layout_cx: LayoutContext<Brush>,
+}
+
+// ─── < Implementations > ────────────────────────────────────────────────────
+
 impl<'a> TextStyle<'a> {
     pub fn new(size: f32, family: &'a str, color: Color) -> Self {
         Self { size, family, color }
     }
-}
-
-pub struct TextEngine {
-    font_cx: FontContext,
-    layout_cx: LayoutContext<Brush>,
 }
 
 impl TextEngine {
@@ -59,6 +63,14 @@ impl TextEngine {
         draw_layout(scene, &layout, x, y, style.color);
     }
 }
+
+impl Default for TextEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn draw_layout(scene: &mut Scene, layout: &Layout<Brush>, x: f32, y: f32, color: Color) {
     let brush = Brush::Solid(color);
@@ -101,11 +113,5 @@ fn draw_layout(scene: &mut Scene, layout: &Layout<Brush>, x: f32, y: f32, color:
                     }),
                 );
         }
-    }
-}
-
-impl Default for TextEngine {
-    fn default() -> Self {
-        Self::new()
     }
 }

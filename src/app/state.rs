@@ -1,14 +1,12 @@
-use smithay_client_toolkit::{
-    compositor::CompositorState,
-    output::OutputState,
-    registry::RegistryState,
-    seat::{
-        SeatState,
-        pointer::{CursorIcon, ThemedPointer},
-    },
-    shell::wlr_layer::{LayerShell, LayerSurface},
-    shm::Shm,
-};
+// ─── < Imports > ────────────────────────────────────────────────────
+
+use smithay_client_toolkit::compositor::CompositorState;
+use smithay_client_toolkit::output::OutputState;
+use smithay_client_toolkit::registry::RegistryState;
+use smithay_client_toolkit::seat::SeatState;
+use smithay_client_toolkit::seat::pointer::{CursorIcon, ThemedPointer};
+use smithay_client_toolkit::shell::wlr_layer::{LayerShell, LayerSurface};
+use smithay_client_toolkit::shm::Shm;
 use wayland_client::{QueueHandle, protocol::wl_surface};
 
 use crate::bar::Bar;
@@ -16,6 +14,8 @@ use crate::components::Point;
 use crate::render::{RenderContext, TextEngine};
 use crate::theme::Theme;
 use crate::wayland::init::WaylandInit;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct AppState {
     pub registry_state: RegistryState,
@@ -43,6 +43,8 @@ pub struct AppState {
     pub(crate) pointer_position: Option<Point>,
     pub(crate) cursor_icon: CursorIcon,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl AppState {
     pub fn new(wl_init: WaylandInit, theme: Theme, bar: Bar) -> Self {

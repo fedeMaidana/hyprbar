@@ -1,13 +1,18 @@
-use std::{env, fs, path::PathBuf};
+// ─── < Imports > ────────────────────────────────────────────────────
 
 use serde_json::Value;
+use std::{env, fs, path::PathBuf};
 use vello::peniko::Color;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy)]
 pub struct HyprcolorPalette {
     pub accent: Color,
     pub foreground: Color,
 }
+
+// ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn load() -> Option<HyprcolorPalette> {
     let path = colors_json_path()?;
@@ -19,6 +24,8 @@ pub fn load() -> Option<HyprcolorPalette> {
         foreground: parse_json_color(&json, "foreground")?,
     })
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn colors_json_path() -> Option<PathBuf> {
     if let Some(cache_home) = env::var_os("XDG_CACHE_HOME") {

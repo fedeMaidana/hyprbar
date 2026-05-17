@@ -1,7 +1,11 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use anyhow::{Result, anyhow};
 use serde_json::Value;
 
 use super::state::WeatherSnapshot;
+
+// ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn parse_weather_snapshot(body: &str) -> Result<WeatherSnapshot> {
     let json: Value = serde_json::from_str(body)?;

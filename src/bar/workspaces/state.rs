@@ -1,6 +1,12 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use std::sync::{Arc, Mutex};
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
 const MIN_VISIBLE_WORKSPACES: i32 = 3;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkspaceData {
@@ -8,17 +14,19 @@ pub struct WorkspaceData {
     pub active_id: i32,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct WorkspaceStore {
+    inner: Arc<Mutex<WorkspaceData>>,
+}
+
+// ─── < Implementations > ────────────────────────────────────────────────────
+
 impl WorkspaceData {
     pub fn visible_count(&self) -> i32 {
         let max_id = self.existing.iter().copied().max().unwrap_or(0).max(self.active_id);
 
         max_id.max(MIN_VISIBLE_WORKSPACES)
     }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct WorkspaceStore {
-    inner: Arc<Mutex<WorkspaceData>>,
 }
 
 impl WorkspaceStore {

@@ -1,7 +1,11 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use anyhow::{Result, anyhow};
 use serde_json::Value;
 
 use super::state::WorkspaceData;
+
+// ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn parse_workspace_data(workspaces_json: &str, active_json: &str) -> Result<WorkspaceData> {
     let workspaces: Value = serde_json::from_str(workspaces_json)?;

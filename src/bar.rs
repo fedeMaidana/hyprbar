@@ -1,3 +1,5 @@
+// ─── < Modules > ────────────────────────────────────────────────────
+
 pub mod arch_logo_pill;
 pub mod clock_pill;
 pub mod command_center_pill;

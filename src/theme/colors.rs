@@ -1,6 +1,10 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use vello::peniko::Color;
 
 use super::hyprcolor;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy)]
 pub struct Palette {
@@ -15,6 +19,8 @@ pub struct Palette {
     pub slot_inactive_bg: Color,
     pub slot_empty_bg: Color,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl Palette {
     pub fn dark() -> Self {

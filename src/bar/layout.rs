@@ -1,11 +1,17 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use vello::Scene;
 
 use crate::components::{Component, Interaction, Point, RenderCtx};
 use crate::render::Rect;
 use crate::theme::Theme;
 
+// ─── < Types > ────────────────────────────────────────────────────
+
 type Components = Vec<Box<dyn Component>>;
 type ComponentSizes = Vec<(f32, f32)>;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct Bar {
     left: Components,
@@ -16,6 +22,16 @@ pub struct Bar {
     center_bounds: Vec<Rect>,
     right_bounds: Vec<Rect>,
 }
+
+#[derive(Debug, Clone, Copy)]
+struct BarLayout {
+    surface: Rect,
+    pad_x: f32,
+    pad_top: f32,
+    gap: f32,
+}
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl Bar {
     pub fn new(left: Components, center: Components, right: Components) -> Self {
@@ -52,14 +68,6 @@ impl Bar {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct BarLayout {
-    surface: Rect,
-    pad_x: f32,
-    pad_top: f32,
-    gap: f32,
-}
-
 impl BarLayout {
     fn new(surface: Rect, theme: &Theme) -> Self {
         Self {
@@ -74,6 +82,8 @@ impl BarLayout {
         self.surface.y + self.pad_top
     }
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn render_left_section(
     components: &mut [Box<dyn Component>],

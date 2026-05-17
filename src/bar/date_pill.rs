@@ -1,10 +1,16 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use chrono::Local;
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
+// ─── < Structs > ────────────────────────────────────────────────────
+
 pub struct DatePill;
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl DatePill {
     pub fn new() -> Self {

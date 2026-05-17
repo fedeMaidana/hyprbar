@@ -1,11 +1,19 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
 const ARCH_GLYPH: &str = "\u{f08c7}";
 
+// ─── < Structs > ────────────────────────────────────────────────────
+
 pub struct ArchLogoPill;
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl ArchLogoPill {
     pub fn new() -> Self {

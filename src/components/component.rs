@@ -1,7 +1,11 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use vello::Scene;
 
 use crate::render::{Rect, TextEngine};
 use crate::theme::Theme;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct RenderCtx<'a> {
     pub theme: &'a Theme,
@@ -14,16 +18,22 @@ pub struct Point {
     pub y: f32,
 }
 
+// ─── < Enums > ────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Interaction {
+    Workspace(i32),
+}
+
+// ─── < Implementations > ────────────────────────────────────────────────────
+
 impl Point {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Interaction {
-    Workspace(i32),
-}
+// ─── < Traits > ────────────────────────────────────────────────────
 
 pub trait Component {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32);

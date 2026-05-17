@@ -1,4 +1,8 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use std::time::Duration;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct WeatherConfig {
@@ -6,6 +10,8 @@ pub struct WeatherConfig {
     pub longitude: f64,
     pub fetch_interval: Duration,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl WeatherConfig {
     pub fn mar_del_plata() -> Self {

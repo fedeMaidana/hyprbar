@@ -1,26 +1,31 @@
-use smithay_client_toolkit::{
-    compositor::CompositorHandler,
-    delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
-    output::{OutputHandler, OutputState},
-    registry::{ProvidesRegistryState, RegistryState},
-    registry_handlers,
-    seat::{
-        Capability, SeatHandler, SeatState,
-        pointer::{BTN_LEFT, CursorIcon, PointerEvent, PointerEventKind, PointerHandler, ThemeSpec},
-    },
-    shell::{
-        WaylandSurface,
-        wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
-    },
-    shm::{Shm, ShmHandler},
-};
-use wayland_client::{
-    Connection, QueueHandle,
-    protocol::{wl_output, wl_pointer, wl_seat, wl_surface},
-};
+// ─── < Imports > ────────────────────────────────────────────────────
+
+use smithay_client_toolkit::compositor::CompositorHandler;
+use smithay_client_toolkit::delegate_compositor;
+use smithay_client_toolkit::delegate_layer;
+use smithay_client_toolkit::delegate_output;
+use smithay_client_toolkit::delegate_pointer;
+use smithay_client_toolkit::delegate_registry;
+use smithay_client_toolkit::delegate_seat;
+use smithay_client_toolkit::delegate_shm;
+use smithay_client_toolkit::output::{OutputHandler, OutputState};
+use smithay_client_toolkit::registry::{ProvidesRegistryState, RegistryState};
+use smithay_client_toolkit::registry_handlers;
+use smithay_client_toolkit::seat::Capability;
+use smithay_client_toolkit::seat::SeatHandler;
+use smithay_client_toolkit::seat::SeatState;
+use smithay_client_toolkit::seat::pointer::{BTN_LEFT, CursorIcon, PointerEvent, PointerEventKind, PointerHandler, ThemeSpec};
+use smithay_client_toolkit::shell::WaylandSurface;
+use smithay_client_toolkit::shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure};
+use smithay_client_toolkit::shm::{Shm, ShmHandler};
+use wayland_client::Connection;
+use wayland_client::QueueHandle;
+use wayland_client::protocol::{wl_output, wl_pointer, wl_seat, wl_surface};
 
 use crate::app::AppState;
 use crate::components::Point;
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl CompositorHandler for AppState {
     fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_factor: i32) {}
@@ -180,6 +185,8 @@ impl ProvidesRegistryState for AppState {
 
     registry_handlers![OutputState, SeatState];
 }
+
+// ─── < SCTK Delegates > ────────────────────────────────────────────────────
 
 delegate_compositor!(AppState);
 delegate_output!(AppState);

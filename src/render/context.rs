@@ -1,10 +1,15 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use anyhow::{Context, Result, anyhow};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-use vello::{
-    AaConfig, Renderer, RendererOptions, Scene,
-    util::{RenderContext as VelloUtilContext, RenderSurface},
-    wgpu,
-};
+use vello::AaConfig;
+use vello::Renderer;
+use vello::RendererOptions;
+use vello::Scene;
+use vello::util::{RenderContext as VelloUtilContext, RenderSurface};
+use vello::wgpu;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct RenderContext {
     vello_ctx: VelloUtilContext,
@@ -19,6 +24,8 @@ struct IntermediateTarget {
     _texture: wgpu::Texture,
     view: wgpu::TextureView,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl RenderContext {
     pub fn new() -> Self {

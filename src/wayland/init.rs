@@ -1,20 +1,20 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use anyhow::{Context, Result};
-use smithay_client_toolkit::{
-    compositor::CompositorState,
-    output::OutputState,
-    registry::RegistryState,
-    seat::SeatState,
-    shell::{
-        WaylandSurface,
-        wlr_layer::{LayerShell, LayerSurface},
-    },
-    shm::Shm,
-};
+use smithay_client_toolkit::compositor::CompositorState;
+use smithay_client_toolkit::output::OutputState;
+use smithay_client_toolkit::registry::RegistryState;
+use smithay_client_toolkit::seat::SeatState;
+use smithay_client_toolkit::shell::WaylandSurface;
+use smithay_client_toolkit::shell::wlr_layer::{LayerShell, LayerSurface};
+use smithay_client_toolkit::shm::Shm;
 use wayland_client::{Connection, EventQueue, QueueHandle, globals::registry_queue_init};
 
 use crate::app::AppState;
 
 use super::layer_surface::LayerConfig;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct WaylandInit {
     pub registry_state: RegistryState,
@@ -25,6 +25,8 @@ pub struct WaylandInit {
     pub layer_shell: LayerShell,
     pub layer: LayerSurface,
 }
+
+// ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn init(conn: &Connection, config: LayerConfig) -> Result<(WaylandInit, EventQueue<AppState>)> {
     let (globals, event_queue) = registry_queue_init::<AppState>(conn).context("registry_queue_init failed")?;

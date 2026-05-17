@@ -1,9 +1,14 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use std::path::Path;
 use std::sync::Arc;
-
 use vello::peniko::{Blob, ImageAlphaType, ImageData, ImageFormat};
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
 const AVATAR_RESOLUTION: u32 = 128;
+
+// ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn load_avatar(path: &Path) -> anyhow::Result<ImageData> {
     let image = image::open(path)?

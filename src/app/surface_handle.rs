@@ -1,16 +1,26 @@
-use std::ptr::NonNull;
+// ─── < Imports > ────────────────────────────────────────────────────
 
 use anyhow::Result;
-use raw_window_handle::{
-    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle,
-    WaylandWindowHandle, WindowHandle,
-};
+use raw_window_handle::DisplayHandle;
+use raw_window_handle::HandleError;
+use raw_window_handle::HasDisplayHandle;
+use raw_window_handle::HasWindowHandle;
+use raw_window_handle::RawDisplayHandle;
+use raw_window_handle::RawWindowHandle;
+use raw_window_handle::WaylandDisplayHandle;
+use raw_window_handle::WaylandWindowHandle;
+use raw_window_handle::WindowHandle;
+use std::ptr::NonNull;
 use wayland_client::{Connection, Proxy};
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct SurfaceHandle {
     display_ptr: NonNull<std::ffi::c_void>,
     surface_ptr: NonNull<std::ffi::c_void>,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 unsafe impl Send for SurfaceHandle {}
 unsafe impl Sync for SurfaceHandle {}

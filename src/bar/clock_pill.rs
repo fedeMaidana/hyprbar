@@ -1,10 +1,16 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use chrono::Local;
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
+// ─── < Structs > ────────────────────────────────────────────────────
+
 pub struct ClockPill;
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl ClockPill {
     pub fn new() -> Self {

@@ -1,6 +1,31 @@
-//! Configuración del layer-surface (qué borde, qué capa, exclusive zone).
+// ─── < Imports > ────────────────────────────────────────────────────
 
 use smithay_client_toolkit::shell::wlr_layer::{Anchor as SctkAnchor, KeyboardInteractivity, Layer as SctkLayer, LayerSurface};
+
+// ─── < Structs > ────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+pub struct Anchor {
+    pub top: bool,
+    pub bottom: bool,
+    pub left: bool,
+    pub right: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct LayerConfig {
+    pub layer: LayerPosition,
+    pub anchor: Anchor,
+    pub exclusive_zone: i32,
+    pub initial_width: u32,
+    pub initial_height: u32,
+    pub margin_top: i32,
+    pub margin_bottom: i32,
+    pub margin_left: i32,
+    pub margin_right: i32,
+}
+
+// ─── < Enums > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy)]
 pub enum LayerPosition {
@@ -9,6 +34,8 @@ pub enum LayerPosition {
     Top,
     Overlay,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl From<LayerPosition> for SctkLayer {
     fn from(p: LayerPosition) -> Self {
@@ -19,14 +46,6 @@ impl From<LayerPosition> for SctkLayer {
             LayerPosition::Overlay => SctkLayer::Overlay,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Anchor {
-    pub top: bool,
-    pub bottom: bool,
-    pub left: bool,
-    pub right: bool,
 }
 
 impl Anchor {
@@ -53,21 +72,6 @@ impl Anchor {
         }
         a
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct LayerConfig {
-    pub layer: LayerPosition,
-    pub anchor: Anchor,
-    /// Exclusive zone: cuántos px reservar para que las ventanas no se superpongan.
-    /// 0 = no reservar. -1 = ignorar otras zonas.
-    pub exclusive_zone: i32,
-    pub initial_width: u32,
-    pub initial_height: u32,
-    pub margin_top: i32,
-    pub margin_bottom: i32,
-    pub margin_left: i32,
-    pub margin_right: i32,
 }
 
 impl LayerConfig {

@@ -1,9 +1,13 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use anyhow::Result;
 
 use crate::components::RenderCtx;
 use crate::render::Rect;
 
 use super::state::AppState;
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl AppState {
     pub(crate) fn render(&mut self) -> Result<()> {

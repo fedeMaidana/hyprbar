@@ -1,20 +1,27 @@
-use std::thread;
-use std::time::Duration;
+// ─── < Imports > ────────────────────────────────────────────────────
 
 use anyhow::Result;
 use calloop::channel::Sender;
+use std::thread;
+use std::time::Duration;
 
 use crate::hyprland_ipc;
 
 use super::mapper::parse_workspace_data;
 use super::state::WorkspaceStore;
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
 const MAX_INITIAL_FETCH_RETRIES: u8 = 5;
 const INITIAL_FETCH_RETRY_DELAY: Duration = Duration::from_millis(500);
+
+// ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn spawn_listener(store: WorkspaceStore, redraw_signal: Sender<()>) {
     thread::spawn(move || listener_loop(store, redraw_signal));
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn listener_loop(store: WorkspaceStore, redraw: Sender<()>) {
     if !wait_for_initial_refresh(&store, &redraw) {

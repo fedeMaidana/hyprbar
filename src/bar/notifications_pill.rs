@@ -1,3 +1,5 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use vello::{
     Scene,
     kurbo::{Affine, Circle},
@@ -7,9 +9,15 @@ use vello::{
 use crate::components::{Component, Pill, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
 const BELL_GLYPH: &str = "\u{f009a}";
 
+// ─── < Structs > ────────────────────────────────────────────────────
+
 pub struct NotificationsPill;
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl NotificationsPill {
     pub fn new() -> Self {

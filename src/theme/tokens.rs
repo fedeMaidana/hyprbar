@@ -1,4 +1,4 @@
-//! Design tokens para spacing, radio, dimensiones.
+// ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy)]
 pub struct Tokens {
@@ -6,8 +6,6 @@ pub struct Tokens {
     pub bar_margin_top: f32,
     pub bar_margin_x: f32,
 
-    /// Altura fija de TODAS las pills. Mantenerla así garantiza que se vean
-    /// alineadas. Cada pill ajusta solo su ancho según contenido.
     pub pill_height: f32,
     pub pill_gap: f32,
     pub pill_padding_x: f32,
@@ -16,6 +14,8 @@ pub struct Tokens {
 
     pub shadow_offset_y: f32,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl Default for Tokens {
     fn default() -> Self {

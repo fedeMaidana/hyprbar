@@ -1,3 +1,5 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use anyhow::{Context, Result};
 use calloop::{EventLoop, channel::channel};
 use smithay_client_toolkit::shell::WaylandSurface;
@@ -11,7 +13,11 @@ use super::sources;
 use super::state::AppState;
 use super::surface_handle::SurfaceHandle;
 
+// ─── < Structs > ────────────────────────────────────────────────────
+
 pub struct App;
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl App {
     pub fn run() -> Result<()> {
@@ -39,6 +45,8 @@ impl App {
         run_main_loop(event_loop, app)
     }
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn wait_until_configured(event_queue: &mut EventQueue<AppState>, app: &mut AppState) -> Result<()> {
     event_queue.roundtrip(app).context("roundtrip inicial falló")?;

@@ -1,10 +1,13 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use smithay_client_toolkit::seat::pointer::CursorIcon;
 use wayland_client::Connection;
 
+use super::state::AppState;
 use crate::components::{Interaction, Point};
 use crate::hyprland_ipc;
 
-use super::state::AppState;
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl AppState {
     pub fn handle_pointer_enter_or_motion(&mut self, conn: &Connection, point: Point, force_cursor_reload: bool) {
@@ -55,6 +58,8 @@ impl AppState {
         self.cursor_icon = icon;
     }
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn activate_workspace(workspace_id: i32) {
     let command = format!(r#"/dispatch hl.dsp.focus({{ workspace = "{workspace_id}" }})"#);

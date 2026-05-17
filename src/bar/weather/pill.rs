@@ -1,3 +1,5 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
@@ -8,12 +10,18 @@ use super::fetcher::spawn_fetcher;
 use super::icons::{UNKNOWN_WEATHER_ICON, weather_icon};
 use super::state::{WeatherSnapshot, WeatherStore};
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
 const INNER_GAP: f32 = 4.0;
 const ICON_SCALE: f32 = 1.2;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct WeatherPill {
     store: WeatherStore,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl WeatherPill {
     pub fn new(config: WeatherConfig) -> Self {
@@ -57,6 +65,8 @@ impl Component for WeatherPill {
         draw_weather_text(scene, bounds, ctx, icon, &text);
     }
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn weather_parts(snapshot: WeatherSnapshot) -> (&'static str, String) {
     let icon = weather_icon(snapshot.weather_code);

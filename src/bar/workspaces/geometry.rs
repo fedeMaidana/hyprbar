@@ -1,6 +1,10 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use crate::theme::Theme;
 
 use super::state::WorkspaceData;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct SlotGeometry {
     pub active_width: f32,
@@ -13,6 +17,8 @@ pub struct SlotGeometry {
     pub gap: f32,
     pub h_padding: f32,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl SlotGeometry {
     pub fn from_theme(theme: &Theme) -> Self {

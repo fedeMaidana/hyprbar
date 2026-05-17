@@ -1,3 +1,5 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use std::time::Duration;
 
 use anyhow::{Result, anyhow};
@@ -10,6 +12,8 @@ use calloop_wayland_source::WaylandSource;
 use wayland_client::{Connection, EventQueue};
 
 use super::state::AppState;
+
+// ─── < Public Funtions > ────────────────────────────────────────────────────
 
 pub(crate) fn insert_sources(
     event_loop: &mut EventLoop<AppState>,
@@ -25,6 +29,8 @@ pub(crate) fn insert_sources(
 
     Ok(())
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn insert_wayland_source(
     loop_handle: calloop::LoopHandle<'_, AppState>,

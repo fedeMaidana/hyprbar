@@ -1,10 +1,13 @@
-use std::thread;
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 use anyhow::Result;
+use std::thread;
 
 use super::config::WeatherConfig;
 use super::mapper::parse_weather_snapshot;
 use super::state::{WeatherSnapshot, WeatherStore};
+
+// ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn spawn_fetcher(config: WeatherConfig, store: WeatherStore) {
     match thread::Builder::new()
@@ -15,6 +18,8 @@ pub fn spawn_fetcher(config: WeatherConfig, store: WeatherStore) {
         Err(error) => log::error!("weather fetcher spawn failed: {error}"),
     }
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn fetcher_loop(config: WeatherConfig, store: WeatherStore) {
     loop {

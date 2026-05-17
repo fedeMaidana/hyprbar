@@ -1,4 +1,8 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use std::sync::{Arc, Mutex};
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WeatherSnapshot {
@@ -6,15 +10,17 @@ pub struct WeatherSnapshot {
     pub weather_code: u32,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct WeatherStore {
+    inner: Arc<Mutex<Option<WeatherSnapshot>>>,
+}
+
+// ─── < Implementations > ────────────────────────────────────────────────────
+
 impl WeatherSnapshot {
     pub fn new(temp_c: f32, weather_code: u32) -> Self {
         Self { temp_c, weather_code }
     }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct WeatherStore {
-    inner: Arc<Mutex<Option<WeatherSnapshot>>>,
 }
 
 impl WeatherStore {

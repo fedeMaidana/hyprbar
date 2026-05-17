@@ -1,11 +1,17 @@
+// ─── < Modules > ────────────────────────────────────────────────────
+
 pub mod colors;
 pub mod hyprcolor;
 pub mod tokens;
 pub mod typography;
 
+// ─── < Imports > ────────────────────────────────────────────────────
+
 pub use colors::Palette;
 pub use tokens::Tokens;
 pub use typography::Typography;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct Theme {
@@ -13,6 +19,8 @@ pub struct Theme {
     pub tokens: Tokens,
     pub typography: Typography,
 }
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl Theme {
     pub fn dark() -> Self {

@@ -1,11 +1,19 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use vello::Scene;
 
 use crate::components::{Component, Pill, RenderCtx};
 use crate::render::{Rect, TextStyle};
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
 const TOGGLE_GLYPH: &str = "\u{f1542}";
 
+// ─── < Structs > ────────────────────────────────────────────────────
+
 pub struct CommandCenterPill;
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl CommandCenterPill {
     pub fn new() -> Self {

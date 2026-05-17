@@ -1,3 +1,5 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use std::path::Path;
 
 use vello::{
@@ -11,12 +13,25 @@ use crate::render::Rect;
 
 use super::avatar::load_avatar;
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
 const BORDER_WIDTH: f32 = 2.5;
 const OUTER_RADIUS_OFFSET: f32 = 0.5;
+
+// ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct ProfilePill {
     avatar: Option<ImageData>,
 }
+
+struct AvatarLayout {
+    center_x: f32,
+    center_y: f32,
+    outer_radius: f32,
+    inner_radius: f32,
+}
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl ProfilePill {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
@@ -56,13 +71,6 @@ impl Component for ProfilePill {
     }
 }
 
-struct AvatarLayout {
-    center_x: f32,
-    center_y: f32,
-    outer_radius: f32,
-    inner_radius: f32,
-}
-
 impl AvatarLayout {
     fn from_bounds(bounds: Rect) -> Self {
         let center_x = bounds.x + bounds.width / 2.0;
@@ -86,6 +94,8 @@ impl AvatarLayout {
         Circle::new((self.center_x as f64, self.center_y as f64), self.inner_radius as f64)
     }
 }
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn draw_border(scene: &mut Scene, ctx: &RenderCtx<'_>, layout: &AvatarLayout) {
     scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.pill_bg, None, &layout.outer_circle());

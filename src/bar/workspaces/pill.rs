@@ -1,9 +1,9 @@
+// ─── < Imports > ────────────────────────────────────────────────────
+
 use calloop::channel::Sender;
-use vello::{
-    Scene,
-    kurbo::{Affine, RoundedRect},
-    peniko::{Color, Fill},
-};
+use vello::Scene;
+use vello::kurbo::{Affine, RoundedRect};
+use vello::peniko::{Color, Fill};
 
 use crate::components::{Component, Interaction, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
@@ -12,9 +12,26 @@ use super::geometry::SlotGeometry;
 use super::listener::spawn_listener;
 use super::state::{WorkspaceData, WorkspaceStore};
 
+// ─── < Structs > ────────────────────────────────────────────────────
+
 pub struct WorkspacesPill {
     store: WorkspaceStore,
 }
+
+struct SlotVisual {
+    is_active: bool,
+    background: Color,
+    width: f32,
+    height: f32,
+    radius: f32,
+}
+
+struct SlotHitBox {
+    width: f32,
+    height: f32,
+}
+
+// ─── < Implementations > ────────────────────────────────────────────────────
 
 impl WorkspacesPill {
     pub fn new(redraw_signal: Sender<()>) -> Self {
@@ -70,6 +87,59 @@ impl Component for WorkspacesPill {
     }
 }
 
+impl SlotVisual {
+    fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry, ctx: &RenderCtx<'_>) -> Self {
+        let exists = data.existing.contains(&slot_id);
+        let is_active = slot_id == data.active_id;
+
+        if is_active {
+            return Self {
+                is_active,
+                background: ctx.theme.palette.slot_active_bg,
+                width: geometry.active_width,
+                height: geometry.active_height,
+                radius: geometry.active_radius,
+            };
+        }
+
+        if exists {
+            return Self {
+                is_active,
+                background: ctx.theme.palette.slot_inactive_bg,
+                width: geometry.inactive_width,
+                height: geometry.inactive_height,
+                radius: geometry.inactive_radius,
+            };
+        }
+
+        Self {
+            is_active,
+            background: ctx.theme.palette.slot_empty_bg,
+            width: geometry.inactive_width,
+            height: geometry.inactive_height,
+            radius: geometry.inactive_radius,
+        }
+    }
+}
+
+impl SlotHitBox {
+    fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry) -> Self {
+        if slot_id == data.active_id {
+            return Self {
+                width: geometry.active_width,
+                height: geometry.active_height,
+            };
+        }
+
+        Self {
+            width: geometry.inactive_width,
+            height: geometry.inactive_height,
+        }
+    }
+}
+
+// ─── < Functions Private > ────────────────────────────────────────────────────
+
 fn render_workspace_slots(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, data: &WorkspaceData, geometry: &SlotGeometry) {
     let mut x = bounds.x + geometry.h_padding;
     let box_y = bounds.y + (bounds.height - geometry.slot_box_height) / 2.0;
@@ -110,68 +180,4 @@ fn draw_active_label(scene: &mut Scene, ctx: &mut RenderCtx<'_>, slot_id: i32, s
         slot.height,
         TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.slot_active_text),
     );
-}
-
-struct SlotVisual {
-    is_active: bool,
-    background: Color,
-    width: f32,
-    height: f32,
-    radius: f32,
-}
-
-impl SlotVisual {
-    fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry, ctx: &RenderCtx<'_>) -> Self {
-        let exists = data.existing.contains(&slot_id);
-        let is_active = slot_id == data.active_id;
-
-        if is_active {
-            return Self {
-                is_active,
-                background: ctx.theme.palette.slot_active_bg,
-                width: geometry.active_width,
-                height: geometry.active_height,
-                radius: geometry.active_radius,
-            };
-        }
-
-        if exists {
-            return Self {
-                is_active,
-                background: ctx.theme.palette.slot_inactive_bg,
-                width: geometry.inactive_width,
-                height: geometry.inactive_height,
-                radius: geometry.inactive_radius,
-            };
-        }
-
-        Self {
-            is_active,
-            background: ctx.theme.palette.slot_empty_bg,
-            width: geometry.inactive_width,
-            height: geometry.inactive_height,
-            radius: geometry.inactive_radius,
-        }
-    }
-}
-
-struct SlotHitBox {
-    width: f32,
-    height: f32,
-}
-
-impl SlotHitBox {
-    fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry) -> Self {
-        if slot_id == data.active_id {
-            return Self {
-                width: geometry.active_width,
-                height: geometry.active_height,
-            };
-        }
-
-        Self {
-            width: geometry.inactive_width,
-            height: geometry.inactive_height,
-        }
-    }
 }
