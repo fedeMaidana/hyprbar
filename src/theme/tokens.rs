@@ -38,21 +38,21 @@ pub struct Tokens {
 impl Default for Tokens {
     fn default() -> Self {
         Self {
-            bar_height: 36.0,
-            bar_margin_top: 4.0,
-            bar_margin_x: 10.0,
+            bar_height: 40.0,
+            bar_margin_top: 5.0,
+            bar_margin_x: 12.0,
 
-            pill_height: 26.0,
-            pill_gap: 5.0,
-            pill_padding_x: 9.0,
+            pill_height: 29.0,
+            pill_gap: 7.0,
+            pill_padding_x: 11.0,
             pill_padding_y: 6.0,
-            pill_radius: 12.0,
+            pill_radius: 13.0,
 
             icon_scale: 1.2,
 
-            weather_inner_gap: 4.0,
+            weather_inner_gap: 5.0,
 
-            workspace_slot_gap: 6.0,
+            workspace_slot_gap: 7.0,
             workspace_active_width_scale: 1.7,
             workspace_active_radius_scale: 0.5,
             workspace_inactive_width_scale: 1.1,

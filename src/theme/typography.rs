@@ -14,7 +14,7 @@ impl Default for Typography {
         Self {
             font_family: "Inter".to_string(),
             icon_font_family: "Symbols Nerd Font".to_string(),
-            size_base: 10.0,
+            size_base: 11.0,
         }
     }
 }
