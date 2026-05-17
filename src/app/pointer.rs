@@ -2,13 +2,14 @@
 
 use smithay_client_toolkit::seat::pointer::{CursorIcon, ThemedPointer};
 
-use crate::components::Point;
+use crate::components::{Interaction, Point};
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub(crate) struct PointerState {
     pub(crate) themed_pointer: Option<ThemedPointer>,
     pub(crate) position: Option<Point>,
+    pub(crate) hovered_interaction: Option<Interaction>,
     pub(crate) icon: CursorIcon,
 }
 
@@ -19,6 +20,7 @@ impl PointerState {
         Self {
             themed_pointer: None,
             position: None,
+            hovered_interaction: None,
             icon: CursorIcon::Default,
         }
     }

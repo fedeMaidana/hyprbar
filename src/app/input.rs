@@ -13,7 +13,14 @@ impl AppState {
     pub fn handle_pointer_enter_or_motion(&mut self, conn: &Connection, point: Point, force_cursor_reload: bool) {
         self.pointer.position = Some(point);
 
-        let cursor_icon = if self.bar.hit_test(point, &self.theme).is_some() {
+        let hovered_interaction = self.bar.hit_test(point, &self.theme);
+
+        if self.pointer.hovered_interaction != hovered_interaction {
+            self.pointer.hovered_interaction = hovered_interaction;
+            self.needs_redraw = true;
+        }
+
+        let cursor_icon = if hovered_interaction.is_some() {
             CursorIcon::Pointer
         } else {
             CursorIcon::Default
@@ -24,6 +31,11 @@ impl AppState {
 
     pub fn handle_pointer_leave(&mut self, conn: &Connection) {
         self.pointer.position = None;
+
+        if self.pointer.hovered_interaction.take().is_some() {
+            self.needs_redraw = true;
+        }
+
         self.set_cursor_icon(conn, CursorIcon::Default, true);
     }
 

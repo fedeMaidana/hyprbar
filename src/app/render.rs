@@ -23,6 +23,7 @@ impl AppState {
         let mut ctx = RenderCtx {
             theme: &self.theme,
             text: &mut self.text_engine,
+            hovered_interaction: self.pointer.hovered_interaction,
         };
 
         self.bar.render(&mut self.render_ctx.scene, surface_rect, &self.theme, &mut ctx);

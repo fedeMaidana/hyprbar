@@ -95,6 +95,7 @@ impl SlotVisual {
     fn from_workspace(slot_id: i32, data: &WorkspaceData, geometry: &SlotGeometry, ctx: &RenderCtx<'_>) -> Self {
         let exists = data.existing.contains(&slot_id);
         let is_active = slot_id == data.active_id;
+        let is_hovered = ctx.hovered_interaction == Some(Interaction::Workspace(slot_id));
 
         if is_active {
             return Self {
@@ -103,6 +104,16 @@ impl SlotVisual {
                 width: geometry.active_width,
                 height: geometry.active_height,
                 radius: geometry.active_radius,
+            };
+        }
+
+        if is_hovered {
+            return Self {
+                is_active,
+                background: ctx.theme.palette.slot_hover_bg,
+                width: geometry.inactive_width,
+                height: geometry.inactive_height,
+                radius: geometry.inactive_radius,
             };
         }
 

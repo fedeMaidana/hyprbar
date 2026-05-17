@@ -18,6 +18,7 @@ pub struct Palette {
     pub slot_active_text: Color,
     pub slot_inactive_bg: Color,
     pub slot_empty_bg: Color,
+    pub slot_hover_bg: Color,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ impl Palette {
             slot_active_text: Color::from_rgba8(0x2a, 0x25, 0x4a, 0xff),
             slot_inactive_bg: Color::from_rgba8(0x40, 0x40, 0x48, 0xa0),
             slot_empty_bg: Color::from_rgba8(0x30, 0x30, 0x38, 0x60),
+            slot_hover_bg: Color::from_rgba8(0x58, 0x58, 0x64, 0xc0),
         };
 
         palette.refresh_from_hyprcolor();

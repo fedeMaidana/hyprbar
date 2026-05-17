@@ -39,7 +39,11 @@ fn fixed_workspace(id: i32, width: f32, height: f32) -> Box<dyn Component> {
 fn render_bar(bar: &mut Bar, theme: &Theme, text_engine: &mut TextEngine, surface: Rect) {
     let mut scene = Scene::new();
 
-    let mut ctx = RenderCtx { theme, text: text_engine };
+    let mut ctx = RenderCtx {
+        theme,
+        text: text_engine,
+        hovered_interaction: None,
+    };
 
     bar.render(&mut scene, surface, theme, &mut ctx);
 }

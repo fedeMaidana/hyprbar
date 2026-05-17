@@ -10,6 +10,7 @@ use crate::theme::Theme;
 pub struct RenderCtx<'a> {
     pub theme: &'a Theme,
     pub text: &'a mut TextEngine,
+    pub hovered_interaction: Option<Interaction>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
