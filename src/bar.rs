@@ -6,8 +6,7 @@ pub mod factory;
 pub mod layout;
 pub mod notifications_pill;
 pub mod profile_pill;
-pub mod weather_pill;
+pub mod weather;
 pub mod workspaces;
-
 pub use factory::default_bar;
 pub use layout::Bar;
