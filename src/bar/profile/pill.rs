@@ -13,11 +13,6 @@ use crate::render::Rect;
 
 use super::avatar::load_avatar;
 
-// ─── < Constants > ────────────────────────────────────────────────────
-
-const BORDER_WIDTH: f32 = 2.5;
-const OUTER_RADIUS_OFFSET: f32 = 0.5;
-
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct ProfilePill {
@@ -60,7 +55,7 @@ impl Component for ProfilePill {
     }
 
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
-        let layout = AvatarLayout::from_bounds(bounds);
+        let layout = AvatarLayout::from_bounds(bounds, ctx);
 
         draw_border(scene, ctx, &layout);
 
@@ -72,11 +67,11 @@ impl Component for ProfilePill {
 }
 
 impl AvatarLayout {
-    fn from_bounds(bounds: Rect) -> Self {
+    fn from_bounds(bounds: Rect, ctx: &RenderCtx<'_>) -> Self {
         let center_x = bounds.x + bounds.width / 2.0;
         let center_y = bounds.y + bounds.height / 2.0;
-        let outer_radius = (bounds.width.min(bounds.height) / 2.0) - OUTER_RADIUS_OFFSET;
-        let inner_radius = outer_radius - BORDER_WIDTH;
+        let outer_radius = (bounds.width.min(bounds.height) / 2.0) - ctx.theme.tokens.avatar_outer_radius_offset;
+        let inner_radius = outer_radius - ctx.theme.tokens.avatar_border_width;
 
         Self {
             center_x,

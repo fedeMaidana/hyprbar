@@ -22,17 +22,18 @@ pub struct SlotGeometry {
 
 impl SlotGeometry {
     pub fn from_theme(theme: &Theme) -> Self {
-        let v_padding = theme.tokens.pill_padding_y;
-        let cell_height = theme.tokens.pill_height - v_padding * 2.0;
+        let tokens = theme.tokens;
+
+        let v_padding = tokens.pill_padding_y;
+        let cell_height = tokens.pill_height - v_padding * 2.0;
 
         let active_height = cell_height;
-        let active_width = active_height * 1.7;
-        let active_radius = active_height * 0.5;
+        let active_width = active_height * tokens.workspace_active_width_scale;
+        let active_radius = active_height * tokens.workspace_active_radius_scale;
 
-        let inactive_scale = 1.0;
-        let inactive_height = active_height * inactive_scale;
-        let inactive_width = inactive_height * 1.1;
-        let inactive_radius = inactive_height * 0.35;
+        let inactive_height = active_height * tokens.workspace_inactive_height_scale;
+        let inactive_width = inactive_height * tokens.workspace_inactive_width_scale;
+        let inactive_radius = inactive_height * tokens.workspace_inactive_radius_scale;
 
         Self {
             active_width,
@@ -42,8 +43,8 @@ impl SlotGeometry {
             inactive_height,
             inactive_radius,
             slot_box_height: cell_height,
-            gap: 6.0,
-            h_padding: theme.tokens.pill_padding_x,
+            gap: tokens.workspace_slot_gap,
+            h_padding: tokens.pill_padding_x,
         }
     }
 

@@ -29,9 +29,10 @@ impl Default for ArchLogoPill {
 
 impl Component for ArchLogoPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
-        let size = ctx.theme.typography.size_base * 1.2;
+        let size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
         let (tw, _) = ctx.text.measure(ARCH_GLYPH, size, &ctx.theme.typography.icon_font_family);
         let w = tw + ctx.theme.tokens.pill_padding_x * 2.0;
+
         (w, ctx.theme.tokens.pill_height)
     }
 
@@ -39,7 +40,7 @@ impl Component for ArchLogoPill {
         Pill::draw(scene, bounds, ctx.theme);
 
         let pad_x = ctx.theme.tokens.pill_padding_x;
-        let size = ctx.theme.typography.size_base * 1.2;
+        let size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
 
         ctx.text.draw_centered_v(
             scene,

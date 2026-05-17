@@ -37,7 +37,7 @@ impl Default for NotificationsPill {
 
 impl Component for NotificationsPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
-        let size = ctx.theme.typography.size_base * 1.2;
+        let size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
         let (iw, _) = ctx.text.measure(BELL_GLYPH, size, &ctx.theme.typography.icon_font_family);
         let w = iw + ctx.theme.tokens.pill_padding_x * 2.0;
         (w, ctx.theme.tokens.pill_height)
@@ -47,7 +47,7 @@ impl Component for NotificationsPill {
         Pill::draw(scene, bounds, ctx.theme);
 
         let pad_x = ctx.theme.tokens.pill_padding_x;
-        let icon_size = ctx.theme.typography.size_base * 1.2;
+        let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
 
         ctx.text.draw_centered_v(
             scene,
@@ -62,9 +62,9 @@ impl Component for NotificationsPill {
         if count > 0 {
             let (iw, _) = ctx.text.measure(BELL_GLYPH, icon_size, &ctx.theme.typography.icon_font_family);
 
-            let dot_radius = 3.5_f32;
-            let dot_cx = bounds.x + pad_x + iw - dot_radius * 0.5;
-            let dot_cy = bounds.y + (bounds.height / 2.0) - icon_size * 0.35;
+            let dot_radius = ctx.theme.tokens.notification_dot_radius;
+            let dot_cx = bounds.x + pad_x + iw - dot_radius * ctx.theme.tokens.notification_dot_x_overlap_scale;
+            let dot_cy = bounds.y + (bounds.height / 2.0) - icon_size * ctx.theme.tokens.notification_dot_y_icon_scale;
 
             let dot = Circle::new((dot_cx as f64, dot_cy as f64), dot_radius as f64);
             scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.accent, None, &dot);

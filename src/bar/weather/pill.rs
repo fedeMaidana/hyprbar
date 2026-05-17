@@ -11,11 +11,6 @@ use super::fetcher::spawn_fetcher;
 use super::icons::{UNKNOWN_WEATHER_ICON, weather_icon};
 use super::state::{WeatherSnapshot, WeatherStore};
 
-// ─── < Constants > ────────────────────────────────────────────────────
-
-const INNER_GAP: f32 = 4.0;
-const ICON_SCALE: f32 = 1.2;
-
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct WeatherPill {
@@ -69,7 +64,7 @@ impl Component for WeatherPill {
 
         let (text_width, _) = ctx.text.measure(&parts.text, text_size, &ctx.theme.typography.font_family);
 
-        let width = icon_width + INNER_GAP + text_width + ctx.theme.tokens.pill_padding_x * 2.0;
+        let width = icon_width + ctx.theme.tokens.weather_inner_gap + text_width + ctx.theme.tokens.pill_padding_x * 2.0;
 
         self.frame_parts = Some(parts);
 
@@ -119,7 +114,7 @@ fn draw_weather_text(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, i
     ctx.text.draw_centered_v(
         scene,
         text,
-        bounds.x + pad_x + icon_width + INNER_GAP,
+        bounds.x + pad_x + icon_width + ctx.theme.tokens.weather_inner_gap,
         bounds.y,
         bounds.height,
         TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
@@ -127,7 +122,7 @@ fn draw_weather_text(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, i
 }
 
 fn icon_size(ctx: &RenderCtx<'_>) -> f32 {
-    ctx.theme.typography.size_base * ICON_SCALE
+    ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale
 }
 
 fn text_size(ctx: &RenderCtx<'_>) -> f32 {
