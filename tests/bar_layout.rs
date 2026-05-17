@@ -89,3 +89,20 @@ fn hit_test_preserves_right_section_visual_order() {
 
     assert_eq!(bar.hit_test(Point::new(265.0, 10.0), &theme), Some(Interaction::Workspace(2)));
 }
+
+#[test]
+fn hides_center_section_when_it_would_overlap_left_and_right_sections() {
+    let theme = Theme::default();
+    let mut text_engine = TextEngine::new();
+
+    let mut bar =
+        Bar::new(vec![fixed_workspace(1, 120.0, 26.0)], vec![fixed_workspace(2, 120.0, 26.0)], vec![fixed_workspace(3, 120.0, 26.0)]);
+
+    render_bar(&mut bar, &theme, &mut text_engine, Rect::new(0.0, 0.0, 300.0, 36.0));
+
+    assert_eq!(bar.hit_test(Point::new(20.0, 10.0), &theme), Some(Interaction::Workspace(1)));
+
+    assert_eq!(bar.hit_test(Point::new(180.0, 10.0), &theme), Some(Interaction::Workspace(3)));
+
+    assert_eq!(bar.hit_test(Point::new(150.0, 10.0), &theme), None);
+}
