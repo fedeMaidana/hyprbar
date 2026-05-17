@@ -1,6 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Result, anyhow};
 use calloop::{
@@ -12,6 +12,10 @@ use calloop_wayland_source::WaylandSource;
 use wayland_client::{Connection, EventQueue};
 
 use super::state::AppState;
+
+// ─── < Constants > ────────────────────────────────────────────────────
+
+const CLOCK_TICK_SECONDS: u64 = 60;
 
 // ─── < Public Funtions > ────────────────────────────────────────────────────
 
@@ -25,7 +29,7 @@ pub(crate) fn insert_sources(
 
     insert_wayland_source(loop_handle.clone(), conn, event_queue)?;
     insert_redraw_source(loop_handle.clone(), redraw_channel)?;
-    insert_timer_source(loop_handle)?;
+    insert_clock_tick_source(loop_handle)?;
 
     Ok(())
 }
@@ -56,15 +60,27 @@ fn insert_redraw_source(loop_handle: calloop::LoopHandle<'_, AppState>, redraw_c
     Ok(())
 }
 
-fn insert_timer_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> Result<()> {
-    let timer = Timer::from_duration(Duration::from_secs(1));
+fn insert_clock_tick_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> Result<()> {
+    let timer = Timer::from_duration(duration_until_next_minute());
 
     loop_handle
         .insert_source(timer, |_event, _meta, app| {
             app.needs_redraw = true;
-            TimeoutAction::ToDuration(Duration::from_secs(1))
+
+            TimeoutAction::ToDuration(duration_until_next_minute())
         })
-        .map_err(|e| anyhow!("timer insert failed: {e:?}"))?;
+        .map_err(|e| anyhow!("clock tick timer insert failed: {e:?}"))?;
 
     Ok(())
+}
+
+fn duration_until_next_minute() -> Duration {
+    let Ok(elapsed) = SystemTime::now().duration_since(UNIX_EPOCH) else {
+        return Duration::from_secs(CLOCK_TICK_SECONDS);
+    };
+
+    let elapsed_secs = elapsed.as_secs();
+    let secs_until_next_minute = CLOCK_TICK_SECONDS - (elapsed_secs % CLOCK_TICK_SECONDS);
+
+    Duration::from_secs(secs_until_next_minute.max(1))
 }
