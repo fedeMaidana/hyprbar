@@ -21,6 +21,12 @@ const ICON_SCALE: f32 = 1.2;
 pub struct WeatherPill {
     store: WeatherStore,
     _fetcher: Option<WorkerHandle>,
+    frame_parts: Option<WeatherParts>,
+}
+
+struct WeatherParts {
+    icon: &'static str,
+    text: String,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -30,29 +36,42 @@ impl WeatherPill {
         let store = WeatherStore::new();
         let fetcher = spawn_fetcher(config, store.clone());
 
-        Self { store, _fetcher: fetcher }
+        Self {
+            store,
+            _fetcher: fetcher,
+            frame_parts: None,
+        }
     }
 
-    fn current_parts(&self) -> (&'static str, String) {
+    fn current_parts(&self) -> WeatherParts {
         match self.store.snapshot() {
             Some(snapshot) => weather_parts(snapshot),
-            None => (UNKNOWN_WEATHER_ICON, "—".to_string()),
+            None => WeatherParts {
+                icon: UNKNOWN_WEATHER_ICON,
+                text: "—".to_string(),
+            },
         }
+    }
+
+    fn take_frame_parts(&mut self) -> WeatherParts {
+        self.frame_parts.take().unwrap_or_else(|| self.current_parts())
     }
 }
 
 impl Component for WeatherPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
-        let (icon, text) = self.current_parts();
+        let parts = self.current_parts();
 
         let icon_size = icon_size(ctx);
         let text_size = text_size(ctx);
 
-        let (icon_width, _) = ctx.text.measure(icon, icon_size, &ctx.theme.typography.icon_font_family);
+        let (icon_width, _) = ctx.text.measure(parts.icon, icon_size, &ctx.theme.typography.icon_font_family);
 
-        let (text_width, _) = ctx.text.measure(&text, text_size, &ctx.theme.typography.font_family);
+        let (text_width, _) = ctx.text.measure(&parts.text, text_size, &ctx.theme.typography.font_family);
 
         let width = icon_width + INNER_GAP + text_width + ctx.theme.tokens.pill_padding_x * 2.0;
+
+        self.frame_parts = Some(parts);
 
         (width, ctx.theme.tokens.pill_height)
     }
@@ -60,20 +79,20 @@ impl Component for WeatherPill {
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         Pill::draw(scene, bounds, ctx.theme);
 
-        let (icon, text) = self.current_parts();
+        let parts = self.take_frame_parts();
 
-        draw_weather_icon(scene, bounds, ctx, icon);
-        draw_weather_text(scene, bounds, ctx, icon, &text);
+        draw_weather_icon(scene, bounds, ctx, parts.icon);
+        draw_weather_text(scene, bounds, ctx, parts.icon, &parts.text);
     }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn weather_parts(snapshot: WeatherSnapshot) -> (&'static str, String) {
-    let icon = weather_icon(snapshot.weather_code);
-    let text = format!("{}°", snapshot.temp_c.round() as i32);
-
-    (icon, text)
+fn weather_parts(snapshot: WeatherSnapshot) -> WeatherParts {
+    WeatherParts {
+        icon: weather_icon(snapshot.weather_code),
+        text: format!("{}°", snapshot.temp_c.round() as i32),
+    }
 }
 
 fn draw_weather_icon(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, icon: &str) {

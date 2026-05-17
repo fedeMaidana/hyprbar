@@ -18,6 +18,8 @@ use super::state::{WorkspaceData, WorkspaceStore};
 pub struct WorkspacesPill {
     store: WorkspaceStore,
     _listener: Option<WorkerHandle>,
+    measured_data: Option<WorkspaceData>,
+    rendered_data: Option<WorkspaceData>,
 }
 
 struct SlotVisual {
@@ -43,6 +45,8 @@ impl WorkspacesPill {
         Self {
             store,
             _listener: listener,
+            measured_data: None,
+            rendered_data: None,
         }
     }
 
@@ -56,20 +60,26 @@ impl Component for WorkspacesPill {
         let geometry = SlotGeometry::from_theme(ctx.theme);
         let data = self.snapshot();
 
-        (geometry.pill_width(&data), ctx.theme.tokens.pill_height)
+        let width = geometry.pill_width(&data);
+
+        self.measured_data = Some(data);
+
+        (width, ctx.theme.tokens.pill_height)
     }
 
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         Pill::draw(scene, bounds, ctx.theme);
 
-        let data = self.snapshot();
+        let data = self.measured_data.take().unwrap_or_else(|| self.snapshot());
         let geometry = SlotGeometry::from_theme(ctx.theme);
+
+        self.rendered_data = Some(data.clone());
 
         render_workspace_slots(scene, bounds, ctx, &data, &geometry);
     }
 
     fn hit_test(&self, point: Point, bounds: Rect, theme: &crate::theme::Theme) -> Option<Interaction> {
-        let data = self.snapshot();
+        let data = self.rendered_data.as_ref().cloned().unwrap_or_else(|| self.snapshot());
         let geometry = SlotGeometry::from_theme(theme);
 
         let mut x = bounds.x + geometry.h_padding;
