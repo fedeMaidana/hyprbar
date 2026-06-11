@@ -5,6 +5,7 @@ use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::Fill;
 
 use crate::render::{Rect, TextStyle};
+use crate::theme::Theme;
 
 use super::component::RenderCtx;
 
@@ -24,6 +25,12 @@ pub struct Dropdown<'a> {
     items: &'a [DropdownItem<'a>],
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct DropdownFrame {
+    pub width: f32,
+    pub height: f32,
+}
+
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl DropdownId {
@@ -36,15 +43,53 @@ impl<'a> DropdownItem<'a> {
     }
 }
 
+impl DropdownFrame {
+    pub fn new(width: f32, height: f32) -> Self {
+        Self { width, height }
+    }
+
+    pub fn bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
+        let margin = theme.tokens.bar_margin_x;
+        let min_x = surface.x + margin;
+        let max_x = (surface.x + surface.width - margin - self.width).max(min_x);
+
+        let x = anchor.x.max(min_x).min(max_x);
+        let y = anchor.y + anchor.height + theme.tokens.dropdown_margin_top;
+
+        Rect::new(x, y, self.width, self.height)
+    }
+
+    pub fn draw_background(&self, scene: &mut Scene, bounds: Rect, theme: &Theme) {
+        let radius = theme.tokens.dropdown_radius as f64;
+        let shadow_offset = theme.tokens.shadow_offset_y as f64;
+
+        let shadow = RoundedRect::new(
+            bounds.x as f64,
+            bounds.y as f64 + shadow_offset,
+            (bounds.x + bounds.width) as f64,
+            (bounds.y + bounds.height) as f64 + shadow_offset,
+            radius,
+        );
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.shadow, None, &shadow);
+
+        let body =
+            RoundedRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64, radius);
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.pill_bg, None, &body);
+    }
+}
+
 impl<'a> Dropdown<'a> {
     pub fn new(width: f32, items: &'a [DropdownItem<'a>]) -> Self {
         Self { width, items }
     }
 
     pub fn draw(&self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) -> Rect {
-        let bounds = self.bounds(surface, anchor, ctx);
+        let frame = DropdownFrame::new(self.width, self.height(ctx));
+        let bounds = frame.bounds(surface, anchor, ctx.theme);
 
-        draw_background(scene, bounds, ctx);
+        frame.draw_background(scene, bounds, ctx.theme);
 
         let mut y = bounds.y + ctx.theme.tokens.dropdown_padding_y;
 
@@ -54,17 +99,6 @@ impl<'a> Dropdown<'a> {
         }
 
         bounds
-    }
-
-    fn bounds(&self, surface: Rect, anchor: Rect, ctx: &RenderCtx<'_>) -> Rect {
-        let margin = ctx.theme.tokens.bar_margin_x;
-        let min_x = surface.x + margin;
-        let max_x = (surface.x + surface.width - margin - self.width).max(min_x);
-
-        let x = anchor.x.max(min_x).min(max_x);
-        let y = anchor.y + anchor.height + ctx.theme.tokens.dropdown_margin_top;
-
-        Rect::new(x, y, self.width, self.height(ctx))
     }
 
     fn height(&self, ctx: &RenderCtx<'_>) -> f32 {
@@ -78,26 +112,6 @@ impl<'a> Dropdown<'a> {
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
-
-fn draw_background(scene: &mut Scene, bounds: Rect, ctx: &RenderCtx<'_>) {
-    let radius = ctx.theme.tokens.dropdown_radius as f64;
-    let shadow_offset = ctx.theme.tokens.shadow_offset_y as f64;
-
-    let shadow = RoundedRect::new(
-        bounds.x as f64,
-        bounds.y as f64 + shadow_offset,
-        (bounds.x + bounds.width) as f64,
-        (bounds.y + bounds.height) as f64 + shadow_offset,
-        radius,
-    );
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.shadow, None, &shadow);
-
-    let body =
-        RoundedRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64, radius);
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.pill_bg, None, &body);
-}
 
 fn draw_item(scene: &mut Scene, x: f32, y: f32, item: &DropdownItem<'_>, ctx: &mut RenderCtx<'_>) {
     let text_x = x + ctx.theme.tokens.dropdown_padding_x;

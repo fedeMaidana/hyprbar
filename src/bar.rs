@@ -1,6 +1,5 @@
 // ─── < Modules > ────────────────────────────────────────────────────
 
-pub mod arch_logo_pill;
 pub mod clock_pill;
 pub mod command_center_pill;
 pub mod date_pill;
@@ -8,6 +7,7 @@ pub mod factory;
 pub mod layout;
 pub mod notifications_pill;
 pub mod profile;
+pub mod system;
 pub mod weather;
 pub mod workspaces;
 

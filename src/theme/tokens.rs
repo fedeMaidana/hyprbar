@@ -22,6 +22,21 @@ pub struct Tokens {
     pub dropdown_item_gap: f32,
     pub dropdown_radius: f32,
 
+    pub system_panel_width: f32,
+    pub system_panel_padding_x: f32,
+    pub system_panel_padding_y: f32,
+    pub system_section_gap: f32,
+    pub system_metric_row_height: f32,
+    pub system_metric_gap: f32,
+    pub system_meter_height: f32,
+    pub system_meter_gap: f32,
+    pub system_updates_row_height: f32,
+    pub system_button_height: f32,
+    pub system_button_gap: f32,
+    pub system_button_radius: f32,
+    pub system_temp_gauge_max_c: f32,
+    pub system_icon_gap: f32,
+
     pub icon_scale: f32,
 
     pub weather_inner_gap: f32,
@@ -67,6 +82,21 @@ impl Default for Tokens {
             dropdown_item_height: 34.0,
             dropdown_item_gap: 4.0,
             dropdown_radius: 14.0,
+
+            system_panel_width: 232.0,
+            system_panel_padding_x: 14.0,
+            system_panel_padding_y: 12.0,
+            system_section_gap: 10.0,
+            system_metric_row_height: 30.0,
+            system_metric_gap: 8.0,
+            system_meter_height: 5.0,
+            system_meter_gap: 4.0,
+            system_updates_row_height: 22.0,
+            system_button_height: 30.0,
+            system_button_gap: 6.0,
+            system_button_radius: 9.0,
+            system_temp_gauge_max_c: 90.0,
+            system_icon_gap: 6.0,
 
             icon_scale: 1.2,
 

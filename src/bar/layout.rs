@@ -25,6 +25,8 @@ pub struct Bar {
     left_bounds: Vec<Rect>,
     center_bounds: Vec<Rect>,
     right_bounds: Vec<Rect>,
+
+    last_surface: Option<Rect>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -70,10 +72,13 @@ impl Bar {
             left_bounds,
             center_bounds,
             right_bounds,
+            last_surface: None,
         }
     }
 
     pub fn render(&mut self, scene: &mut Scene, surface: Rect, theme: &Theme, ctx: &mut RenderCtx<'_>) {
+        self.last_surface = Some(surface);
+
         let layout = BarLayout::new(surface, theme);
 
         measure_components_into(&mut self.left, &mut self.left_sizes, ctx);
@@ -109,10 +114,53 @@ impl Bar {
         );
     }
 
-    pub fn hit_test(&self, point: Point, theme: &Theme) -> Option<Interaction> {
-        hit_test_section(&self.left, &self.left_bounds, point, theme)
+    pub fn hit_test(&self, point: Point, theme: &Theme, open_dropdown: Option<DropdownId>) -> Option<Interaction> {
+        self.hit_test_open_dropdown(point, theme, open_dropdown)
+            .or_else(|| hit_test_section(&self.left, &self.left_bounds, point, theme))
             .or_else(|| hit_test_section(&self.center, &self.center_bounds, point, theme))
             .or_else(|| hit_test_section(&self.right, &self.right_bounds, point, theme))
+    }
+
+    pub fn dropdown_contains_point(&self, point: Point, theme: &Theme, open_dropdown: Option<DropdownId>) -> bool {
+        let Some(bounds) = self.open_dropdown_bounds(theme, open_dropdown) else {
+            return false;
+        };
+
+        bounds.contains_point(point.x, point.y)
+    }
+
+    fn hit_test_open_dropdown(&self, point: Point, theme: &Theme, open_dropdown: Option<DropdownId>) -> Option<Interaction> {
+        let surface = self.last_surface?;
+        let dropdown_id = open_dropdown?;
+        let (component, anchor) = self.dropdown_component(dropdown_id)?;
+
+        component.hit_test_dropdown(point, surface, anchor, theme)
+    }
+
+    fn open_dropdown_bounds(&self, theme: &Theme, open_dropdown: Option<DropdownId>) -> Option<Rect> {
+        let surface = self.last_surface?;
+        let dropdown_id = open_dropdown?;
+        let (component, anchor) = self.dropdown_component(dropdown_id)?;
+
+        component.dropdown_bounds(surface, anchor, theme)
+    }
+
+    fn dropdown_component(&self, dropdown_id: DropdownId) -> Option<(&dyn Component, Rect)> {
+        let sections = [
+            (&self.left, &self.left_bounds),
+            (&self.center, &self.center_bounds),
+            (&self.right, &self.right_bounds),
+        ];
+
+        for (components, bounds) in sections {
+            for (component, anchor) in components.iter().zip(bounds.iter().copied()) {
+                if component.dropdown_id() == Some(dropdown_id) {
+                    return Some((component.as_ref(), anchor));
+                }
+            }
+        }
+
+        None
     }
 }
 

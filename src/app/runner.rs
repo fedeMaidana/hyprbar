@@ -6,6 +6,7 @@ use smithay_client_toolkit::shell::WaylandSurface;
 use wayland_client::{Connection, EventQueue};
 
 use crate::bar::default_bar;
+use crate::bar::system::SystemPanel;
 use crate::theme::Theme;
 use crate::wayland::{self, LayerConfig};
 
@@ -93,10 +94,12 @@ fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Resu
 }
 
 fn top_bar_surface_height(theme: &Theme) -> u32 {
+    let dropdown_height = theme.tokens.dropdown_height.max(SystemPanel::height(theme));
+
     let height = theme.tokens.bar_margin_top
         + theme.tokens.pill_height
         + theme.tokens.dropdown_margin_top
-        + theme.tokens.dropdown_height
+        + dropdown_height
         + theme.tokens.dropdown_margin_bottom;
 
     height.ceil().max(theme.tokens.bar_height).max(1.0) as u32

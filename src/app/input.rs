@@ -4,6 +4,7 @@ use smithay_client_toolkit::seat::pointer::CursorIcon;
 use wayland_client::Connection;
 
 use super::state::AppState;
+use crate::bar::system::PowerAction;
 use crate::components::{Interaction, Point};
 use crate::hyprland_ipc;
 
@@ -13,7 +14,7 @@ impl AppState {
     pub fn handle_pointer_enter_or_motion(&mut self, conn: &Connection, point: Point, force_cursor_reload: bool) {
         self.pointer.position = Some(point);
 
-        let hovered_interaction = self.bar.hit_test(point, &self.theme);
+        let hovered_interaction = self.bar.hit_test(point, &self.theme, self.open_dropdown);
 
         if self.pointer.hovered_interaction != hovered_interaction {
             self.pointer.hovered_interaction = hovered_interaction;
@@ -44,8 +45,11 @@ impl AppState {
             return;
         };
 
-        let Some(interaction) = self.bar.hit_test(point, &self.theme) else {
-            self.close_dropdown();
+        let Some(interaction) = self.bar.hit_test(point, &self.theme, self.open_dropdown) else {
+            if !self.bar.dropdown_contains_point(point, &self.theme, self.open_dropdown) {
+                self.close_dropdown();
+            }
+
             return;
         };
 
@@ -56,6 +60,10 @@ impl AppState {
             }
             Interaction::Dropdown(dropdown_id) => {
                 self.toggle_dropdown(dropdown_id);
+            }
+            Interaction::Power(action) => {
+                self.close_dropdown();
+                run_power_action(action);
             }
         }
     }
@@ -87,6 +95,17 @@ fn activate_workspace(workspace_id: crate::bar::workspaces::WorkspaceId) {
         }
         Err(error) => {
             log::warn!("workspace dispatch failed for {workspace_id}: {error}");
+        }
+    }
+}
+
+fn run_power_action(action: PowerAction) {
+    match action.execute() {
+        Ok(()) => {
+            log::info!("power action {action:?} launched");
+        }
+        Err(error) => {
+            log::warn!("power action {action:?} failed: {error}");
         }
     }
 }

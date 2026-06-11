@@ -4,6 +4,7 @@ use vello::Scene;
 
 use super::dropdown::DropdownId;
 
+use crate::bar::system::PowerAction;
 use crate::bar::workspaces::WorkspaceId;
 use crate::render::{Rect, TextEngine};
 use crate::theme::Theme;
@@ -29,6 +30,7 @@ pub struct Point {
 pub enum Interaction {
     Workspace(WorkspaceId),
     Dropdown(DropdownId),
+    Power(PowerAction),
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -55,4 +57,12 @@ pub trait Component {
     }
 
     fn render_dropdown(&mut self, _scene: &mut Scene, _surface: Rect, _anchor: Rect, _ctx: &mut RenderCtx<'_>) {}
+
+    fn dropdown_bounds(&self, _surface: Rect, _anchor: Rect, _theme: &Theme) -> Option<Rect> {
+        None
+    }
+
+    fn hit_test_dropdown(&self, _point: Point, _surface: Rect, _anchor: Rect, _theme: &Theme) -> Option<Interaction> {
+        None
+    }
 }

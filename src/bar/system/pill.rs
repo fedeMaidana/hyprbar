@@ -1,31 +1,37 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use calloop::channel::Sender;
 use vello::Scene;
 use vello::peniko::Color;
 
-use crate::components::{Component, Dropdown, DropdownId, DropdownItem, Interaction, Pill, Point, RenderCtx};
+use crate::app::WorkerHandle;
+use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
+
+use super::panel::SystemPanel;
+use super::state::SystemStore;
+use super::worker::spawn_sampler;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
 const ARCH_GLYPH: &str = "\u{f08c7}";
 
-const ARCH_DROPDOWN_ITEMS: [DropdownItem<'static>; 3] = [
-    DropdownItem::new("Arch Linux", Some("System menu")),
-    DropdownItem::new("Hyprbar", Some("Wayland status bar")),
-    DropdownItem::new("Session", Some("Hyprland")),
-];
-
 // ─── < Structs > ────────────────────────────────────────────────────
 
-pub struct ArchLogoPill;
+pub struct ArchLogoPill {
+    store: SystemStore,
+    _sampler: Option<WorkerHandle>,
+}
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl ArchLogoPill {
-    pub fn new() -> Self {
-        Self
+    pub fn new(redraw_signal: Sender<()>) -> Self {
+        let store = SystemStore::new();
+        let sampler = spawn_sampler(store.clone(), redraw_signal);
+
+        Self { store, _sampler: sampler }
     }
 
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
@@ -49,12 +55,6 @@ impl ArchLogoPill {
     }
 }
 
-impl Default for ArchLogoPill {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Component for ArchLogoPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
         let size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
@@ -65,6 +65,8 @@ impl Component for ArchLogoPill {
     }
 
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
+        self.store.set_panel_open(self.is_active(ctx));
+
         Pill::draw_with_background(scene, bounds, ctx.theme, self.background_color(ctx));
 
         let pad_x = ctx.theme.tokens.pill_padding_x;
@@ -89,8 +91,16 @@ impl Component for ArchLogoPill {
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        let dropdown = Dropdown::new(ctx.theme.tokens.dropdown_width, &ARCH_DROPDOWN_ITEMS);
+        let data = self.store.snapshot();
 
-        dropdown.draw(scene, surface, anchor, ctx);
+        SystemPanel::draw(scene, surface, anchor, &data, ctx);
+    }
+
+    fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
+        Some(SystemPanel::bounds(surface, anchor, theme))
+    }
+
+    fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
+        SystemPanel::hit_test(point, surface, anchor, theme)
     }
 }

@@ -56,7 +56,7 @@ fn hit_test_returns_none_before_first_render() {
 
     let bar = Bar::new(vec![fixed_workspace(1, 20.0, 26.0)], vec![fixed_workspace(2, 40.0, 26.0)], vec![fixed_workspace(3, 20.0, 26.0)]);
 
-    assert_eq!(bar.hit_test(Point::new(15.0, 10.0), &theme), None);
+    assert_eq!(bar.hit_test(Point::new(15.0, 10.0), &theme, None), None);
 }
 
 #[test]
@@ -69,13 +69,13 @@ fn hit_test_detects_left_center_and_right_sections_after_render() {
 
     render_bar(&mut bar, &theme, &mut text_engine, Rect::new(0.0, 0.0, 300.0, 36.0));
 
-    assert_eq!(bar.hit_test(Point::new(15.0, 10.0), &theme), Some(Interaction::Workspace(1)));
+    assert_eq!(bar.hit_test(Point::new(15.0, 10.0), &theme, None), Some(Interaction::Workspace(1)));
 
-    assert_eq!(bar.hit_test(Point::new(150.0, 10.0), &theme), Some(Interaction::Workspace(2)));
+    assert_eq!(bar.hit_test(Point::new(150.0, 10.0), &theme, None), Some(Interaction::Workspace(2)));
 
-    assert_eq!(bar.hit_test(Point::new(275.0, 10.0), &theme), Some(Interaction::Workspace(3)));
+    assert_eq!(bar.hit_test(Point::new(275.0, 10.0), &theme, None), Some(Interaction::Workspace(3)));
 
-    assert_eq!(bar.hit_test(Point::new(100.0, 10.0), &theme), None);
+    assert_eq!(bar.hit_test(Point::new(100.0, 10.0), &theme, None), None);
 }
 
 #[test]
@@ -87,9 +87,9 @@ fn hit_test_preserves_right_section_visual_order() {
 
     render_bar(&mut bar, &theme, &mut text_engine, Rect::new(0.0, 0.0, 300.0, 36.0));
 
-    assert_eq!(bar.hit_test(Point::new(240.0, 10.0), &theme), Some(Interaction::Workspace(1)));
+    assert_eq!(bar.hit_test(Point::new(240.0, 10.0), &theme, None), Some(Interaction::Workspace(1)));
 
-    assert_eq!(bar.hit_test(Point::new(265.0, 10.0), &theme), Some(Interaction::Workspace(2)));
+    assert_eq!(bar.hit_test(Point::new(265.0, 10.0), &theme, None), Some(Interaction::Workspace(2)));
 }
 
 #[test]
@@ -102,9 +102,9 @@ fn hides_center_section_when_it_would_overlap_left_and_right_sections() {
 
     render_bar(&mut bar, &theme, &mut text_engine, Rect::new(0.0, 0.0, 300.0, 36.0));
 
-    assert_eq!(bar.hit_test(Point::new(20.0, 10.0), &theme), Some(Interaction::Workspace(1)));
+    assert_eq!(bar.hit_test(Point::new(20.0, 10.0), &theme, None), Some(Interaction::Workspace(1)));
 
-    assert_eq!(bar.hit_test(Point::new(180.0, 10.0), &theme), Some(Interaction::Workspace(3)));
+    assert_eq!(bar.hit_test(Point::new(180.0, 10.0), &theme, None), Some(Interaction::Workspace(3)));
 
-    assert_eq!(bar.hit_test(Point::new(150.0, 10.0), &theme), None);
+    assert_eq!(bar.hit_test(Point::new(150.0, 10.0), &theme, None), None);
 }
