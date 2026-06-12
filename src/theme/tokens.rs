@@ -60,6 +60,19 @@ pub struct Tokens {
     pub clock_tag_padding_y: f32,
     pub clock_tag_radius: f32,
 
+    pub weather_panel_width: f32,
+    pub weather_panel_padding_x: f32,
+    pub weather_panel_padding_y: f32,
+    pub weather_header_height: f32,
+    pub weather_temp_scale: f32,
+    pub weather_header_icon_scale: f32,
+    pub weather_section_gap: f32,
+    pub weather_details_row_height: f32,
+    pub weather_forecast_day_height: f32,
+    pub weather_forecast_icon_height: f32,
+    pub weather_forecast_max_height: f32,
+    pub weather_forecast_min_height: f32,
+
     pub icon_scale: f32,
 
     pub weather_inner_gap: f32,
@@ -143,6 +156,19 @@ impl Default for Tokens {
             clock_tag_padding_x: 5.0,
             clock_tag_padding_y: 1.5,
             clock_tag_radius: 5.0,
+
+            weather_panel_width: 248.0,
+            weather_panel_padding_x: 14.0,
+            weather_panel_padding_y: 12.0,
+            weather_header_height: 38.0,
+            weather_temp_scale: 1.8,
+            weather_header_icon_scale: 2.0,
+            weather_section_gap: 11.0,
+            weather_details_row_height: 16.0,
+            weather_forecast_day_height: 14.0,
+            weather_forecast_icon_height: 24.0,
+            weather_forecast_max_height: 15.0,
+            weather_forecast_min_height: 14.0,
 
             icon_scale: 1.2,
 

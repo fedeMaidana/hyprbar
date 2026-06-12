@@ -8,25 +8,6 @@ pub const GRID_ROWS: usize = 6;
 pub const GRID_COLUMNS: usize = 7;
 pub const GRID_CELLS: usize = GRID_ROWS * GRID_COLUMNS;
 
-pub const MONTH_NAMES: [&str; 12] = [
-    "enero",
-    "febrero",
-    "marzo",
-    "abril",
-    "mayo",
-    "junio",
-    "julio",
-    "agosto",
-    "septiembre",
-    "octubre",
-    "noviembre",
-    "diciembre",
-];
-
-pub const WEEKDAY_NAMES: [&str; 7] = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
-
-pub const WEEKDAY_HEADERS: [&str; 7] = ["L", "M", "X", "J", "V", "S", "D"];
-
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn shift_month(year: i32, month: u32, offset: i32) -> (i32, u32) {
@@ -65,12 +46,4 @@ pub fn month_grid(year: i32, month: u32) -> [Option<u8>; GRID_CELLS] {
     }
 
     grid
-}
-
-pub fn month_name(month: u32) -> &'static str {
-    MONTH_NAMES.get(month as usize - 1).copied().unwrap_or("?")
-}
-
-pub fn weekday_name(monday_index: usize) -> &'static str {
-    WEEKDAY_NAMES.get(monday_index).copied().unwrap_or("?")
 }

@@ -3,12 +3,14 @@
 use vello::Scene;
 
 use crate::app::WorkerHandle;
-use crate::components::{Component, Pill, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
+use crate::theme::Theme;
 
 use super::config::WeatherConfig;
 use super::fetcher::spawn_fetcher;
 use super::icons::{UNKNOWN_WEATHER_ICON, weather_icon};
+use super::panel::WeatherPanel;
 use super::state::{WeatherSnapshot, WeatherStore};
 
 // ─── < Structs > ────────────────────────────────────────────────────
@@ -40,7 +42,7 @@ impl WeatherPill {
 
     fn current_parts(&self) -> WeatherParts {
         match self.store.snapshot() {
-            Some(snapshot) => weather_parts(snapshot),
+            Some(snapshot) => weather_parts(&snapshot),
             None => WeatherParts {
                 icon: UNKNOWN_WEATHER_ICON,
                 text: "—".to_string(),
@@ -79,11 +81,29 @@ impl Component for WeatherPill {
         draw_weather_icon(scene, bounds, ctx, parts.icon);
         draw_weather_text(scene, bounds, ctx, parts.icon, &parts.text);
     }
+
+    fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
+        Some(Interaction::Dropdown(DropdownId::WEATHER))
+    }
+
+    fn dropdown_id(&self) -> Option<DropdownId> {
+        Some(DropdownId::WEATHER)
+    }
+
+    fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
+        let data = self.store.data();
+
+        WeatherPanel::draw(scene, surface, anchor, &data, ctx);
+    }
+
+    fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
+        Some(WeatherPanel::bounds(surface, anchor, theme))
+    }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn weather_parts(snapshot: WeatherSnapshot) -> WeatherParts {
+fn weather_parts(snapshot: &WeatherSnapshot) -> WeatherParts {
     WeatherParts {
         icon: weather_icon(snapshot.weather_code),
         text: format!("{}°", snapshot.temp_c.round() as i32),

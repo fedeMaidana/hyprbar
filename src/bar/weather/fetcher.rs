@@ -9,6 +9,10 @@ use super::location::{Coordinates, detect_location};
 use super::mapper::parse_weather_snapshot;
 use super::state::{WeatherSnapshot, WeatherStore};
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
+const FORECAST_DAYS: u8 = 5;
+
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn spawn_fetcher(config: WeatherConfig, store: WeatherStore) -> Option<WorkerHandle> {
@@ -31,10 +35,15 @@ fn fetcher_loop(config: WeatherConfig, store: WeatherStore, shutdown: ShutdownTo
             Some(coordinates) => coordinates,
             None => match detect_location() {
                 Ok(location) => {
+                    match &location.label {
+                        Some(label) => log::info!("weather location detected: {label}"),
+                        None => {
+                            log::info!("weather location detected: {}, {}", location.coordinates.latitude, location.coordinates.longitude)
+                        }
+                    }
+
                     if let Some(label) = location.label {
-                        log::info!("weather location detected: {label}");
-                    } else {
-                        log::info!("weather location detected: {}, {}", location.coordinates.latitude, location.coordinates.longitude);
+                        store.replace_location_label(label);
                     }
 
                     coordinates = Some(location.coordinates);
@@ -57,7 +66,7 @@ fn fetcher_loop(config: WeatherConfig, store: WeatherStore, shutdown: ShutdownTo
             Ok(snapshot) => {
                 log::info!("weather: {}°C code={}", snapshot.temp_c.round() as i32, snapshot.weather_code);
 
-                store.replace(snapshot);
+                store.replace_snapshot(snapshot);
             }
             Err(error) => {
                 log::warn!("weather fetch failed: {error}");
@@ -74,8 +83,8 @@ fn fetcher_loop(config: WeatherConfig, store: WeatherStore, shutdown: ShutdownTo
 
 fn fetch_once(coordinates: Coordinates) -> Result<WeatherSnapshot> {
     let url = format!(
-        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code",
-        coordinates.latitude, coordinates.longitude
+        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days={}&timezone=auto",
+        coordinates.latitude, coordinates.longitude, FORECAST_DAYS
     );
 
     let mut response = ureq::get(&url).call()?;

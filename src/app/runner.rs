@@ -9,6 +9,7 @@ use crate::bar::clock::ClockPanel;
 use crate::bar::date::DatePanel;
 use crate::bar::default_bar;
 use crate::bar::system::SystemPanel;
+use crate::bar::weather::WeatherPanel;
 use crate::theme::Theme;
 use crate::wayland::{self, LayerConfig};
 
@@ -101,7 +102,8 @@ fn top_bar_surface_height(theme: &Theme) -> u32 {
         .dropdown_height
         .max(SystemPanel::height(theme))
         .max(DatePanel::height(theme))
-        .max(ClockPanel::height(theme));
+        .max(ClockPanel::height(theme))
+        .max(WeatherPanel::height(theme));
 
     let height = theme.tokens.bar_margin_top
         + theme.tokens.pill_height

@@ -5,18 +5,20 @@ mod fetcher;
 mod icons;
 mod location;
 mod mapper;
+mod panel;
 mod pill;
 mod state;
 
 // ─── < Public API > ────────────────────────────────────────────────────
 
 pub use config::WeatherConfig;
+pub use panel::WeatherPanel;
 pub use pill::WeatherPill;
 
 // ─── < Tests > ────────────────────────────────────────────────────
 
 #[doc(hidden)]
-pub use icons::{UNKNOWN_WEATHER_ICON, weather_icon};
+pub use icons::{UNKNOWN_WEATHER_ICON, weather_description, weather_icon};
 
 #[doc(hidden)]
 pub use location::{Coordinates, parse_detected_location};
@@ -25,4 +27,4 @@ pub use location::{Coordinates, parse_detected_location};
 pub use mapper::parse_weather_snapshot;
 
 #[doc(hidden)]
-pub use state::WeatherSnapshot;
+pub use state::{DailyForecast, WeatherSnapshot};

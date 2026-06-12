@@ -19,3 +19,20 @@ pub fn weather_icon(code: u8) -> &'static str {
         _ => UNKNOWN_WEATHER_ICON,
     }
 }
+
+pub fn weather_description(code: u8) -> &'static str {
+    match code {
+        0 => "Despejado",
+        1 => "Mayormente despejado",
+        2 => "Parcialmente nublado",
+        3 => "Nublado",
+        45 | 48 => "Niebla",
+        51..=57 => "Llovizna",
+        61..=67 => "Lluvia",
+        71..=77 => "Nieve",
+        80..=82 => "Chubascos",
+        85 | 86 => "Chubascos de nieve",
+        95..=99 => "Tormenta",
+        _ => "Desconocido",
+    }
+}

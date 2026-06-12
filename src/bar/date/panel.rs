@@ -9,8 +9,10 @@ use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
+use crate::locale::{WEEKDAY_HEADERS, month_name, weekday_name};
+
 use super::action::CalendarAction;
-use super::grid::{GRID_CELLS, GRID_COLUMNS, GRID_ROWS, WEEKDAY_HEADERS, month_grid, month_name, shift_month, weekday_name};
+use super::grid::{GRID_CELLS, GRID_COLUMNS, GRID_ROWS, month_grid, shift_month};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
