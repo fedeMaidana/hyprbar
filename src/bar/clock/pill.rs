@@ -3,8 +3,11 @@
 use chrono::Local;
 use vello::Scene;
 
-use crate::components::{Component, Pill, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
+use crate::theme::Theme;
+
+use super::panel::ClockPanel;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -64,5 +67,21 @@ impl Component for ClockPill {
             bounds.height,
             TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
         );
+    }
+
+    fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
+        Some(Interaction::Dropdown(DropdownId::CLOCK))
+    }
+
+    fn dropdown_id(&self) -> Option<DropdownId> {
+        Some(DropdownId::CLOCK)
+    }
+
+    fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
+        ClockPanel::draw(scene, surface, anchor, ctx);
+    }
+
+    fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
+        Some(ClockPanel::bounds(surface, anchor, theme))
     }
 }

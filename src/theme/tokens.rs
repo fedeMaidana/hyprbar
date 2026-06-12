@@ -47,6 +47,19 @@ pub struct Tokens {
     pub date_nav_button_gap: f32,
     pub date_nav_button_radius: f32,
 
+    pub clock_panel_width: f32,
+    pub clock_panel_padding_x: f32,
+    pub clock_panel_padding_y: f32,
+    pub clock_header_height: f32,
+    pub clock_header_time_scale: f32,
+    pub clock_section_gap: f32,
+    pub clock_row_height: f32,
+    pub clock_row_gap: f32,
+    pub clock_row_inner_gap: f32,
+    pub clock_tag_padding_x: f32,
+    pub clock_tag_padding_y: f32,
+    pub clock_tag_radius: f32,
+
     pub icon_scale: f32,
 
     pub weather_inner_gap: f32,
@@ -117,6 +130,19 @@ impl Default for Tokens {
             date_nav_button_size: 20.0,
             date_nav_button_gap: 6.0,
             date_nav_button_radius: 6.0,
+
+            clock_panel_width: 232.0,
+            clock_panel_padding_x: 14.0,
+            clock_panel_padding_y: 12.0,
+            clock_header_height: 38.0,
+            clock_header_time_scale: 1.8,
+            clock_section_gap: 10.0,
+            clock_row_height: 18.0,
+            clock_row_gap: 9.0,
+            clock_row_inner_gap: 8.0,
+            clock_tag_padding_x: 5.0,
+            clock_tag_padding_y: 1.5,
+            clock_tag_radius: 5.0,
 
             icon_scale: 1.2,
 

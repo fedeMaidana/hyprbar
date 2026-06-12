@@ -2,7 +2,7 @@
 
 use calloop::channel::Sender;
 
-use crate::bar::clock_pill::ClockPill;
+use crate::bar::clock::ClockPill;
 use crate::bar::command_center_pill::CommandCenterPill;
 use crate::bar::date::DatePill;
 use crate::bar::layout::Bar;

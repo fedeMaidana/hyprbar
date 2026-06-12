@@ -1,0 +1,51 @@
+use chrono::{NaiveDate, TimeZone, Utc};
+use hyprbar::bar::clock::{day_tag, offset_label, utc_label, zone_display_name, zone_offset_minutes};
+
+#[test]
+fn computes_zone_offset_with_dst() {
+    let summer = Utc.with_ymd_and_hms(2026, 6, 11, 12, 0, 0).unwrap();
+    let winter = Utc.with_ymd_and_hms(2026, 1, 11, 12, 0, 0).unwrap();
+
+    assert_eq!(zone_offset_minutes(summer, chrono_tz::Asia::Tokyo), 540);
+    assert_eq!(zone_offset_minutes(summer, chrono_tz::Europe::Madrid), 120);
+    assert_eq!(zone_offset_minutes(winter, chrono_tz::Europe::Madrid), 60);
+}
+
+#[test]
+fn formats_whole_hour_offsets() {
+    assert_eq!(offset_label(300), "+5h");
+    assert_eq!(offset_label(-240), "-4h");
+    assert_eq!(offset_label(0), "0h");
+}
+
+#[test]
+fn formats_fractional_offsets() {
+    assert_eq!(offset_label(330), "+5:30");
+    assert_eq!(offset_label(-210), "-3:30");
+    assert_eq!(offset_label(30), "+0:30");
+}
+
+#[test]
+fn tags_remote_dates() {
+    let today = NaiveDate::from_ymd_opt(2026, 6, 11).unwrap();
+    let tomorrow = NaiveDate::from_ymd_opt(2026, 6, 12).unwrap();
+    let yesterday = NaiveDate::from_ymd_opt(2026, 6, 10).unwrap();
+
+    assert_eq!(day_tag(today, tomorrow), Some("mañ."));
+    assert_eq!(day_tag(today, yesterday), Some("ayer"));
+    assert_eq!(day_tag(today, today), None);
+}
+
+#[test]
+fn formats_utc_labels() {
+    assert_eq!(utc_label(-180), "UTC-3");
+    assert_eq!(utc_label(330), "UTC+5:30");
+    assert_eq!(utc_label(0), "UTC");
+}
+
+#[test]
+fn shortens_iana_zone_names() {
+    assert_eq!(zone_display_name("America/Argentina/Buenos_Aires"), "Buenos Aires");
+    assert_eq!(zone_display_name("Europe/Madrid"), "Madrid");
+    assert_eq!(zone_display_name("UTC"), "UTC");
+}

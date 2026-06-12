@@ -5,6 +5,7 @@ use calloop::{EventLoop, channel::channel};
 use smithay_client_toolkit::shell::WaylandSurface;
 use wayland_client::{Connection, EventQueue};
 
+use crate::bar::clock::ClockPanel;
 use crate::bar::date::DatePanel;
 use crate::bar::default_bar;
 use crate::bar::system::SystemPanel;
@@ -99,7 +100,8 @@ fn top_bar_surface_height(theme: &Theme) -> u32 {
         .tokens
         .dropdown_height
         .max(SystemPanel::height(theme))
-        .max(DatePanel::height(theme));
+        .max(DatePanel::height(theme))
+        .max(ClockPanel::height(theme));
 
     let height = theme.tokens.bar_margin_top
         + theme.tokens.pill_height

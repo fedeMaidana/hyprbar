@@ -11,11 +11,14 @@ use calloop::{
 use calloop_wayland_source::WaylandSource;
 use wayland_client::{Connection, EventQueue};
 
+use crate::components::DropdownId;
+
 use super::state::AppState;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
 const CLOCK_TICK_SECONDS: u64 = 60;
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 // ─── < Public Funtions > ────────────────────────────────────────────────────
 
@@ -29,7 +32,8 @@ pub(crate) fn insert_sources(
 
     insert_wayland_source(loop_handle.clone(), conn, event_queue)?;
     insert_redraw_source(loop_handle.clone(), redraw_channel)?;
-    insert_clock_tick_source(loop_handle)?;
+    insert_clock_tick_source(loop_handle.clone())?;
+    insert_panel_seconds_tick_source(loop_handle)?;
 
     Ok(())
 }
@@ -74,6 +78,22 @@ fn insert_clock_tick_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> R
     Ok(())
 }
 
+fn insert_panel_seconds_tick_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> Result<()> {
+    let timer = Timer::from_duration(duration_until_next_second());
+
+    loop_handle
+        .insert_source(timer, |_event, _meta, app| {
+            if app.open_dropdown == Some(DropdownId::CLOCK) {
+                app.needs_redraw = true;
+            }
+
+            TimeoutAction::ToDuration(duration_until_next_second())
+        })
+        .map_err(|e| anyhow!("panel seconds timer insert failed: {e:?}"))?;
+
+    Ok(())
+}
+
 fn duration_until_next_minute() -> Duration {
     let Ok(elapsed) = SystemTime::now().duration_since(UNIX_EPOCH) else {
         return Duration::from_secs(CLOCK_TICK_SECONDS);
@@ -83,4 +103,14 @@ fn duration_until_next_minute() -> Duration {
     let secs_until_next_minute = CLOCK_TICK_SECONDS - (elapsed_secs % CLOCK_TICK_SECONDS);
 
     Duration::from_secs(secs_until_next_minute.max(1))
+}
+
+fn duration_until_next_second() -> Duration {
+    let Ok(elapsed) = SystemTime::now().duration_since(UNIX_EPOCH) else {
+        return Duration::from_secs(1);
+    };
+
+    let nanos_until_next_second = NANOS_PER_SECOND - elapsed.subsec_nanos() as u64;
+
+    Duration::from_nanos(nanos_until_next_second.max(1))
 }

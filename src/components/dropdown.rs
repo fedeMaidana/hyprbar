@@ -36,6 +36,7 @@ pub struct DropdownFrame {
 impl DropdownId {
     pub const ARCH: Self = Self("arch");
     pub const DATE: Self = Self("date");
+    pub const CLOCK: Self = Self("clock");
 }
 
 impl<'a> DropdownItem<'a> {
