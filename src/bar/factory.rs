@@ -4,7 +4,7 @@ use calloop::channel::Sender;
 
 use crate::bar::clock_pill::ClockPill;
 use crate::bar::command_center_pill::CommandCenterPill;
-use crate::bar::date_pill::DatePill;
+use crate::bar::date::DatePill;
 use crate::bar::layout::Bar;
 use crate::bar::notifications_pill::NotificationsPill;
 use crate::bar::profile::ProfilePill;

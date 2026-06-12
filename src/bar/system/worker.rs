@@ -16,7 +16,8 @@ use super::updates;
 
 const OPEN_SAMPLE_INTERVAL: Duration = Duration::from_secs(1);
 const CLOSED_SAMPLE_INTERVAL: Duration = Duration::from_secs(5);
-const UPDATES_CHECK_INTERVAL: Duration = Duration::from_secs(30 * 60);
+const UPDATES_PERIODIC_INTERVAL: Duration = Duration::from_secs(30 * 60);
+const UPDATES_OPEN_DEBOUNCE: Duration = Duration::from_secs(10);
 const WAIT_SLICE: Duration = Duration::from_millis(250);
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
@@ -41,27 +42,36 @@ fn sampler_loop(store: SystemStore, redraw: Sender<()>, shutdown: ShutdownToken)
 
     let mut previous_cpu: Option<CpuTimes> = None;
     let mut last_updates_check: Option<Instant> = None;
+    let mut previous_panel_open = false;
 
     while !shutdown.should_stop() {
-        if updates_check_due(last_updates_check) {
+        let panel_open = store.panel_open();
+        let panel_just_opened = panel_open && !previous_panel_open;
+        previous_panel_open = panel_open;
+
+        let snapshot = read_metrics(&mut previous_cpu);
+        store.replace_metrics(snapshot);
+
+        if panel_open {
+            let _ = redraw.send(());
+        }
+
+        if updates_check_due(last_updates_check, panel_just_opened) {
             last_updates_check = Some(Instant::now());
 
             match updates::check_pending_updates() {
                 Ok(count) => {
                     log::info!("pending updates: {count}");
                     store.replace_pending_updates(count);
+
+                    if store.panel_open() {
+                        let _ = redraw.send(());
+                    }
                 }
                 Err(error) => {
                     log::warn!("updates check failed: {error}");
                 }
             }
-        }
-
-        let snapshot = read_metrics(&mut previous_cpu);
-        store.replace_metrics(snapshot);
-
-        if store.panel_open() {
-            let _ = redraw.send(());
         }
 
         if wait_for_next_sample(&store, &shutdown) {
@@ -92,8 +102,18 @@ fn read_metrics(previous_cpu: &mut Option<CpuTimes>) -> MetricsSnapshot {
     }
 }
 
-fn updates_check_due(last_check: Option<Instant>) -> bool {
-    last_check.is_none_or(|checked_at| checked_at.elapsed() >= UPDATES_CHECK_INTERVAL)
+fn updates_check_due(last_check: Option<Instant>, panel_just_opened: bool) -> bool {
+    let Some(checked_at) = last_check else {
+        return true;
+    };
+
+    let elapsed = checked_at.elapsed();
+
+    if panel_just_opened {
+        elapsed >= UPDATES_OPEN_DEBOUNCE
+    } else {
+        elapsed >= UPDATES_PERIODIC_INTERVAL
+    }
 }
 
 fn wait_for_next_sample(store: &SystemStore, shutdown: &ShutdownToken) -> bool {

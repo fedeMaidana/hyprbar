@@ -129,6 +129,16 @@ impl Bar {
         bounds.contains_point(point.x, point.y)
     }
 
+    pub fn handle_interaction(&mut self, interaction: Interaction) -> bool {
+        for component in self.left.iter_mut().chain(self.center.iter_mut()).chain(self.right.iter_mut()) {
+            if component.handle_interaction(interaction) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     fn hit_test_open_dropdown(&self, point: Point, theme: &Theme, open_dropdown: Option<DropdownId>) -> Option<Interaction> {
         let surface = self.last_surface?;
         let dropdown_id = open_dropdown?;

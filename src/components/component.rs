@@ -4,6 +4,7 @@ use vello::Scene;
 
 use super::dropdown::DropdownId;
 
+use crate::bar::date::CalendarAction;
 use crate::bar::system::PowerAction;
 use crate::bar::workspaces::WorkspaceId;
 use crate::render::{Rect, TextEngine};
@@ -31,6 +32,7 @@ pub enum Interaction {
     Workspace(WorkspaceId),
     Dropdown(DropdownId),
     Power(PowerAction),
+    Calendar(CalendarAction),
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -64,5 +66,9 @@ pub trait Component {
 
     fn hit_test_dropdown(&self, _point: Point, _surface: Rect, _anchor: Rect, _theme: &Theme) -> Option<Interaction> {
         None
+    }
+
+    fn handle_interaction(&mut self, _interaction: Interaction) -> bool {
+        false
     }
 }

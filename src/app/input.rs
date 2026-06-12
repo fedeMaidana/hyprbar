@@ -65,6 +65,11 @@ impl AppState {
                 self.close_dropdown();
                 run_power_action(action);
             }
+            Interaction::Calendar(_) => {
+                if self.bar.handle_interaction(interaction) {
+                    self.needs_redraw = true;
+                }
+            }
         }
     }
 

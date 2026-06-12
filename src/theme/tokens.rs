@@ -37,6 +37,16 @@ pub struct Tokens {
     pub system_temp_gauge_max_c: f32,
     pub system_icon_gap: f32,
 
+    pub date_panel_padding_x: f32,
+    pub date_panel_padding_y: f32,
+    pub date_header_gap: f32,
+    pub date_weekday_row_height: f32,
+    pub date_cell_size: f32,
+    pub date_cell_gap: f32,
+    pub date_nav_button_size: f32,
+    pub date_nav_button_gap: f32,
+    pub date_nav_button_radius: f32,
+
     pub icon_scale: f32,
 
     pub weather_inner_gap: f32,
@@ -97,6 +107,16 @@ impl Default for Tokens {
             system_button_radius: 9.0,
             system_temp_gauge_max_c: 90.0,
             system_icon_gap: 6.0,
+
+            date_panel_padding_x: 14.0,
+            date_panel_padding_y: 12.0,
+            date_header_gap: 10.0,
+            date_weekday_row_height: 16.0,
+            date_cell_size: 26.0,
+            date_cell_gap: 2.0,
+            date_nav_button_size: 20.0,
+            date_nav_button_gap: 6.0,
+            date_nav_button_radius: 6.0,
 
             icon_scale: 1.2,
 

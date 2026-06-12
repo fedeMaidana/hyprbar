@@ -2,7 +2,7 @@
 
 pub mod clock_pill;
 pub mod command_center_pill;
-pub mod date_pill;
+pub mod date;
 pub mod factory;
 pub mod layout;
 pub mod notifications_pill;
