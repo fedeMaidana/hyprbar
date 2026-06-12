@@ -3,7 +3,7 @@
 use calloop::channel::Sender;
 
 use crate::bar::clock::ClockPill;
-use crate::bar::command_center_pill::CommandCenterPill;
+use crate::bar::command_center::CommandCenterPill;
 use crate::bar::date::DatePill;
 use crate::bar::layout::Bar;
 use crate::bar::notifications_pill::NotificationsPill;
@@ -28,7 +28,7 @@ pub fn default_bar(redraw_signal: Sender<()>) -> Bar {
             component(WeatherPill::new(WeatherConfig::auto_detect())),
         ],
         vec![
-            component(CommandCenterPill::new()),
+            component(CommandCenterPill::new(redraw_signal.clone())),
             component(WorkspacesPill::new(redraw_signal)),
             component(NotificationsPill::new()),
         ],

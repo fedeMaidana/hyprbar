@@ -1,9 +1,8 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use std::process::Command;
-use std::thread;
+use anyhow::Result;
 
-use anyhow::{Context, Result};
+use crate::proc::spawn_detached;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -39,16 +38,7 @@ impl PowerAction {
     pub fn execute(self) -> Result<()> {
         let (program, arguments) = self.command();
 
-        let mut child = Command::new(program)
-            .args(arguments)
-            .spawn()
-            .with_context(|| format!("lanzando {program} para {self:?}"))?;
-
-        thread::spawn(move || {
-            let _ = child.wait();
-        });
-
-        Ok(())
+        spawn_detached(program, arguments)
     }
 
     fn command(self) -> (&'static str, &'static [&'static str]) {

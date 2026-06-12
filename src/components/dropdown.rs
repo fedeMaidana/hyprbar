@@ -38,6 +38,7 @@ impl DropdownId {
     pub const DATE: Self = Self("date");
     pub const CLOCK: Self = Self("clock");
     pub const WEATHER: Self = Self("weather");
+    pub const COMMAND: Self = Self("command");
 }
 
 impl<'a> DropdownItem<'a> {

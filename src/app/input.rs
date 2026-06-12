@@ -14,6 +14,14 @@ impl AppState {
     pub fn handle_pointer_enter_or_motion(&mut self, conn: &Connection, point: Point, force_cursor_reload: bool) {
         self.pointer.position = Some(point);
 
+        if let Some(drag) = self.pointer.dragging {
+            if self.bar.handle_drag(drag, point, &self.theme, self.open_dropdown) {
+                self.needs_redraw = true;
+            }
+
+            return;
+        }
+
         let hovered_interaction = self.bar.hit_test(point, &self.theme, self.open_dropdown);
 
         if self.pointer.hovered_interaction != hovered_interaction {
@@ -32,6 +40,11 @@ impl AppState {
 
     pub fn handle_pointer_leave(&mut self, conn: &Connection) {
         self.pointer.position = None;
+
+        if let Some(drag) = self.pointer.dragging.take() {
+            self.bar.end_drag(drag, self.open_dropdown);
+            self.needs_redraw = true;
+        }
 
         if self.pointer.hovered_interaction.take().is_some() {
             self.needs_redraw = true;
@@ -70,6 +83,24 @@ impl AppState {
                     self.needs_redraw = true;
                 }
             }
+            Interaction::Command(action) => {
+                if action.is_slider() {
+                    self.pointer.dragging = Some(interaction);
+
+                    if self.bar.handle_drag(interaction, point, &self.theme, self.open_dropdown) {
+                        self.needs_redraw = true;
+                    }
+                } else if self.bar.handle_interaction(interaction) {
+                    self.needs_redraw = true;
+                }
+            }
+        }
+    }
+
+    pub fn handle_pointer_release(&mut self) {
+        if let Some(drag) = self.pointer.dragging.take() {
+            self.bar.end_drag(drag, self.open_dropdown);
+            self.needs_redraw = true;
         }
     }
 

@@ -139,6 +139,50 @@ impl Bar {
         false
     }
 
+    pub fn handle_drag(&mut self, interaction: Interaction, point: Point, theme: &Theme, open_dropdown: Option<DropdownId>) -> bool {
+        let Some(surface) = self.last_surface else {
+            return false;
+        };
+
+        let Some(dropdown_id) = open_dropdown else {
+            return false;
+        };
+
+        let Some((component, anchor)) = self.dropdown_component_mut(dropdown_id) else {
+            return false;
+        };
+
+        component.handle_drag(interaction, point, surface, anchor, theme)
+    }
+
+    pub fn end_drag(&mut self, interaction: Interaction, open_dropdown: Option<DropdownId>) {
+        let Some(dropdown_id) = open_dropdown else {
+            return;
+        };
+
+        if let Some((component, _anchor)) = self.dropdown_component_mut(dropdown_id) {
+            component.end_drag(interaction);
+        }
+    }
+
+    fn dropdown_component_mut(&mut self, dropdown_id: DropdownId) -> Option<(&mut dyn Component, Rect)> {
+        let sections = [
+            (&mut self.left, &self.left_bounds),
+            (&mut self.center, &self.center_bounds),
+            (&mut self.right, &self.right_bounds),
+        ];
+
+        for (components, bounds) in sections {
+            for (component, anchor) in components.iter_mut().zip(bounds.iter().copied()) {
+                if component.dropdown_id() == Some(dropdown_id) {
+                    return Some((component.as_mut(), anchor));
+                }
+            }
+        }
+
+        None
+    }
+
     fn hit_test_open_dropdown(&self, point: Point, theme: &Theme, open_dropdown: Option<DropdownId>) -> Option<Interaction> {
         let surface = self.last_surface?;
         let dropdown_id = open_dropdown?;

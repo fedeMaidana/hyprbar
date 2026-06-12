@@ -167,7 +167,12 @@ impl PointerHandler for AppState {
                         self.handle_pointer_press();
                     }
                 }
-                PointerEventKind::Release { .. } | PointerEventKind::Axis { .. } => {}
+                PointerEventKind::Release { button, .. } => {
+                    if button == BTN_LEFT {
+                        self.handle_pointer_release();
+                    }
+                }
+                PointerEventKind::Axis { .. } => {}
             }
         }
     }

@@ -1,7 +1,7 @@
 // ─── < Modules > ────────────────────────────────────────────────────
 
 pub mod clock;
-pub mod command_center_pill;
+pub mod command_center;
 pub mod date;
 pub mod factory;
 pub mod layout;

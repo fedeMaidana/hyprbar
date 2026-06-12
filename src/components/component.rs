@@ -4,6 +4,7 @@ use vello::Scene;
 
 use super::dropdown::DropdownId;
 
+use crate::bar::command_center::CommandAction;
 use crate::bar::date::CalendarAction;
 use crate::bar::system::PowerAction;
 use crate::bar::workspaces::WorkspaceId;
@@ -33,6 +34,7 @@ pub enum Interaction {
     Dropdown(DropdownId),
     Power(PowerAction),
     Calendar(CalendarAction),
+    Command(CommandAction),
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -71,4 +73,10 @@ pub trait Component {
     fn handle_interaction(&mut self, _interaction: Interaction) -> bool {
         false
     }
+
+    fn handle_drag(&mut self, _interaction: Interaction, _point: Point, _surface: Rect, _anchor: Rect, _theme: &Theme) -> bool {
+        false
+    }
+
+    fn end_drag(&mut self, _interaction: Interaction) {}
 }
