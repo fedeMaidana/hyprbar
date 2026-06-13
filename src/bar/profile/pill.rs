@@ -44,6 +44,10 @@ impl ProfilePill {
             host: session::host_name(),
         }
     }
+
+    fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
+        ctx.open_dropdown == Some(DropdownId::PROFILE)
+    }
 }
 
 impl Component for ProfilePill {
@@ -62,7 +66,13 @@ impl Component for ProfilePill {
 
         let circle = AvatarCircle::new(center_x, center_y, outer_radius, tokens.avatar_border_width);
 
-        draw_avatar_circle(scene, self.avatar.as_ref(), &circle, ctx.theme.palette.pill_bg, ctx.theme.palette.text_secondary);
+        let border = if self.is_active(ctx) {
+            ctx.theme.palette.accent
+        } else {
+            ctx.theme.palette.pill_bg
+        };
+
+        draw_avatar_circle(scene, self.avatar.as_ref(), &circle, border, ctx.theme.palette.text_secondary);
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {

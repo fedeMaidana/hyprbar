@@ -2,6 +2,7 @@
 
 use chrono::Local;
 use vello::Scene;
+use vello::peniko::Color;
 
 use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
@@ -38,6 +39,26 @@ impl DatePill {
     fn take_frame_text(&mut self) -> String {
         self.frame_text.take().unwrap_or_else(|| self.current_text())
     }
+
+    fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
+        ctx.open_dropdown == Some(DropdownId::DATE)
+    }
+
+    fn background_color(&self, ctx: &RenderCtx<'_>) -> Color {
+        if self.is_active(ctx) {
+            ctx.theme.palette.slot_active_bg
+        } else {
+            ctx.theme.palette.pill_bg
+        }
+    }
+
+    fn text_color(&self, ctx: &RenderCtx<'_>) -> Color {
+        if self.is_active(ctx) {
+            ctx.theme.palette.slot_active_text
+        } else {
+            ctx.theme.palette.text_primary
+        }
+    }
 }
 
 impl Default for DatePill {
@@ -62,11 +83,11 @@ impl Component for DatePill {
     }
 
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
-        if ctx.open_dropdown != Some(DropdownId::DATE) {
+        if !self.is_active(ctx) {
             self.month_offset = 0;
         }
 
-        Pill::draw(scene, bounds, ctx.theme);
+        Pill::draw_with_background(scene, bounds, ctx.theme, self.background_color(ctx));
 
         let text = self.take_frame_text();
         let pad_x = ctx.theme.tokens.pill_padding_x;
@@ -78,7 +99,7 @@ impl Component for DatePill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+            TextStyle::new(size, &ctx.theme.typography.font_family, self.text_color(ctx)),
         );
     }
 

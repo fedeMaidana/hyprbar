@@ -1,6 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use vello::Scene;
+use vello::peniko::Color;
 
 use crate::app::WorkerHandle;
 use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
@@ -53,6 +54,26 @@ impl WeatherPill {
     fn take_frame_parts(&mut self) -> WeatherParts {
         self.frame_parts.take().unwrap_or_else(|| self.current_parts())
     }
+
+    fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
+        ctx.open_dropdown == Some(DropdownId::WEATHER)
+    }
+
+    fn background_color(&self, ctx: &RenderCtx<'_>) -> Color {
+        if self.is_active(ctx) {
+            ctx.theme.palette.slot_active_bg
+        } else {
+            ctx.theme.palette.pill_bg
+        }
+    }
+
+    fn content_color(&self, ctx: &RenderCtx<'_>) -> Color {
+        if self.is_active(ctx) {
+            ctx.theme.palette.slot_active_text
+        } else {
+            ctx.theme.palette.text_primary
+        }
+    }
 }
 
 impl Component for WeatherPill {
@@ -74,12 +95,13 @@ impl Component for WeatherPill {
     }
 
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
-        Pill::draw(scene, bounds, ctx.theme);
+        Pill::draw_with_background(scene, bounds, ctx.theme, self.background_color(ctx));
 
         let parts = self.take_frame_parts();
+        let color = self.content_color(ctx);
 
-        draw_weather_icon(scene, bounds, ctx, parts.icon);
-        draw_weather_text(scene, bounds, ctx, parts.icon, &parts.text);
+        draw_weather_icon(scene, bounds, ctx, parts.icon, color);
+        draw_weather_text(scene, bounds, ctx, parts.icon, &parts.text, color);
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
@@ -110,7 +132,7 @@ fn weather_parts(snapshot: &WeatherSnapshot) -> WeatherParts {
     }
 }
 
-fn draw_weather_icon(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, icon: &str) {
+fn draw_weather_icon(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, icon: &str, color: Color) {
     let pad_x = ctx.theme.tokens.pill_padding_x;
     let size = icon_size(ctx);
 
@@ -120,11 +142,11 @@ fn draw_weather_icon(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, i
         bounds.x + pad_x,
         bounds.y,
         bounds.height,
-        TextStyle::new(size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(size, &ctx.theme.typography.icon_font_family, color),
     );
 }
 
-fn draw_weather_text(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, icon: &str, text: &str) {
+fn draw_weather_text(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, icon: &str, text: &str, color: Color) {
     let pad_x = ctx.theme.tokens.pill_padding_x;
     let icon_size = icon_size(ctx);
     let size = text_size(ctx);
@@ -137,7 +159,7 @@ fn draw_weather_text(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>, i
         bounds.x + pad_x + icon_width + ctx.theme.tokens.weather_inner_gap,
         bounds.y,
         bounds.height,
-        TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(size, &ctx.theme.typography.font_family, color),
     );
 }
 

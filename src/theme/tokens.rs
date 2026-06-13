@@ -51,6 +51,9 @@ pub struct Tokens {
     pub date_nav_button_size: f32,
     pub date_nav_button_gap: f32,
     pub date_nav_button_radius: f32,
+    pub date_today_marker_scale: f32,
+    pub date_week_radius: f32,
+    pub date_week_highlight_alpha: f32,
 
     pub clock_panel_width: f32,
     pub clock_panel_padding_x: f32,
@@ -187,6 +190,9 @@ impl Default for Tokens {
             date_nav_button_size: 20.0,
             date_nav_button_gap: 6.0,
             date_nav_button_radius: 6.0,
+            date_today_marker_scale: 0.9,
+            date_week_radius: 8.0,
+            date_week_highlight_alpha: 0.12,
 
             clock_panel_width: 232.0,
             clock_panel_padding_x: 14.0,
@@ -239,7 +245,7 @@ impl Default for Tokens {
             profile_panel_width: 248.0,
             profile_panel_padding_x: 16.0,
             profile_panel_padding_y: 16.0,
-            profile_avatar_size: 44.0,
+            profile_avatar_size: 52.0,
             profile_avatar_gap: 12.0,
             profile_avatar_border_width: 1.5,
             profile_section_gap: 14.0,

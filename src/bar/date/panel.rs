@@ -6,10 +6,9 @@ use vello::kurbo::{Affine, Circle, RoundedRect};
 use vello::peniko::Fill;
 
 use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
+use crate::locale::{WEEKDAY_HEADERS, month_name, weekday_name};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
-
-use crate::locale::{WEEKDAY_HEADERS, month_name, weekday_name};
 
 use super::action::CalendarAction;
 use super::grid::{GRID_CELLS, GRID_COLUMNS, GRID_ROWS, month_grid, shift_month};
@@ -227,6 +226,12 @@ fn draw_day_grid(
         None
     };
 
+    if let Some(day) = today_day
+        && let Some(row) = grid.iter().position(|cell| *cell == Some(day)).map(|index| index / GRID_COLUMNS)
+    {
+        draw_week_band(scene, x, y, row, ctx);
+    }
+
     for (index, cell) in grid.iter().enumerate().take(GRID_CELLS) {
         let Some(day) = cell else {
             continue;
@@ -244,7 +249,7 @@ fn draw_day_grid(
         if is_today {
             let center_x = cell_x + tokens.date_cell_size / 2.0;
             let center_y = cell_y + tokens.date_cell_size / 2.0;
-            let radius = tokens.date_cell_size / 2.0;
+            let radius = tokens.date_cell_size / 2.0 * tokens.date_today_marker_scale;
 
             let marker = Circle::new((center_x as f64, center_y as f64), radius as f64);
             scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_active_bg, None, &marker);
@@ -270,6 +275,21 @@ fn draw_day_grid(
             TextStyle::new(size, &ctx.theme.typography.font_family, color),
         );
     }
+}
+
+fn draw_week_band(scene: &mut Scene, x: f32, y: f32, row: usize, ctx: &mut RenderCtx<'_>) {
+    let tokens = ctx.theme.tokens;
+
+    let band_width = tokens.date_cell_size * GRID_COLUMNS as f32 + tokens.date_cell_gap * (GRID_COLUMNS as f32 - 1.0);
+    let band_y = y + row as f32 * (tokens.date_cell_size + tokens.date_cell_gap);
+
+    let radius = tokens.date_week_radius as f64;
+
+    let band = RoundedRect::new(x as f64, band_y as f64, (x + band_width) as f64, (band_y + tokens.date_cell_size) as f64, radius);
+
+    let color = ctx.theme.palette.accent.with_alpha(tokens.date_week_highlight_alpha);
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &band);
 }
 
 fn nav_button_rects(bounds: Rect, theme: &Theme) -> [(CalendarAction, Rect); 2] {

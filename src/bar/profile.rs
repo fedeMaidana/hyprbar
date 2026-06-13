@@ -15,4 +15,4 @@ pub use pill::ProfilePill;
 // ─── < Tests > ────────────────────────────────────────────────────
 
 #[doc(hidden)]
-pub use session::parse_hostname;
+pub use session::{greeting, parse_hostname};

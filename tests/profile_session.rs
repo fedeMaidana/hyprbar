@@ -1,4 +1,4 @@
-use hyprbar::bar::profile::parse_hostname;
+use hyprbar::bar::profile::{greeting, parse_hostname};
 
 #[test]
 fn trims_hostname_whitespace() {
@@ -9,4 +9,12 @@ fn trims_hostname_whitespace() {
 #[test]
 fn keeps_clean_hostname() {
     assert_eq!(parse_hostname("maidana"), "maidana");
+}
+
+#[test]
+fn greets_by_time_of_day() {
+    assert_eq!(greeting(8), "Buenos días");
+    assert_eq!(greeting(15), "Buenas tardes");
+    assert_eq!(greeting(22), "Buenas noches");
+    assert_eq!(greeting(3), "Buenas noches");
 }

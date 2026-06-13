@@ -1,5 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use chrono::{Local, Timelike};
 use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::{Fill, ImageData};
@@ -10,6 +11,7 @@ use crate::theme::Theme;
 
 use super::action::SessionAction;
 use super::avatar::{AvatarCircle, draw_avatar_circle};
+use super::session::greeting;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -65,7 +67,9 @@ impl ProfilePanel {
         let inner_x = bounds.x + tokens.profile_panel_padding_x;
         let y = bounds.y + tokens.profile_panel_padding_y;
 
-        draw_header(scene, inner_x, y, avatar, user, host, ctx);
+        let title = format!("{}, {}", greeting(Local::now().hour()), user);
+
+        draw_header(scene, inner_x, y, avatar, &title, host, ctx);
         draw_buttons(scene, bounds, ctx);
     }
 
@@ -76,7 +80,7 @@ impl ProfilePanel {
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn draw_header(scene: &mut Scene, x: f32, y: f32, avatar: Option<&ImageData>, user: &str, host: &str, ctx: &mut RenderCtx<'_>) {
+fn draw_header(scene: &mut Scene, x: f32, y: f32, avatar: Option<&ImageData>, title: &str, host: &str, ctx: &mut RenderCtx<'_>) {
     let tokens = ctx.theme.tokens;
     let avatar_size = tokens.profile_avatar_size;
     let radius = avatar_size / 2.0;
@@ -87,16 +91,16 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, avatar: Option<&ImageData>, us
 
     let text_x = x + avatar_size + tokens.profile_avatar_gap;
 
-    let user_size = ctx.theme.typography.size_base;
-    let host_size = user_size * HOST_TEXT_SCALE;
+    let title_size = ctx.theme.typography.size_base;
+    let host_size = title_size * HOST_TEXT_SCALE;
 
     ctx.text.draw_centered_v(
         scene,
-        user,
+        title,
         text_x,
         y,
         avatar_size * 0.5,
-        TextStyle::new(user_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     ctx.text.draw_centered_v(

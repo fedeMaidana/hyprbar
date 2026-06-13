@@ -35,3 +35,11 @@ pub fn host_name() -> String {
 pub fn parse_hostname(raw: &str) -> String {
     raw.trim().to_string()
 }
+
+pub fn greeting(hour: u32) -> &'static str {
+    match hour {
+        5..=11 => "Buenos días",
+        12..=19 => "Buenas tardes",
+        _ => "Buenas noches",
+    }
+}
