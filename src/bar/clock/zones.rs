@@ -17,6 +17,8 @@ pub const TOMORROW_TAG: &str = "mañ.";
 pub const YESTERDAY_TAG: &str = "ayer";
 
 const MINUTES_PER_HOUR: i32 = 60;
+const DAY_START_HOUR: u32 = 7;
+const DAY_END_HOUR: u32 = 19;
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
@@ -52,6 +54,10 @@ pub fn day_tag(local_date: NaiveDate, remote_date: NaiveDate) -> Option<&'static
     }
 
     None
+}
+
+pub fn is_daytime(hour: u32) -> bool {
+    (DAY_START_HOUR..DAY_END_HOUR).contains(&hour)
 }
 
 pub fn utc_label(offset_minutes: i32) -> String {

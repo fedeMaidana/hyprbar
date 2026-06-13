@@ -2,7 +2,7 @@
 
 use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
-use vello::peniko::Fill;
+use vello::peniko::{Color, Fill};
 
 use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
@@ -24,15 +24,27 @@ const RAM_GLYPH: &str = "\u{f035b}";
 const TEMP_GLYPH: &str = "\u{f050f}";
 const UPDATES_GLYPH: &str = "\u{f03d7}";
 
+const LABEL_TEXT_SCALE: f32 = 0.74;
+const VALUE_TEXT_SCALE: f32 = 0.82;
+const ICON_TEXT_SCALE: f32 = 0.9;
+
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct SystemPanel;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MeterSeverity {
+    Normal,
+    Warning,
+    Critical,
+}
 
 struct MetricRow {
     icon: &'static str,
     label: &'static str,
     value: String,
     fraction: Option<f32>,
+    severity: MeterSeverity,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -146,6 +158,10 @@ fn metric_rows(metrics: Option<MetricsSnapshot>, theme: &Theme) -> [MetricRow; 3
     let memory = metrics.and_then(|metrics| metrics.memory);
     let temperature = metrics.and_then(|metrics| metrics.temperature_c);
 
+    let cpu_fraction = cpu.map(|value| (value / 100.0).clamp(0.0, 1.0));
+    let ram_fraction = memory.map(|memory| memory.used_fraction().clamp(0.0, 1.0));
+    let temp_fraction = temperature.map(|value| (value / theme.tokens.system_temp_gauge_max_c).clamp(0.0, 1.0));
+
     [
         MetricRow {
             icon: CPU_GLYPH,
@@ -153,13 +169,19 @@ fn metric_rows(metrics: Option<MetricsSnapshot>, theme: &Theme) -> [MetricRow; 3
             value: cpu
                 .map(|value| format!("{value:.0}%"))
                 .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
-            fraction: cpu.map(|value| (value / 100.0).clamp(0.0, 1.0)),
+            fraction: cpu_fraction,
+            severity: cpu_fraction
+                .map(|fraction| load_severity(fraction, theme))
+                .unwrap_or(MeterSeverity::Normal),
         },
         MetricRow {
             icon: RAM_GLYPH,
             label: "RAM",
             value: memory.map(format_memory).unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
-            fraction: memory.map(|memory| memory.used_fraction().clamp(0.0, 1.0)),
+            fraction: ram_fraction,
+            severity: ram_fraction
+                .map(|fraction| load_severity(fraction, theme))
+                .unwrap_or(MeterSeverity::Normal),
         },
         MetricRow {
             icon: TEMP_GLYPH,
@@ -167,14 +189,44 @@ fn metric_rows(metrics: Option<MetricsSnapshot>, theme: &Theme) -> [MetricRow; 3
             value: temperature
                 .map(|value| format!("{value:.0}°C"))
                 .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
-            fraction: temperature.map(|value| (value / theme.tokens.system_temp_gauge_max_c).clamp(0.0, 1.0)),
+            fraction: temp_fraction,
+            severity: temperature
+                .map(|value| temp_severity(value, theme))
+                .unwrap_or(MeterSeverity::Normal),
         },
     ]
 }
 
+fn load_severity(fraction: f32, theme: &Theme) -> MeterSeverity {
+    severity_from(fraction, theme.tokens.system_load_warn_fraction, theme.tokens.system_load_crit_fraction)
+}
+
+fn temp_severity(temp_c: f32, theme: &Theme) -> MeterSeverity {
+    severity_from(temp_c, theme.tokens.system_temp_warn_c, theme.tokens.system_temp_crit_c)
+}
+
+fn severity_from(value: f32, warn: f32, critical: f32) -> MeterSeverity {
+    if value >= critical {
+        MeterSeverity::Critical
+    } else if value >= warn {
+        MeterSeverity::Warning
+    } else {
+        MeterSeverity::Normal
+    }
+}
+
+fn meter_color(severity: MeterSeverity, theme: &Theme) -> Color {
+    match severity {
+        MeterSeverity::Normal => theme.palette.accent,
+        MeterSeverity::Warning => theme.palette.meter_warning,
+        MeterSeverity::Critical => theme.palette.meter_critical,
+    }
+}
+
 fn draw_metric_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &MetricRow, ctx: &mut RenderCtx<'_>) {
     let tokens = ctx.theme.tokens;
-    let text_size = ctx.theme.typography.size_base * 0.78;
+    let label_size = ctx.theme.typography.size_base * LABEL_TEXT_SCALE;
+    let value_size = ctx.theme.typography.size_base * VALUE_TEXT_SCALE;
     let text_box_height = tokens.system_metric_row_height - tokens.system_meter_height - tokens.system_meter_gap;
 
     let label_x = draw_row_icon(scene, x, y, text_box_height, row.icon, ctx);
@@ -185,10 +237,10 @@ fn draw_metric_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &MetricRo
         label_x,
         y,
         text_box_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(label_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 
-    let (value_width, _) = ctx.text.measure(&row.value, text_size, &ctx.theme.typography.font_family);
+    let (value_width, _) = ctx.text.measure(&row.value, value_size, &ctx.theme.typography.font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -196,16 +248,16 @@ fn draw_metric_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &MetricRo
         x + width - value_width,
         y,
         text_box_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(value_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     let meter_y = y + text_box_height + tokens.system_meter_gap;
 
-    draw_meter(scene, x, meter_y, width, row.fraction, ctx.theme);
+    draw_meter(scene, x, meter_y, width, row.fraction, row.severity, ctx.theme);
 }
 
 fn draw_row_icon(scene: &mut Scene, x: f32, y: f32, box_height: f32, glyph: &str, ctx: &mut RenderCtx<'_>) -> f32 {
-    let icon_size = ctx.theme.typography.size_base * 0.9;
+    let icon_size = ctx.theme.typography.size_base * ICON_TEXT_SCALE;
 
     let (icon_width, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
 
@@ -221,7 +273,7 @@ fn draw_row_icon(scene: &mut Scene, x: f32, y: f32, box_height: f32, glyph: &str
     x + icon_width + ctx.theme.tokens.system_icon_gap
 }
 
-fn draw_meter(scene: &mut Scene, x: f32, y: f32, width: f32, fraction: Option<f32>, theme: &Theme) {
+fn draw_meter(scene: &mut Scene, x: f32, y: f32, width: f32, fraction: Option<f32>, severity: MeterSeverity, theme: &Theme) {
     let height = theme.tokens.system_meter_height;
     let radius = (height / 2.0) as f64;
 
@@ -235,7 +287,7 @@ fn draw_meter(scene: &mut Scene, x: f32, y: f32, width: f32, fraction: Option<f3
     let fill_width = (width * fraction).max(height);
     let fill = RoundedRect::new(x as f64, y as f64, (x + fill_width) as f64, (y + height) as f64, radius);
 
-    scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.accent, None, &fill);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, meter_color(severity, theme), None, &fill);
 }
 
 fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Option<u32>, ctx: &mut RenderCtx<'_>) {

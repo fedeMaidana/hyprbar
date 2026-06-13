@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, TimeZone, Utc};
-use hyprbar::bar::clock::{day_tag, offset_label, utc_label, zone_display_name, zone_offset_minutes};
+use hyprbar::bar::clock::{day_tag, is_daytime, offset_label, utc_label, zone_display_name, zone_offset_minutes};
 
 #[test]
 fn computes_zone_offset_with_dst() {
@@ -34,6 +34,16 @@ fn tags_remote_dates() {
     assert_eq!(day_tag(today, tomorrow), Some("mañ."));
     assert_eq!(day_tag(today, yesterday), Some("ayer"));
     assert_eq!(day_tag(today, today), None);
+}
+
+#[test]
+fn classifies_day_and_night_hours() {
+    assert!(is_daytime(7));
+    assert!(is_daytime(12));
+    assert!(is_daytime(18));
+    assert!(!is_daytime(19));
+    assert!(!is_daytime(23));
+    assert!(!is_daytime(6));
 }
 
 #[test]

@@ -37,6 +37,11 @@ pub struct Tokens {
     pub system_temp_gauge_max_c: f32,
     pub system_icon_gap: f32,
 
+    pub system_load_warn_fraction: f32,
+    pub system_load_crit_fraction: f32,
+    pub system_temp_warn_c: f32,
+    pub system_temp_crit_c: f32,
+
     pub date_panel_padding_x: f32,
     pub date_panel_padding_y: f32,
     pub date_header_gap: f32,
@@ -72,6 +77,8 @@ pub struct Tokens {
     pub weather_forecast_icon_height: f32,
     pub weather_forecast_max_height: f32,
     pub weather_forecast_min_height: f32,
+    pub weather_forecast_bar_gap: f32,
+    pub weather_forecast_bar_height: f32,
 
     pub command_panel_width: f32,
     pub command_panel_padding_x: f32,
@@ -157,7 +164,7 @@ impl Default for Tokens {
             system_section_gap: 10.0,
             system_metric_row_height: 30.0,
             system_metric_gap: 8.0,
-            system_meter_height: 5.0,
+            system_meter_height: 6.0,
             system_meter_gap: 4.0,
             system_updates_row_height: 22.0,
             system_button_height: 30.0,
@@ -165,6 +172,11 @@ impl Default for Tokens {
             system_button_radius: 9.0,
             system_temp_gauge_max_c: 90.0,
             system_icon_gap: 6.0,
+
+            system_load_warn_fraction: 0.75,
+            system_load_crit_fraction: 0.90,
+            system_temp_warn_c: 70.0,
+            system_temp_crit_c: 85.0,
 
             date_panel_padding_x: 14.0,
             date_panel_padding_y: 12.0,
@@ -201,6 +213,8 @@ impl Default for Tokens {
             weather_forecast_icon_height: 24.0,
             weather_forecast_max_height: 15.0,
             weather_forecast_min_height: 14.0,
+            weather_forecast_bar_gap: 5.0,
+            weather_forecast_bar_height: 4.0,
 
             command_panel_width: 264.0,
             command_panel_padding_x: 14.0,

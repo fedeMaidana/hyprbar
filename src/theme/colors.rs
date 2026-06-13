@@ -22,6 +22,9 @@ pub struct Palette {
 
     pub danger_bg: Color,
     pub danger_text: Color,
+
+    pub meter_warning: Color,
+    pub meter_critical: Color,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -43,6 +46,9 @@ impl Palette {
 
             danger_bg: Color::from_rgba8(0x8c, 0x3a, 0x3a, 0xff),
             danger_text: Color::from_rgba8(0xff, 0xe0, 0xe0, 0xff),
+
+            meter_warning: Color::from_rgba8(0xd8, 0xa2, 0x3a, 0xff),
+            meter_critical: Color::from_rgba8(0xd8, 0x5a, 0x5a, 0xff),
         };
 
         palette.refresh_from_hyprcolor();

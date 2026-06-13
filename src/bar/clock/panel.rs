@@ -1,6 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use chrono::{DateTime, Local, Offset, Utc};
+use chrono::{DateTime, Local, Offset, Timelike, Utc};
 use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::Fill;
@@ -9,13 +9,17 @@ use crate::components::{DropdownFrame, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
-use super::zones::{WORLD_ZONES, day_tag, local_zone_display_name, offset_label, utc_label, zone_offset_minutes};
+use super::zones::{WORLD_ZONES, day_tag, is_daytime, local_zone_display_name, offset_label, utc_label, zone_offset_minutes};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
 const SUBTITLE_TEXT_SCALE: f32 = 0.78;
 const OFFSET_TEXT_SCALE: f32 = 0.78;
 const TAG_TEXT_SCALE: f32 = 0.7;
+const ZONE_ICON_SCALE: f32 = 0.9;
+
+const DAY_GLYPH: &str = "\u{f0599}";
+const NIGHT_GLYPH: &str = "\u{f0594}";
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -26,6 +30,7 @@ struct ZoneRow {
     offset_text: String,
     time_text: String,
     tag: Option<&'static str>,
+    daytime: bool,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -96,6 +101,7 @@ fn zone_rows(now_utc: DateTime<Utc>, now_local: DateTime<Local>, local_offset_mi
                 offset_text: offset_label(remote_offset_minutes - local_offset_minutes),
                 time_text: remote.format("%H:%M").to_string(),
                 tag: day_tag(local_date, remote.date_naive()),
+                daytime: is_daytime(remote.hour()),
             }
         })
         .collect()
@@ -183,10 +189,24 @@ fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, c
         TextStyle::new(offset_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 
+    let icon_glyph = if row.daytime { DAY_GLYPH } else { NIGHT_GLYPH };
+    let icon_size = ctx.theme.typography.size_base * ZONE_ICON_SCALE;
+
+    let (icon_width, _) = ctx.text.measure(icon_glyph, icon_size, &ctx.theme.typography.icon_font_family);
+
+    ctx.text.draw_centered_v(
+        scene,
+        icon_glyph,
+        x,
+        y,
+        row_height,
+        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_secondary),
+    );
+
     ctx.text.draw_centered_v(
         scene,
         row.name,
-        x,
+        x + icon_width + tokens.clock_row_inner_gap,
         y,
         row_height,
         TextStyle::new(name_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
