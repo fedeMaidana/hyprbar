@@ -4,6 +4,7 @@ use smithay_client_toolkit::seat::pointer::CursorIcon;
 use wayland_client::Connection;
 
 use super::state::AppState;
+use crate::bar::profile::SessionAction;
 use crate::bar::system::PowerAction;
 use crate::components::{Interaction, Point};
 use crate::hyprland_ipc;
@@ -79,6 +80,10 @@ impl AppState {
             Interaction::Power(action) => {
                 self.close_dropdown();
                 run_power_action(action);
+            }
+            Interaction::Session(action) => {
+                self.close_dropdown();
+                run_session_action(action);
             }
             Interaction::Calendar(_) => {
                 if self.bar.handle_interaction(interaction) {
@@ -158,6 +163,17 @@ fn run_power_action(action: PowerAction) {
         }
         Err(error) => {
             log::warn!("power action {action:?} failed: {error}");
+        }
+    }
+}
+
+fn run_session_action(action: SessionAction) {
+    match action.execute() {
+        Ok(()) => {
+            log::info!("session action {action:?} launched");
+        }
+        Err(error) => {
+            log::warn!("session action {action:?} failed: {error}");
         }
     }
 }

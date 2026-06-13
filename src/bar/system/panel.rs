@@ -302,17 +302,18 @@ fn draw_power_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) 
     }
 }
 
-fn power_button_rects(bounds: Rect, theme: &Theme) -> [(PowerAction, Rect); 4] {
+fn power_button_rects(bounds: Rect, theme: &Theme) -> [(PowerAction, Rect); 3] {
     let tokens = theme.tokens;
 
     let inner_x = bounds.x + tokens.system_panel_padding_x;
     let inner_width = bounds.width - tokens.system_panel_padding_x * 2.0;
     let y = bounds.y + bounds.height - tokens.system_panel_padding_y - tokens.system_button_height;
 
+    let count = PowerAction::ALL.len();
     let gap = tokens.system_button_gap;
-    let button_width = (inner_width - gap * 3.0) / 4.0;
+    let button_width = (inner_width - gap * (count - 1) as f32) / count as f32;
 
-    let mut rects = [(PowerAction::Lock, Rect::new(0.0, 0.0, 0.0, 0.0)); 4];
+    let mut rects = [(PowerAction::Suspend, Rect::new(0.0, 0.0, 0.0, 0.0)); 3];
 
     for (index, action) in PowerAction::ALL.into_iter().enumerate() {
         let x = inner_x + index as f32 * (button_width + gap);

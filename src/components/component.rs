@@ -6,6 +6,7 @@ use super::dropdown::DropdownId;
 
 use crate::bar::command_center::CommandAction;
 use crate::bar::date::CalendarAction;
+use crate::bar::profile::SessionAction;
 use crate::bar::system::PowerAction;
 use crate::bar::workspaces::WorkspaceId;
 use crate::render::{Rect, TextEngine};
@@ -35,6 +36,7 @@ pub enum Interaction {
     Power(PowerAction),
     Calendar(CalendarAction),
     Command(CommandAction),
+    Session(SessionAction),
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────

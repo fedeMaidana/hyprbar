@@ -37,7 +37,8 @@ const ELLIPSIS: &str = "…";
 
 const SMALL_TEXT_SCALE: f32 = 0.78;
 const MEDIA_SUBTITLE_SCALE: f32 = 0.7;
-const DISABLED_ALPHA: f32 = 0.45;
+const DISABLED_ALPHA: f32 = 0.35;
+const TOGGLE_LABEL_EDGE: f32 = 6.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -52,12 +53,19 @@ pub struct PanelAvailability {
     pub bluetooth: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ToggleState {
+    Disabled,
+    Inactive,
+    Active,
+    Alert,
+}
+
 struct ToggleVisual {
     action: CommandAction,
     glyph: &'static str,
-    label: &'static str,
-    active: bool,
-    enabled: bool,
+    label: String,
+    state: ToggleState,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -513,35 +521,35 @@ fn draw_media_buttons(scene: &mut Scene, bounds: Rect, playing: bool, ctx: &mut 
 }
 
 fn draw_toggles(scene: &mut Scene, bounds: Rect, data: &CommandData, ctx: &mut RenderCtx<'_>) {
+    let wifi_on = data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false);
+    let wifi_label = data
+        .wifi
+        .as_ref()
+        .filter(|wifi| wifi.enabled)
+        .and_then(|wifi| wifi.ssid.clone())
+        .unwrap_or_else(|| WIFI_LABEL.to_string());
+
+    let bt_on = data.bluetooth.map(|bt| bt.powered).unwrap_or(false);
+    let mic_muted = data.mic_muted == Some(true);
+
     let toggles = [
         ToggleVisual {
             action: CommandAction::ToggleWifi,
-            glyph: if data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false) {
-                WIFI_GLYPH
-            } else {
-                WIFI_OFF_GLYPH
-            },
-            label: WIFI_LABEL,
-            active: data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false),
-            enabled: data.wifi.is_some(),
+            glyph: if wifi_on { WIFI_GLYPH } else { WIFI_OFF_GLYPH },
+            label: wifi_label,
+            state: toggle_state(data.wifi.is_some(), wifi_on, false),
         },
         ToggleVisual {
             action: CommandAction::ToggleBluetooth,
-            glyph: if data.bluetooth.map(|bt| bt.powered).unwrap_or(false) {
-                BLUETOOTH_GLYPH
-            } else {
-                BLUETOOTH_OFF_GLYPH
-            },
-            label: BLUETOOTH_LABEL,
-            active: data.bluetooth.map(|bt| bt.powered).unwrap_or(false),
-            enabled: data.bluetooth.is_some(),
+            glyph: if bt_on { BLUETOOTH_GLYPH } else { BLUETOOTH_OFF_GLYPH },
+            label: BLUETOOTH_LABEL.to_string(),
+            state: toggle_state(data.bluetooth.is_some(), bt_on, false),
         },
         ToggleVisual {
             action: CommandAction::ToggleMicMute,
-            glyph: if data.mic_muted == Some(true) { MIC_OFF_GLYPH } else { MIC_GLYPH },
-            label: MIC_LABEL,
-            active: data.mic_muted == Some(true),
-            enabled: data.mic_muted.is_some(),
+            glyph: if mic_muted { MIC_OFF_GLYPH } else { MIC_GLYPH },
+            label: MIC_LABEL.to_string(),
+            state: toggle_state(data.mic_muted.is_some(), !mic_muted, mic_muted),
         },
     ];
 
@@ -550,18 +558,30 @@ fn draw_toggles(scene: &mut Scene, bounds: Rect, data: &CommandData, ctx: &mut R
     }
 }
 
+fn toggle_state(available: bool, active: bool, alert: bool) -> ToggleState {
+    if !available {
+        ToggleState::Disabled
+    } else if alert {
+        ToggleState::Alert
+    } else if active {
+        ToggleState::Active
+    } else {
+        ToggleState::Inactive
+    }
+}
+
 fn draw_toggle(scene: &mut Scene, rect: Rect, toggle: &ToggleVisual, ctx: &mut RenderCtx<'_>) {
     let radius = ctx.theme.tokens.command_toggle_radius as f64;
-    let is_hovered = toggle.enabled && ctx.hovered_interaction == Some(Interaction::Command(toggle.action));
+    let is_hovered = toggle.state == ToggleState::Inactive && ctx.hovered_interaction == Some(Interaction::Command(toggle.action));
 
-    let (background, foreground) = if !toggle.enabled {
-        (dim(ctx.theme.palette.slot_empty_bg, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
-    } else if toggle.active {
-        (ctx.theme.palette.slot_active_bg, ctx.theme.palette.slot_active_text)
-    } else if is_hovered {
-        (ctx.theme.palette.slot_hover_bg, ctx.theme.palette.text_primary)
-    } else {
-        (ctx.theme.palette.slot_inactive_bg, ctx.theme.palette.text_primary)
+    let (background, foreground) = match toggle.state {
+        ToggleState::Disabled => {
+            (dim(ctx.theme.palette.slot_empty_bg, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
+        }
+        ToggleState::Active => (ctx.theme.palette.slot_active_bg, ctx.theme.palette.slot_active_text),
+        ToggleState::Alert => (ctx.theme.palette.danger_bg, ctx.theme.palette.danger_text),
+        ToggleState::Inactive if is_hovered => (ctx.theme.palette.slot_hover_bg, ctx.theme.palette.text_primary),
+        ToggleState::Inactive => (ctx.theme.palette.slot_inactive_bg, ctx.theme.palette.text_primary),
     };
 
     let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, radius);
@@ -572,7 +592,11 @@ fn draw_toggle(scene: &mut Scene, rect: Rect, toggle: &ToggleVisual, ctx: &mut R
     let label_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
 
     let (icon_width, _) = ctx.text.measure(toggle.glyph, icon_size, &ctx.theme.typography.icon_font_family);
-    let (label_width, _) = ctx.text.measure(toggle.label, label_size, &ctx.theme.typography.font_family);
+
+    let max_label_width = (rect.width - icon_width - ctx.theme.tokens.command_inner_gap - TOGGLE_LABEL_EDGE * 2.0).max(0.0);
+    let label = truncate_to_width(ctx, &toggle.label, label_size, max_label_width);
+
+    let (label_width, _) = ctx.text.measure(&label, label_size, &ctx.theme.typography.font_family);
 
     let group_width = icon_width + ctx.theme.tokens.command_inner_gap + label_width;
     let group_x = rect.x + (rect.width - group_width) / 2.0;
@@ -588,7 +612,7 @@ fn draw_toggle(scene: &mut Scene, rect: Rect, toggle: &ToggleVisual, ctx: &mut R
 
     ctx.text.draw_centered_v(
         scene,
-        toggle.label,
+        &label,
         group_x + icon_width + ctx.theme.tokens.command_inner_gap,
         rect.y,
         rect.height,

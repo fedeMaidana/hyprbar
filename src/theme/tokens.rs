@@ -93,6 +93,18 @@ pub struct Tokens {
     pub command_toggle_radius: f32,
     pub command_toggle_gap: f32,
 
+    pub profile_panel_width: f32,
+    pub profile_panel_padding_x: f32,
+    pub profile_panel_padding_y: f32,
+    pub profile_avatar_size: f32,
+    pub profile_avatar_gap: f32,
+    pub profile_avatar_border_width: f32,
+    pub profile_section_gap: f32,
+    pub profile_button_height: f32,
+    pub profile_button_gap: f32,
+    pub profile_button_radius: f32,
+    pub profile_button_inner_gap: f32,
+
     pub icon_scale: f32,
 
     pub weather_inner_gap: f32,
@@ -209,6 +221,18 @@ impl Default for Tokens {
             command_toggle_height: 32.0,
             command_toggle_radius: 9.0,
             command_toggle_gap: 6.0,
+
+            profile_panel_width: 248.0,
+            profile_panel_padding_x: 16.0,
+            profile_panel_padding_y: 16.0,
+            profile_avatar_size: 44.0,
+            profile_avatar_gap: 12.0,
+            profile_avatar_border_width: 1.5,
+            profile_section_gap: 14.0,
+            profile_button_height: 34.0,
+            profile_button_gap: 8.0,
+            profile_button_radius: 9.0,
+            profile_button_inner_gap: 7.0,
 
             icon_scale: 1.2,
 

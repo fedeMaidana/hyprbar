@@ -38,7 +38,7 @@ pub fn read_mic_muted() -> Result<bool> {
 }
 
 pub fn read_brightness() -> Result<BrightnessState> {
-    let output = run_capture("brightnessctl", &["-m"])?;
+    let output = run_capture("brightnessctl", &["-c", "backlight", "-m"])?;
 
     Ok(BrightnessState {
         fraction: parse_brightnessctl_machine(&output)?,
@@ -99,7 +99,7 @@ pub fn set_sink_volume(fraction: f32) -> Result<()> {
 pub fn set_brightness(fraction: f32) -> Result<()> {
     let percent = ((fraction.clamp(0.0, 1.0) * 100.0).round() as u32).max(MIN_BRIGHTNESS_PERCENT);
 
-    spawn_detached("brightnessctl", &["s", &format!("{percent}%")])
+    spawn_detached("brightnessctl", &["-c", "backlight", "s", &format!("{percent}%")])
 }
 
 pub fn toggle_sink_mute() -> Result<()> {
