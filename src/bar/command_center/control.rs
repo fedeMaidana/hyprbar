@@ -1,13 +1,17 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use std::fs;
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 
 use crate::proc::spawn_detached;
 
-use super::parsers::{parse_brightnessctl_machine, parse_playerctl_metadata, parse_wpctl_volume};
-use super::state::{AudioState, BrightnessState, MediaState};
+use super::parsers::{
+    parse_active_ssid, parse_bluetoothctl_powered, parse_brightnessctl_machine, parse_nmcli_radio, parse_playerctl_metadata,
+    parse_wpctl_volume,
+};
+use super::state::{AudioState, BluetoothState, BrightnessState, MediaState, WifiState};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -15,6 +19,9 @@ const SINK: &str = "@DEFAULT_AUDIO_SINK@";
 const SOURCE: &str = "@DEFAULT_AUDIO_SOURCE@";
 const PLAYERCTL_FORMAT: &str = "{{status}}\t{{title}}\t{{artist}}";
 const MIN_BRIGHTNESS_PERCENT: u32 = 1;
+
+const BLUETOOTH_SYSFS_DIR: &str = "/sys/class/bluetooth";
+const BLUETOOTHCTL_TIMEOUT_SECS: &str = "1";
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
@@ -41,6 +48,7 @@ pub fn read_brightness() -> Result<BrightnessState> {
 pub fn read_media() -> Option<MediaState> {
     let output = Command::new("playerctl")
         .args(["metadata", "--format", PLAYERCTL_FORMAT])
+        .env("LC_ALL", "C")
         .output()
         .ok()?;
 
@@ -49,6 +57,37 @@ pub fn read_media() -> Option<MediaState> {
     }
 
     parse_playerctl_metadata(&String::from_utf8_lossy(&output.stdout))
+}
+
+pub fn read_wifi() -> Option<WifiState> {
+    let radio = run_capture("nmcli", &["radio", "wifi"]).ok()?;
+    let enabled = parse_nmcli_radio(&radio).ok()?;
+
+    let ssid = if enabled {
+        run_capture("nmcli", &["-t", "-f", "ACTIVE,SSID", "dev", "wifi", "list", "--rescan", "no"])
+            .ok()
+            .and_then(|output| parse_active_ssid(&output))
+    } else {
+        None
+    };
+
+    Some(WifiState { enabled, ssid })
+}
+
+pub fn read_bluetooth() -> Option<BluetoothState> {
+    if !has_bluetooth_adapter() {
+        return None;
+    }
+
+    let output = Command::new("timeout")
+        .args([BLUETOOTHCTL_TIMEOUT_SECS, "bluetoothctl", "show"])
+        .env("LC_ALL", "C")
+        .output()
+        .ok()?;
+
+    let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+
+    parse_bluetoothctl_powered(&text).map(|powered| BluetoothState { powered })
 }
 
 pub fn set_sink_volume(fraction: f32) -> Result<()> {
@@ -71,6 +110,14 @@ pub fn toggle_mic_mute() -> Result<()> {
     spawn_detached("wpctl", &["set-mute", SOURCE, "toggle"])
 }
 
+pub fn set_wifi_enabled(enabled: bool) -> Result<()> {
+    spawn_detached("nmcli", &["radio", "wifi", if enabled { "on" } else { "off" }])
+}
+
+pub fn set_bluetooth_powered(powered: bool) -> Result<()> {
+    spawn_detached("bluetoothctl", &["power", if powered { "on" } else { "off" }])
+}
+
 pub fn media_play_pause() -> Result<()> {
     spawn_detached("playerctl", &["play-pause"])
 }
@@ -85,9 +132,16 @@ pub fn media_next() -> Result<()> {
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
+fn has_bluetooth_adapter() -> bool {
+    fs::read_dir(BLUETOOTH_SYSFS_DIR)
+        .map(|mut entries| entries.next().is_some())
+        .unwrap_or(false)
+}
+
 fn run_capture(program: &str, arguments: &[&str]) -> Result<String> {
     let output = Command::new(program)
         .args(arguments)
+        .env("LC_ALL", "C")
         .output()
         .with_context(|| format!("ejecutando {program}"))?;
 

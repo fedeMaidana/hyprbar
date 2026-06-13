@@ -1,4 +1,7 @@
-use hyprbar::bar::command_center::{AudioState, MediaState, parse_brightnessctl_machine, parse_playerctl_metadata, parse_wpctl_volume};
+use hyprbar::bar::command_center::{
+    AudioState, MediaState, parse_active_ssid, parse_bluetoothctl_powered, parse_brightnessctl_machine, parse_nmcli_radio,
+    parse_playerctl_metadata, parse_wpctl_volume,
+};
 
 #[test]
 fn parses_wpctl_volume() {
@@ -58,4 +61,38 @@ fn parses_paused_media_without_artist() {
 
     assert!(!media.playing);
     assert_eq!(media.artist, "");
+}
+
+#[test]
+fn parses_nmcli_radio_states() {
+    assert!(parse_nmcli_radio("enabled\n").unwrap());
+    assert!(!parse_nmcli_radio("disabled\n").unwrap());
+    assert!(parse_nmcli_radio("whatever").is_err());
+}
+
+#[test]
+fn parses_active_ssid() {
+    let output = "no:OtherNetwork\nyes:MiRed5G\nno:Vecino\n";
+
+    assert_eq!(parse_active_ssid(output), Some("MiRed5G".to_string()));
+}
+
+#[test]
+fn returns_none_when_no_active_ssid() {
+    assert_eq!(parse_active_ssid("no:OtherNetwork\n"), None);
+    assert_eq!(parse_active_ssid(""), None);
+}
+
+#[test]
+fn parses_bluetoothctl_powered_states() {
+    let powered = "Controller AA:BB:CC:DD:EE:FF (public)\n\tName: pc\n\tPowered: yes\n";
+    let off = "Controller AA:BB:CC:DD:EE:FF (public)\n\tPowered: no\n";
+
+    assert_eq!(parse_bluetoothctl_powered(powered), Some(true));
+    assert_eq!(parse_bluetoothctl_powered(off), Some(false));
+}
+
+#[test]
+fn detects_missing_bluetooth_controller() {
+    assert_eq!(parse_bluetoothctl_powered("No default controller available\n"), None);
 }

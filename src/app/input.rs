@@ -50,6 +50,8 @@ impl AppState {
             self.needs_redraw = true;
         }
 
+        self.bar.reset_scroll();
+
         self.set_cursor_icon(conn, CursorIcon::Default, true);
     }
 
@@ -100,6 +102,20 @@ impl AppState {
     pub fn handle_pointer_release(&mut self) {
         if let Some(drag) = self.pointer.dragging.take() {
             self.bar.end_drag(drag, self.open_dropdown);
+            self.needs_redraw = true;
+        }
+    }
+
+    pub fn handle_pointer_scroll(&mut self, delta: f64) {
+        let Some(point) = self.pointer.position else {
+            return;
+        };
+
+        if self.pointer.dragging.is_some() {
+            return;
+        }
+
+        if self.bar.handle_scroll(point, delta) {
             self.needs_redraw = true;
         }
     }

@@ -23,12 +23,25 @@ pub struct MediaState {
     pub artist: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WifiState {
+    pub enabled: bool,
+    pub ssid: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BluetoothState {
+    pub powered: bool,
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CommandData {
     pub sink: Option<AudioState>,
     pub mic_muted: Option<bool>,
     pub brightness: Option<BrightnessState>,
     pub media: Option<MediaState>,
+    pub wifi: Option<WifiState>,
+    pub bluetooth: Option<BluetoothState>,
 }
 
 #[derive(Debug, Clone, Default)]

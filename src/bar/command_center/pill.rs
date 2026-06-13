@@ -13,7 +13,7 @@ use crate::theme::Theme;
 
 use super::action::CommandAction;
 use super::control;
-use super::panel::CommandPanel;
+use super::panel::{CommandPanel, PanelAvailability};
 use super::state::{BrightnessState, CommandStore};
 use super::worker::spawn_poller;
 
@@ -66,6 +66,16 @@ impl CommandCenterPill {
         }
     }
 
+    fn slider_available(&self, action: CommandAction) -> bool {
+        let data = self.store.data();
+
+        match action {
+            CommandAction::VolumeSlider => data.sink.is_some(),
+            CommandAction::BrightnessSlider => data.brightness.is_some(),
+            _ => false,
+        }
+    }
+
     fn write_drag_value(&mut self, action: CommandAction, fraction: f32, force: bool) {
         let due = force
             || self
@@ -111,6 +121,14 @@ impl CommandCenterPill {
         let result = match action {
             CommandAction::ToggleSinkMute => control::toggle_sink_mute(),
             CommandAction::ToggleMicMute => control::toggle_mic_mute(),
+            CommandAction::ToggleWifi => {
+                let enabled = self.store.data().wifi.map(|wifi| wifi.enabled).unwrap_or(false);
+                control::set_wifi_enabled(!enabled)
+            }
+            CommandAction::ToggleBluetooth => {
+                let powered = self.store.data().bluetooth.map(|bt| bt.powered).unwrap_or(false);
+                control::set_bluetooth_powered(!powered)
+            }
             CommandAction::MediaPlayPause => control::media_play_pause(),
             CommandAction::MediaPrevious => control::media_previous(),
             CommandAction::MediaNext => control::media_next(),
@@ -131,6 +149,20 @@ impl CommandCenterPill {
             CommandAction::ToggleMicMute => self.store.update(|data| {
                 if let Some(muted) = &mut data.mic_muted {
                     *muted = !*muted;
+                }
+            }),
+            CommandAction::ToggleWifi => self.store.update(|data| {
+                if let Some(wifi) = &mut data.wifi {
+                    wifi.enabled = !wifi.enabled;
+
+                    if !wifi.enabled {
+                        wifi.ssid = None;
+                    }
+                }
+            }),
+            CommandAction::ToggleBluetooth => self.store.update(|data| {
+                if let Some(bluetooth) = &mut data.bluetooth {
+                    bluetooth.powered = !bluetooth.powered;
                 }
             }),
             CommandAction::MediaPlayPause => self.store.update(|data| {
@@ -198,9 +230,9 @@ impl Component for CommandCenterPill {
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        let has_media = self.store.data().media.is_some();
+        let availability = PanelAvailability::from_data(&self.store.data());
 
-        CommandPanel::hit_test(point, surface, anchor, theme, has_media)
+        CommandPanel::hit_test(point, surface, anchor, theme, availability)
     }
 
     fn handle_interaction(&mut self, interaction: Interaction) -> bool {
@@ -219,6 +251,10 @@ impl Component for CommandCenterPill {
         let Interaction::Command(action) = interaction else {
             return false;
         };
+
+        if !self.slider_available(action) {
+            return false;
+        }
 
         let Some(fraction) = CommandPanel::slider_fraction(action, point, surface, anchor, theme) else {
             return false;

@@ -33,6 +33,13 @@ pub enum EventStreamRead {
     Closed,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkspaceTarget {
+    Id(crate::bar::workspaces::WorkspaceId),
+    Next,
+    Previous,
+}
+
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl EventStream {
@@ -63,6 +70,16 @@ impl Iterator for EventStream {
     }
 }
 
+impl WorkspaceTarget {
+    fn as_dispatch_value(&self) -> String {
+        match self {
+            Self::Id(id) => id.to_string(),
+            Self::Next => "e+1".to_string(),
+            Self::Previous => "e-1".to_string(),
+        }
+    }
+}
+
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn query(command: &str) -> Result<String> {
@@ -84,7 +101,12 @@ pub fn query(command: &str) -> Result<String> {
 }
 
 pub fn dispatch_workspace(workspace_id: crate::bar::workspaces::WorkspaceId) -> Result<()> {
-    let command = format!(r#"/dispatch hl.dsp.focus({{ workspace = "{workspace_id}" }})"#);
+    dispatch_workspace_target(WorkspaceTarget::Id(workspace_id))
+}
+
+pub fn dispatch_workspace_target(target: WorkspaceTarget) -> Result<()> {
+    let value = target.as_dispatch_value();
+    let command = format!(r#"/dispatch hl.dsp.focus({{ workspace = "{value}" }})"#);
     let response = query(&command)?;
 
     ensure_ok_response("workspace dispatch", &response)

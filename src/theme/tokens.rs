@@ -91,6 +91,7 @@ pub struct Tokens {
     pub command_media_button_radius: f32,
     pub command_toggle_height: f32,
     pub command_toggle_radius: f32,
+    pub command_toggle_gap: f32,
 
     pub icon_scale: f32,
 
@@ -207,6 +208,7 @@ impl Default for Tokens {
             command_media_button_radius: 8.0,
             command_toggle_height: 32.0,
             command_toggle_radius: 9.0,
+            command_toggle_gap: 6.0,
 
             icon_scale: 1.2,
 

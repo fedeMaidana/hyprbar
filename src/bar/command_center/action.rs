@@ -6,6 +6,8 @@ pub enum CommandAction {
     BrightnessSlider,
     ToggleSinkMute,
     ToggleMicMute,
+    ToggleWifi,
+    ToggleBluetooth,
     MediaPlayPause,
     MediaPrevious,
     MediaNext,

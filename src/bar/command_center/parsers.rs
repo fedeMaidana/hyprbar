@@ -8,6 +8,7 @@ use super::state::{AudioState, MediaState};
 
 const MUTED_SUFFIX: &str = "[MUTED]";
 const MAX_VOLUME: f32 = 1.5;
+const NO_CONTROLLER_MARKER: &str = "No default controller";
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
@@ -65,4 +66,31 @@ pub fn parse_playerctl_metadata(output: &str) -> Option<MediaState> {
         title,
         artist,
     })
+}
+
+pub fn parse_nmcli_radio(output: &str) -> Result<bool> {
+    match output.trim() {
+        "enabled" => Ok(true),
+        "disabled" => Ok(false),
+        other => bail!("unexpected nmcli radio output: {other}"),
+    }
+}
+
+pub fn parse_active_ssid(output: &str) -> Option<String> {
+    output
+        .lines()
+        .filter_map(|line| line.strip_prefix("yes:"))
+        .map(str::trim)
+        .find(|ssid| !ssid.is_empty())
+        .map(str::to_string)
+}
+
+pub fn parse_bluetoothctl_powered(output: &str) -> Option<bool> {
+    if output.contains(NO_CONTROLLER_MARKER) {
+        return None;
+    }
+
+    let powered_line = output.lines().map(str::trim).find(|line| line.starts_with("Powered:"))?;
+
+    Some(powered_line.contains("yes"))
 }

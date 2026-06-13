@@ -79,4 +79,10 @@ pub trait Component {
     }
 
     fn end_drag(&mut self, _interaction: Interaction) {}
+
+    fn handle_scroll(&mut self, _delta: f64) -> bool {
+        false
+    }
+
+    fn reset_scroll(&mut self) {}
 }

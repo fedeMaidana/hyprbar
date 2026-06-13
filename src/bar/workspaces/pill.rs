@@ -7,11 +7,16 @@ use vello::peniko::{Color, Fill};
 
 use crate::app::WorkerHandle;
 use crate::components::{Component, Interaction, Pill, Point, RenderCtx};
+use crate::hyprland_ipc::{self, WorkspaceTarget};
 use crate::render::{Rect, TextStyle};
 
 use super::geometry::SlotGeometry;
 use super::listener::spawn_listener;
 use super::state::{WorkspaceData, WorkspaceId, WorkspaceStore};
+
+// ─── < Constants > ────────────────────────────────────────────────────
+
+const SCROLL_THRESHOLD: f64 = 10.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -20,6 +25,7 @@ pub struct WorkspacesPill {
     _listener: Option<WorkerHandle>,
     measured_data: Option<WorkspaceData>,
     rendered_data: Option<WorkspaceData>,
+    scroll_accumulator: f64,
 }
 
 struct SlotVisual {
@@ -47,6 +53,7 @@ impl WorkspacesPill {
             _listener: listener,
             measured_data: None,
             rendered_data: None,
+            scroll_accumulator: 0.0,
         }
     }
 
@@ -98,6 +105,39 @@ impl Component for WorkspacesPill {
         }
 
         None
+    }
+
+    fn handle_scroll(&mut self, delta: f64) -> bool {
+        self.scroll_accumulator += delta;
+
+        let target = if self.scroll_accumulator >= SCROLL_THRESHOLD {
+            Some(WorkspaceTarget::Next)
+        } else if self.scroll_accumulator <= -SCROLL_THRESHOLD {
+            Some(WorkspaceTarget::Previous)
+        } else {
+            None
+        };
+
+        let Some(target) = target else {
+            return false;
+        };
+
+        self.scroll_accumulator = 0.0;
+
+        match hyprland_ipc::dispatch_workspace_target(target) {
+            Ok(()) => {
+                log::info!("workspace scroll dispatch sent: {target:?}");
+                true
+            }
+            Err(error) => {
+                log::warn!("workspace scroll dispatch failed: {error}");
+                false
+            }
+        }
+    }
+
+    fn reset_scroll(&mut self) {
+        self.scroll_accumulator = 0.0;
     }
 }
 

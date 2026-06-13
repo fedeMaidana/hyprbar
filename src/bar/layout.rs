@@ -165,6 +165,28 @@ impl Bar {
         }
     }
 
+    pub fn handle_scroll(&mut self, point: Point, delta: f64) -> bool {
+        for (components, bounds) in [
+            (&mut self.left, &self.left_bounds),
+            (&mut self.center, &self.center_bounds),
+            (&mut self.right, &self.right_bounds),
+        ] {
+            for (component, component_bounds) in components.iter_mut().zip(bounds.iter().copied()) {
+                if component_bounds.contains_point(point.x, point.y) {
+                    return component.handle_scroll(delta);
+                }
+            }
+        }
+
+        false
+    }
+
+    pub fn reset_scroll(&mut self) {
+        for component in self.left.iter_mut().chain(self.center.iter_mut()).chain(self.right.iter_mut()) {
+            component.reset_scroll();
+        }
+    }
+
     fn dropdown_component_mut(&mut self, dropdown_id: DropdownId) -> Option<(&mut dyn Component, Rect)> {
         let sections = [
             (&mut self.left, &self.left_bounds),

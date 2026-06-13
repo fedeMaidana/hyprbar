@@ -3,6 +3,7 @@
 use anyhow::{Context, Result, anyhow};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use vello::AaConfig;
+use vello::AaSupport;
 use vello::Renderer;
 use vello::RendererOptions;
 use vello::Scene;
@@ -65,8 +66,14 @@ impl RenderContext {
         }
 
         if self.renderer.is_none() {
-            let renderer = Renderer::new(&device_handle.device, RendererOptions::default())
-                .map_err(|error| anyhow!("Renderer::new failed: {error:?}"))?;
+            let options = RendererOptions {
+                use_cpu: false,
+                antialiasing_support: AaSupport::all(),
+                num_init_threads: std::num::NonZeroUsize::new(1),
+                pipeline_cache: None,
+            };
+
+            let renderer = Renderer::new(&device_handle.device, options).map_err(|error| anyhow!("Renderer::new failed: {error:?}"))?;
 
             self.renderer = Some(renderer);
         }
@@ -132,7 +139,7 @@ impl RenderContext {
                     base_color: vello::peniko::Color::TRANSPARENT,
                     width: surface.config.width,
                     height: surface.config.height,
-                    antialiasing_method: AaConfig::Area,
+                    antialiasing_method: AaConfig::Msaa16,
                 },
             )
             .map_err(|error| anyhow!("render_to_texture failed: {error:?}"))?;

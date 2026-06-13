@@ -52,6 +52,8 @@ fn read_data() -> CommandData {
         mic_muted: log_failure("mic mute", control::read_mic_muted()),
         brightness: log_failure("brightness", control::read_brightness()),
         media: control::read_media(),
+        wifi: control::read_wifi(),
+        bluetooth: control::read_bluetooth(),
     }
 }
 

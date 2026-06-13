@@ -11,13 +11,16 @@ mod worker;
 // ─── < Public API > ────────────────────────────────────────────────────
 
 pub use action::CommandAction;
-pub use panel::CommandPanel;
+pub use panel::{CommandPanel, PanelAvailability};
 pub use pill::CommandCenterPill;
 
 // ─── < Tests > ────────────────────────────────────────────────────
 
 #[doc(hidden)]
-pub use parsers::{parse_brightnessctl_machine, parse_playerctl_metadata, parse_wpctl_volume};
+pub use parsers::{
+    parse_active_ssid, parse_bluetoothctl_powered, parse_brightnessctl_machine, parse_nmcli_radio, parse_playerctl_metadata,
+    parse_wpctl_volume,
+};
 
 #[doc(hidden)]
-pub use state::{AudioState, BrightnessState, CommandData, MediaState};
+pub use state::{AudioState, BluetoothState, BrightnessState, CommandData, MediaState, WifiState};

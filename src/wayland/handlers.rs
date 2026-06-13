@@ -172,7 +172,10 @@ impl PointerHandler for AppState {
                         self.handle_pointer_release();
                     }
                 }
-                PointerEventKind::Axis { .. } => {}
+                PointerEventKind::Axis { vertical, .. } => {
+                    self.pointer.position = Some(point);
+                    self.handle_pointer_scroll(vertical.absolute);
+                }
             }
         }
     }

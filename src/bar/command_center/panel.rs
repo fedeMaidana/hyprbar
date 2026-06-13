@@ -18,6 +18,10 @@ const VOLUME_MUTED_GLYPH: &str = "\u{f0581}";
 const BRIGHTNESS_GLYPH: &str = "\u{f05a8}";
 const MIC_GLYPH: &str = "\u{f036c}";
 const MIC_OFF_GLYPH: &str = "\u{f036d}";
+const WIFI_GLYPH: &str = "\u{f05a9}";
+const WIFI_OFF_GLYPH: &str = "\u{f05aa}";
+const BLUETOOTH_GLYPH: &str = "\u{f00af}";
+const BLUETOOTH_OFF_GLYPH: &str = "\u{f00b2}";
 const PLAY_GLYPH: &str = "\u{f040a}";
 const PAUSE_GLYPH: &str = "\u{f03e4}";
 const PREVIOUS_GLYPH: &str = "\u{f04ae}";
@@ -26,17 +30,49 @@ const NEXT_GLYPH: &str = "\u{f04ad}";
 const VALUE_PLACEHOLDER: &str = "—";
 const NO_MEDIA_TEXT: &str = "Sin reproducción";
 const UNTITLED_TEXT: &str = "Sin título";
+const WIFI_LABEL: &str = "WiFi";
+const BLUETOOTH_LABEL: &str = "BT";
 const MIC_LABEL: &str = "Mic";
 const ELLIPSIS: &str = "…";
 
 const SMALL_TEXT_SCALE: f32 = 0.78;
 const MEDIA_SUBTITLE_SCALE: f32 = 0.7;
+const DISABLED_ALPHA: f32 = 0.45;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct CommandPanel;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PanelAvailability {
+    pub volume: bool,
+    pub brightness: bool,
+    pub media: bool,
+    pub wifi: bool,
+    pub bluetooth: bool,
+}
+
+struct ToggleVisual {
+    action: CommandAction,
+    glyph: &'static str,
+    label: &'static str,
+    active: bool,
+    enabled: bool,
+}
+
 // ─── < Implementations > ────────────────────────────────────────────────────
+
+impl PanelAvailability {
+    pub fn from_data(data: &CommandData) -> Self {
+        Self {
+            volume: data.sink.is_some(),
+            brightness: data.brightness.is_some(),
+            media: data.media.is_some(),
+            wifi: data.wifi.is_some(),
+            bluetooth: data.bluetooth.is_some(),
+        }
+    }
+}
 
 impl CommandPanel {
     pub fn height(theme: &Theme) -> f32 {
@@ -73,24 +109,24 @@ impl CommandPanel {
         Some(((point.x - track.x) / track.width).clamp(0.0, 1.0))
     }
 
-    pub fn hit_test(point: Point, surface: Rect, anchor: Rect, theme: &Theme, has_media: bool) -> Option<Interaction> {
+    pub fn hit_test(point: Point, surface: Rect, anchor: Rect, theme: &Theme, availability: PanelAvailability) -> Option<Interaction> {
         let bounds = Self::bounds(surface, anchor, theme);
 
         let [(volume_action, volume_row), (brightness_action, brightness_row)] = slider_rows(bounds, theme);
 
-        if volume_icon_rect(volume_row, theme).contains_point(point.x, point.y) {
+        if availability.volume && volume_icon_rect(volume_row, theme).contains_point(point.x, point.y) {
             return Some(Interaction::Command(CommandAction::ToggleSinkMute));
         }
 
-        if volume_row.contains_point(point.x, point.y) {
+        if availability.volume && volume_row.contains_point(point.x, point.y) {
             return Some(Interaction::Command(volume_action));
         }
 
-        if brightness_row.contains_point(point.x, point.y) {
+        if availability.brightness && brightness_row.contains_point(point.x, point.y) {
             return Some(Interaction::Command(brightness_action));
         }
 
-        if has_media {
+        if availability.media {
             for (action, rect) in media_button_rects(bounds, theme) {
                 if rect.contains_point(point.x, point.y) {
                     return Some(Interaction::Command(action));
@@ -98,8 +134,16 @@ impl CommandPanel {
             }
         }
 
-        if mic_toggle_rect(bounds, theme).contains_point(point.x, point.y) {
-            return Some(Interaction::Command(CommandAction::ToggleMicMute));
+        for (action, rect) in toggle_rects(bounds, theme) {
+            let enabled = match action {
+                CommandAction::ToggleWifi => availability.wifi,
+                CommandAction::ToggleBluetooth => availability.bluetooth,
+                _ => true,
+            };
+
+            if enabled && rect.contains_point(point.x, point.y) {
+                return Some(Interaction::Command(action));
+            }
         }
 
         None
@@ -114,6 +158,7 @@ impl CommandPanel {
         ctx: &mut RenderCtx<'_>,
     ) {
         let theme = ctx.theme;
+        let availability = PanelAvailability::from_data(data);
 
         let frame = Self::frame(theme);
         let bounds = frame.bounds(surface, anchor, theme);
@@ -122,10 +167,10 @@ impl CommandPanel {
 
         let [(_, volume_row), (_, brightness_row)] = slider_rows(bounds, theme);
 
-        draw_volume_row(scene, volume_row, data, drag, ctx);
-        draw_brightness_row(scene, brightness_row, data, drag, ctx);
+        draw_volume_row(scene, volume_row, data, drag, availability.volume, ctx);
+        draw_brightness_row(scene, brightness_row, data, drag, availability.brightness, ctx);
         draw_media_row(scene, bounds, data.media.as_ref(), ctx);
-        draw_mic_toggle(scene, bounds, data.mic_muted, ctx);
+        draw_toggles(scene, bounds, data, ctx);
     }
 
     fn frame(theme: &Theme) -> DropdownFrame {
@@ -210,18 +255,44 @@ fn media_button_rects(bounds: Rect, theme: &Theme) -> [(CommandAction, Rect); 3]
     ]
 }
 
-fn mic_toggle_rect(bounds: Rect, theme: &Theme) -> Rect {
+fn toggle_rects(bounds: Rect, theme: &Theme) -> [(CommandAction, Rect); 3] {
     let tokens = theme.tokens;
     let inner = inner_rect(bounds, theme);
 
     let y = inner.y + inner.height - tokens.command_toggle_height;
+    let gap = tokens.command_toggle_gap;
+    let width = (inner.width - gap * 2.0) / 3.0;
 
-    Rect::new(inner.x, y, inner.width, tokens.command_toggle_height)
+    let actions = [
+        CommandAction::ToggleWifi,
+        CommandAction::ToggleBluetooth,
+        CommandAction::ToggleMicMute,
+    ];
+
+    let mut rects = [(CommandAction::ToggleWifi, Rect::new(0.0, 0.0, 0.0, 0.0)); 3];
+
+    for (index, action) in actions.into_iter().enumerate() {
+        let x = inner.x + index as f32 * (width + gap);
+        rects[index] = (action, Rect::new(x, y, width, tokens.command_toggle_height));
+    }
+
+    rects
 }
 
 // ─── < Private Functions: Drawing > ────────────────────────────────────────────────────
 
-fn draw_volume_row(scene: &mut Scene, row: Rect, data: &CommandData, drag: Option<(CommandAction, f32)>, ctx: &mut RenderCtx<'_>) {
+fn dim(color: Color, alpha: f32) -> Color {
+    color.with_alpha(alpha)
+}
+
+fn draw_volume_row(
+    scene: &mut Scene,
+    row: Rect,
+    data: &CommandData,
+    drag: Option<(CommandAction, f32)>,
+    enabled: bool,
+    ctx: &mut RenderCtx<'_>,
+) {
     let muted = data.sink.map(|sink| sink.muted).unwrap_or(false);
     let glyph = if muted { VOLUME_MUTED_GLYPH } else { VOLUME_GLYPH };
 
@@ -233,22 +304,43 @@ fn draw_volume_row(scene: &mut Scene, row: Rect, data: &CommandData, drag: Optio
         ctx.theme.palette.text_primary
     };
 
-    draw_slider_row(scene, row, glyph, icon_color, fraction, ctx);
+    draw_slider_row(scene, row, glyph, icon_color, fraction, enabled, ctx);
 }
 
-fn draw_brightness_row(scene: &mut Scene, row: Rect, data: &CommandData, drag: Option<(CommandAction, f32)>, ctx: &mut RenderCtx<'_>) {
+fn draw_brightness_row(
+    scene: &mut Scene,
+    row: Rect,
+    data: &CommandData,
+    drag: Option<(CommandAction, f32)>,
+    enabled: bool,
+    ctx: &mut RenderCtx<'_>,
+) {
     let fraction = drag_fraction(drag, CommandAction::BrightnessSlider).or_else(|| data.brightness.map(|brightness| brightness.fraction));
 
-    draw_slider_row(scene, row, BRIGHTNESS_GLYPH, ctx.theme.palette.text_primary, fraction, ctx);
+    draw_slider_row(scene, row, BRIGHTNESS_GLYPH, ctx.theme.palette.text_primary, fraction, enabled, ctx);
 }
 
 fn drag_fraction(drag: Option<(CommandAction, f32)>, action: CommandAction) -> Option<f32> {
     drag.filter(|(drag_action, _)| *drag_action == action).map(|(_, fraction)| fraction)
 }
 
-fn draw_slider_row(scene: &mut Scene, row: Rect, glyph: &str, icon_color: Color, fraction: Option<f32>, ctx: &mut RenderCtx<'_>) {
+fn draw_slider_row(
+    scene: &mut Scene,
+    row: Rect,
+    glyph: &str,
+    icon_color: Color,
+    fraction: Option<f32>,
+    enabled: bool,
+    ctx: &mut RenderCtx<'_>,
+) {
     let tokens = ctx.theme.tokens;
     let icon_size = ctx.theme.typography.size_base * tokens.icon_scale;
+
+    let icon_color = if enabled {
+        icon_color
+    } else {
+        dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA)
+    };
 
     ctx.text.draw_centered_v(
         scene,
@@ -262,12 +354,18 @@ fn draw_slider_row(scene: &mut Scene, row: Rect, glyph: &str, icon_color: Color,
     let track = slider_track_rect(row, ctx.theme);
     let radius = (track.height / 2.0) as f64;
 
+    let track_color = if enabled {
+        ctx.theme.palette.slot_empty_bg
+    } else {
+        dim(ctx.theme.palette.slot_empty_bg, DISABLED_ALPHA)
+    };
+
     let track_shape =
         RoundedRect::new(track.x as f64, track.y as f64, (track.x + track.width) as f64, (track.y + track.height) as f64, radius);
 
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_empty_bg, None, &track_shape);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, track_color, None, &track_shape);
 
-    if let Some(fraction) = fraction {
+    if enabled && let Some(fraction) = fraction {
         let fill_width = (track.width * fraction).max(track.height);
 
         let fill_shape =
@@ -283,9 +381,19 @@ fn draw_slider_row(scene: &mut Scene, row: Rect, glyph: &str, icon_color: Color,
         scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_active_bg, None, &handle);
     }
 
-    let value_text = fraction
-        .map(|fraction| format!("{}%", (fraction * 100.0).round() as u32))
-        .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
+    let value_text = if enabled {
+        fraction
+            .map(|fraction| format!("{}%", (fraction * 100.0).round() as u32))
+            .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string())
+    } else {
+        VALUE_PLACEHOLDER.to_string()
+    };
+
+    let value_color = if enabled {
+        ctx.theme.palette.text_primary
+    } else {
+        dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA)
+    };
 
     let value_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
     let (value_width, _) = ctx.text.measure(&value_text, value_size, &ctx.theme.typography.font_family);
@@ -296,7 +404,7 @@ fn draw_slider_row(scene: &mut Scene, row: Rect, glyph: &str, icon_color: Color,
         row.x + row.width - value_width,
         row.y,
         row.height,
-        TextStyle::new(value_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(value_size, &ctx.theme.typography.font_family, value_color),
     );
 }
 
@@ -404,14 +512,51 @@ fn draw_media_buttons(scene: &mut Scene, bounds: Rect, playing: bool, ctx: &mut 
     }
 }
 
-fn draw_mic_toggle(scene: &mut Scene, bounds: Rect, mic_muted: Option<bool>, ctx: &mut RenderCtx<'_>) {
-    let rect = mic_toggle_rect(bounds, ctx.theme);
+fn draw_toggles(scene: &mut Scene, bounds: Rect, data: &CommandData, ctx: &mut RenderCtx<'_>) {
+    let toggles = [
+        ToggleVisual {
+            action: CommandAction::ToggleWifi,
+            glyph: if data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false) {
+                WIFI_GLYPH
+            } else {
+                WIFI_OFF_GLYPH
+            },
+            label: WIFI_LABEL,
+            active: data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false),
+            enabled: data.wifi.is_some(),
+        },
+        ToggleVisual {
+            action: CommandAction::ToggleBluetooth,
+            glyph: if data.bluetooth.map(|bt| bt.powered).unwrap_or(false) {
+                BLUETOOTH_GLYPH
+            } else {
+                BLUETOOTH_OFF_GLYPH
+            },
+            label: BLUETOOTH_LABEL,
+            active: data.bluetooth.map(|bt| bt.powered).unwrap_or(false),
+            enabled: data.bluetooth.is_some(),
+        },
+        ToggleVisual {
+            action: CommandAction::ToggleMicMute,
+            glyph: if data.mic_muted == Some(true) { MIC_OFF_GLYPH } else { MIC_GLYPH },
+            label: MIC_LABEL,
+            active: data.mic_muted == Some(true),
+            enabled: data.mic_muted.is_some(),
+        },
+    ];
+
+    for ((_, rect), toggle) in toggle_rects(bounds, ctx.theme).into_iter().zip(toggles) {
+        draw_toggle(scene, rect, &toggle, ctx);
+    }
+}
+
+fn draw_toggle(scene: &mut Scene, rect: Rect, toggle: &ToggleVisual, ctx: &mut RenderCtx<'_>) {
     let radius = ctx.theme.tokens.command_toggle_radius as f64;
+    let is_hovered = toggle.enabled && ctx.hovered_interaction == Some(Interaction::Command(toggle.action));
 
-    let active = mic_muted == Some(true);
-    let is_hovered = ctx.hovered_interaction == Some(Interaction::Command(CommandAction::ToggleMicMute));
-
-    let (background, foreground) = if active {
+    let (background, foreground) = if !toggle.enabled {
+        (dim(ctx.theme.palette.slot_empty_bg, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
+    } else if toggle.active {
         (ctx.theme.palette.slot_active_bg, ctx.theme.palette.slot_active_text)
     } else if is_hovered {
         (ctx.theme.palette.slot_hover_bg, ctx.theme.palette.text_primary)
@@ -423,20 +568,18 @@ fn draw_mic_toggle(scene: &mut Scene, bounds: Rect, mic_muted: Option<bool>, ctx
 
     scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &body);
 
-    let glyph = if active { MIC_OFF_GLYPH } else { MIC_GLYPH };
-
     let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
     let label_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
 
-    let (icon_width, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
-    let (label_width, _) = ctx.text.measure(MIC_LABEL, label_size, &ctx.theme.typography.font_family);
+    let (icon_width, _) = ctx.text.measure(toggle.glyph, icon_size, &ctx.theme.typography.icon_font_family);
+    let (label_width, _) = ctx.text.measure(toggle.label, label_size, &ctx.theme.typography.font_family);
 
     let group_width = icon_width + ctx.theme.tokens.command_inner_gap + label_width;
     let group_x = rect.x + (rect.width - group_width) / 2.0;
 
     ctx.text.draw_centered_v(
         scene,
-        glyph,
+        toggle.glyph,
         group_x,
         rect.y,
         rect.height,
@@ -445,7 +588,7 @@ fn draw_mic_toggle(scene: &mut Scene, bounds: Rect, mic_muted: Option<bool>, ctx
 
     ctx.text.draw_centered_v(
         scene,
-        MIC_LABEL,
+        toggle.label,
         group_x + icon_width + ctx.theme.tokens.command_inner_gap,
         rect.y,
         rect.height,
