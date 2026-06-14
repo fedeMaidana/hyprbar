@@ -25,6 +25,7 @@ pub struct Tokens {
     pub system_panel_width: f32,
     pub system_panel_padding_x: f32,
     pub system_panel_padding_y: f32,
+    pub system_header_height: f32,
     pub system_section_gap: f32,
     pub system_metric_row_height: f32,
     pub system_metric_gap: f32,
@@ -54,6 +55,9 @@ pub struct Tokens {
     pub date_today_marker_scale: f32,
     pub date_week_radius: f32,
     pub date_week_highlight_alpha: f32,
+    pub date_day_radius: f32,
+    pub date_strike_thickness: f32,
+    pub date_strike_padding: f32,
 
     pub clock_panel_width: f32,
     pub clock_panel_padding_x: f32,
@@ -164,6 +168,7 @@ impl Default for Tokens {
             system_panel_width: 232.0,
             system_panel_padding_x: 14.0,
             system_panel_padding_y: 12.0,
+            system_header_height: 34.0, // ⚠️ Si tenías otro valor, ponelo acá (mirá: git show HEAD:src/theme/tokens.rs | grep system_header_height)
             system_section_gap: 10.0,
             system_metric_row_height: 30.0,
             system_metric_gap: 8.0,
@@ -193,6 +198,9 @@ impl Default for Tokens {
             date_today_marker_scale: 0.9,
             date_week_radius: 8.0,
             date_week_highlight_alpha: 0.12,
+            date_day_radius: 7.0,
+            date_strike_thickness: 1.5,
+            date_strike_padding: 1.5,
 
             clock_panel_width: 232.0,
             clock_panel_padding_x: 14.0,

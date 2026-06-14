@@ -8,7 +8,7 @@ use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
-use super::metrics::MemoryInfo;
+use super::metrics::{MemoryInfo, short_kernel_version};
 use super::power::PowerAction;
 use super::state::{MetricsSnapshot, SystemData};
 
@@ -24,9 +24,16 @@ const RAM_GLYPH: &str = "\u{f035b}";
 const TEMP_GLYPH: &str = "\u{f050f}";
 const UPDATES_GLYPH: &str = "\u{f03d7}";
 
-const LABEL_TEXT_SCALE: f32 = 0.74;
-const VALUE_TEXT_SCALE: f32 = 0.82;
-const ICON_TEXT_SCALE: f32 = 0.9;
+const TITLE_TEXT_SCALE: f32 = 1.1;
+const SUBTITLE_TEXT_SCALE: f32 = 0.9;
+const LABEL_TEXT_SCALE: f32 = 0.86;
+const VALUE_TEXT_SCALE: f32 = 0.92;
+const ICON_TEXT_SCALE: f32 = 0.95;
+const UPDATES_TEXT_SCALE: f32 = 0.88;
+
+const BADGE_TEXT_SCALE: f32 = 0.82;
+const BADGE_PADDING_X: f32 = 7.0;
+const BADGE_VERTICAL_INSET: f32 = 3.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -54,7 +61,7 @@ impl SystemPanel {
         let tokens = theme.tokens;
 
         tokens.system_panel_padding_y * 2.0
-            + tokens.dropdown_item_height
+            + tokens.system_header_height
             + tokens.system_section_gap * 3.0
             + tokens.system_metric_row_height * METRIC_ROW_COUNT
             + tokens.system_metric_gap * (METRIC_ROW_COUNT - 1.0)
@@ -91,8 +98,8 @@ impl SystemPanel {
         let inner_width = bounds.width - tokens.system_panel_padding_x * 2.0;
         let mut y = bounds.y + tokens.system_panel_padding_y;
 
-        draw_header(scene, inner_x, y, data, ctx);
-        y += tokens.dropdown_item_height + tokens.system_section_gap;
+        draw_header(scene, inner_x, y, inner_width, data, ctx);
+        y += tokens.system_header_height + tokens.system_section_gap;
 
         let rows = metric_rows(data.metrics, theme);
 
@@ -117,40 +124,74 @@ impl SystemPanel {
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn draw_header(scene: &mut Scene, x: f32, y: f32, data: &SystemData, ctx: &mut RenderCtx<'_>) {
-    let item_height = ctx.theme.tokens.dropdown_item_height;
-    let title_size = ctx.theme.typography.size_base;
-    let subtitle_size = title_size * 0.78;
+fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &SystemData, ctx: &mut RenderCtx<'_>) {
+    let header_height = ctx.theme.tokens.system_header_height;
+    let title_box = header_height * 0.56;
+    let subtitle_box = header_height - title_box;
+
+    let title_size = ctx.theme.typography.size_base * TITLE_TEXT_SCALE;
+    let subtitle_size = ctx.theme.typography.size_base * SUBTITLE_TEXT_SCALE;
 
     ctx.text.draw_centered_v(
         scene,
         PANEL_TITLE,
         x,
         y,
-        item_height * 0.55,
+        title_box,
         TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
-    let subtitle = header_subtitle(data);
+    if let Some(uptime) = uptime_label(data) {
+        draw_uptime_badge(scene, x + width, y, title_box, &uptime, ctx);
+    }
+
+    let subtitle = kernel_label(data);
 
     ctx.text.draw_centered_v(
         scene,
         &subtitle,
         x,
-        y + item_height * 0.45,
-        item_height * 0.45,
+        y + title_box,
+        subtitle_box,
         TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }
 
-fn header_subtitle(data: &SystemData) -> String {
-    let kernel = data.kernel.as_deref().unwrap_or(VALUE_PLACEHOLDER);
-    let uptime = data.metrics.and_then(|metrics| metrics.uptime_seconds).map(format_uptime);
+fn draw_uptime_badge(scene: &mut Scene, right_x: f32, row_y: f32, row_height: f32, text: &str, ctx: &mut RenderCtx<'_>) {
+    let text_size = ctx.theme.typography.size_base * BADGE_TEXT_SCALE;
+    let (text_width, _) = ctx.text.measure(text, text_size, &ctx.theme.typography.font_family);
 
-    match uptime {
-        Some(uptime) => format!("{kernel} · up {uptime}"),
-        None => kernel.to_string(),
+    let badge_height = (row_height - BADGE_VERTICAL_INSET * 2.0).max(text_size + 4.0);
+    let badge_width = text_width + BADGE_PADDING_X * 2.0;
+    let badge_x = right_x - badge_width;
+    let badge_y = row_y + (row_height - badge_height) / 2.0;
+    let radius = (badge_height / 2.0) as f64;
+
+    let body = RoundedRect::new(badge_x as f64, badge_y as f64, (badge_x + badge_width) as f64, (badge_y + badge_height) as f64, radius);
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_empty_bg, None, &body);
+
+    ctx.text.draw_centered_v(
+        scene,
+        text,
+        badge_x + BADGE_PADDING_X,
+        badge_y,
+        badge_height,
+        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+    );
+}
+
+fn kernel_label(data: &SystemData) -> String {
+    match data.kernel.as_deref() {
+        Some(raw) => format!("Kernel {}", short_kernel_version(raw)),
+        None => format!("Kernel {VALUE_PLACEHOLDER}"),
     }
+}
+
+fn uptime_label(data: &SystemData) -> Option<String> {
+    data.metrics
+        .and_then(|metrics| metrics.uptime_seconds)
+        .map(|seconds| format!("up {}", format_uptime(seconds)))
 }
 
 fn metric_rows(metrics: Option<MetricsSnapshot>, theme: &Theme) -> [MetricRow; 3] {
@@ -291,7 +332,7 @@ fn draw_meter(scene: &mut Scene, x: f32, y: f32, width: f32, fraction: Option<f3
 }
 
 fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Option<u32>, ctx: &mut RenderCtx<'_>) {
-    let text_size = ctx.theme.typography.size_base * 0.78;
+    let text_size = ctx.theme.typography.size_base * UPDATES_TEXT_SCALE;
     let row_height = ctx.theme.tokens.system_updates_row_height;
 
     let label_x = draw_row_icon(scene, x, y, row_height, UPDATES_GLYPH, ctx);
@@ -305,10 +346,10 @@ fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Opti
         TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 
-    let value = match pending {
-        None => VALUE_PLACEHOLDER.to_string(),
-        Some(0) => "up to date".to_string(),
-        Some(count) => format!("{count} pending"),
+    let (value, value_color) = match pending {
+        None => (VALUE_PLACEHOLDER.to_string(), ctx.theme.palette.text_secondary),
+        Some(0) => ("up to date".to_string(), ctx.theme.palette.text_secondary),
+        Some(count) => (format!("{count} pending"), ctx.theme.palette.meter_warning),
     };
 
     let (value_width, _) = ctx.text.measure(&value, text_size, &ctx.theme.typography.font_family);
@@ -319,7 +360,7 @@ fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Opti
         x + width - value_width,
         y,
         row_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(text_size, &ctx.theme.typography.font_family, value_color),
     );
 }
 
@@ -330,11 +371,7 @@ fn draw_power_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) 
     for (action, rect) in power_button_rects(bounds, ctx.theme) {
         let is_hovered = ctx.hovered_interaction == Some(Interaction::Power(action));
 
-        let background = if is_hovered {
-            ctx.theme.palette.slot_hover_bg
-        } else {
-            ctx.theme.palette.slot_inactive_bg
-        };
+        let (background, foreground) = button_colors(action, is_hovered, ctx.theme);
 
         let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, radius);
 
@@ -349,8 +386,19 @@ fn draw_power_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) 
             rect.x + (rect.width - glyph_width) / 2.0,
             rect.y,
             rect.height,
-            TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_primary),
+            TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, foreground),
         );
+    }
+}
+
+fn button_colors(action: PowerAction, hovered: bool, theme: &Theme) -> (Color, Color) {
+    if !hovered {
+        return (theme.palette.slot_inactive_bg, theme.palette.text_primary);
+    }
+
+    match action {
+        PowerAction::Shutdown => (theme.palette.danger_bg, theme.palette.danger_text),
+        _ => (theme.palette.slot_hover_bg, theme.palette.text_primary),
     }
 }
 
