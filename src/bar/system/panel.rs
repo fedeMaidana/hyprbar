@@ -24,12 +24,7 @@ const RAM_GLYPH: &str = "\u{f035b}";
 const TEMP_GLYPH: &str = "\u{f050f}";
 const UPDATES_GLYPH: &str = "\u{f03d7}";
 
-const TITLE_TEXT_SCALE: f32 = 1.1;
-const SUBTITLE_TEXT_SCALE: f32 = 0.9;
-const LABEL_TEXT_SCALE: f32 = 0.86;
-const VALUE_TEXT_SCALE: f32 = 0.92;
 const ICON_TEXT_SCALE: f32 = 0.95;
-const UPDATES_TEXT_SCALE: f32 = 0.88;
 
 const BADGE_TEXT_SCALE: f32 = 0.82;
 const BADGE_PADDING_X: f32 = 7.0;
@@ -60,9 +55,9 @@ impl SystemPanel {
     pub fn height(theme: &Theme) -> f32 {
         let tokens = theme.tokens;
 
-        tokens.system_panel_padding_y * 2.0
-            + tokens.system_header_height
-            + tokens.system_section_gap * 3.0
+        tokens.dropdown_panel_padding_y * 2.0
+            + tokens.dropdown_header_height
+            + tokens.dropdown_section_gap * 3.0
             + tokens.system_metric_row_height * METRIC_ROW_COUNT
             + tokens.system_metric_gap * (METRIC_ROW_COUNT - 1.0)
             + tokens.system_updates_row_height
@@ -94,12 +89,12 @@ impl SystemPanel {
 
         frame.draw_background(scene, bounds, theme);
 
-        let inner_x = bounds.x + tokens.system_panel_padding_x;
-        let inner_width = bounds.width - tokens.system_panel_padding_x * 2.0;
-        let mut y = bounds.y + tokens.system_panel_padding_y;
+        let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
+        let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
+        let mut y = bounds.y + tokens.dropdown_panel_padding_y;
 
         draw_header(scene, inner_x, y, inner_width, data, ctx);
-        y += tokens.system_header_height + tokens.system_section_gap;
+        y += tokens.dropdown_header_height + tokens.dropdown_section_gap;
 
         let rows = metric_rows(data.metrics, theme);
 
@@ -110,7 +105,7 @@ impl SystemPanel {
 
         y += tokens.system_metric_row_height * METRIC_ROW_COUNT
             + tokens.system_metric_gap * (METRIC_ROW_COUNT - 1.0)
-            + tokens.system_section_gap;
+            + tokens.dropdown_section_gap;
 
         draw_updates_row(scene, inner_x, y, inner_width, data.pending_updates, ctx);
 
@@ -118,19 +113,19 @@ impl SystemPanel {
     }
 
     fn frame(theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(theme.tokens.system_panel_width, Self::height(theme))
+        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
     }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &SystemData, ctx: &mut RenderCtx<'_>) {
-    let header_height = ctx.theme.tokens.system_header_height;
+    let header_height = ctx.theme.tokens.dropdown_header_height;
     let title_box = header_height * 0.56;
     let subtitle_box = header_height - title_box;
 
-    let title_size = ctx.theme.typography.size_base * TITLE_TEXT_SCALE;
-    let subtitle_size = ctx.theme.typography.size_base * SUBTITLE_TEXT_SCALE;
+    let title_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_title_scale;
+    let subtitle_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_subtitle_scale;
 
     ctx.text.draw_centered_v(
         scene,
@@ -266,8 +261,8 @@ fn meter_color(severity: MeterSeverity, theme: &Theme) -> Color {
 
 fn draw_metric_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &MetricRow, ctx: &mut RenderCtx<'_>) {
     let tokens = ctx.theme.tokens;
-    let label_size = ctx.theme.typography.size_base * LABEL_TEXT_SCALE;
-    let value_size = ctx.theme.typography.size_base * VALUE_TEXT_SCALE;
+    let label_size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
+    let value_size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
     let text_box_height = tokens.system_metric_row_height - tokens.system_meter_height - tokens.system_meter_gap;
 
     let label_x = draw_row_icon(scene, x, y, text_box_height, row.icon, ctx);
@@ -332,7 +327,7 @@ fn draw_meter(scene: &mut Scene, x: f32, y: f32, width: f32, fraction: Option<f3
 }
 
 fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Option<u32>, ctx: &mut RenderCtx<'_>) {
-    let text_size = ctx.theme.typography.size_base * UPDATES_TEXT_SCALE;
+    let text_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_body_scale;
     let row_height = ctx.theme.tokens.system_updates_row_height;
 
     let label_x = draw_row_icon(scene, x, y, row_height, UPDATES_GLYPH, ctx);
@@ -405,9 +400,9 @@ fn button_colors(action: PowerAction, hovered: bool, theme: &Theme) -> (Color, C
 fn power_button_rects(bounds: Rect, theme: &Theme) -> [(PowerAction, Rect); 3] {
     let tokens = theme.tokens;
 
-    let inner_x = bounds.x + tokens.system_panel_padding_x;
-    let inner_width = bounds.width - tokens.system_panel_padding_x * 2.0;
-    let y = bounds.y + bounds.height - tokens.system_panel_padding_y - tokens.system_button_height;
+    let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
+    let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
+    let y = bounds.y + bounds.height - tokens.dropdown_panel_padding_y - tokens.system_button_height;
 
     let count = PowerAction::ALL.len();
     let gap = tokens.system_button_gap;

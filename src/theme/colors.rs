@@ -25,6 +25,9 @@ pub struct Palette {
 
     pub meter_warning: Color,
     pub meter_critical: Color,
+
+    pub clock_day: Color,
+    pub clock_night: Color,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -49,6 +52,9 @@ impl Palette {
 
             meter_warning: Color::from_rgba8(0xd8, 0xa2, 0x3a, 0xff),
             meter_critical: Color::from_rgba8(0xd8, 0x5a, 0x5a, 0xff),
+
+            clock_day: Color::from_rgba8(0xef, 0xb3, 0x5a, 0xff),
+            clock_night: Color::from_rgba8(0x7e, 0x90, 0xd1, 0xff),
         };
 
         palette.refresh_from_hyprcolor();

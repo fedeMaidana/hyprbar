@@ -18,7 +18,6 @@ use super::grid::{GRID_CELLS, GRID_COLUMNS, GRID_ROWS, month_grid, shift_month};
 const NAV_PREV_GLYPH: &str = "\u{f0141}";
 const NAV_NEXT_GLYPH: &str = "\u{f0142}";
 
-const DAY_TEXT_SCALE: f32 = 0.85;
 const WEEKDAY_TEXT_SCALE: f32 = 0.7;
 
 // ─── < Structs > ────────────────────────────────────────────────────
@@ -29,17 +28,15 @@ pub struct DatePanel;
 
 impl DatePanel {
     pub fn width(theme: &Theme) -> f32 {
-        let tokens = theme.tokens;
-
-        tokens.date_panel_padding_x * 2.0 + tokens.date_cell_size * GRID_COLUMNS as f32 + tokens.date_cell_gap * (GRID_COLUMNS - 1) as f32
+        theme.tokens.dropdown_panel_width
     }
 
     pub fn height(theme: &Theme) -> f32 {
         let tokens = theme.tokens;
 
-        tokens.date_panel_padding_y * 2.0
-            + tokens.dropdown_item_height
-            + tokens.date_header_gap
+        tokens.dropdown_panel_padding_y * 2.0
+            + tokens.dropdown_header_height
+            + tokens.dropdown_section_gap
             + tokens.date_weekday_row_height
             + tokens.date_cell_size * GRID_ROWS as f32
             + tokens.date_cell_gap * (GRID_ROWS - 1) as f32
@@ -78,14 +75,14 @@ impl DatePanel {
         let (year, month) = shift_month(today.year(), today.month(), month_offset);
         let viewing_current_month = month_offset == 0;
 
-        let inner_x = bounds.x + tokens.date_panel_padding_x;
-        let inner_width = bounds.width - tokens.date_panel_padding_x * 2.0;
-        let mut y = bounds.y + tokens.date_panel_padding_y;
+        let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
+        let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
+        let mut y = bounds.y + tokens.dropdown_panel_padding_y;
 
         draw_nav_buttons(scene, bounds, ctx);
         draw_header(scene, inner_x, inner_width, y, &header_label(year, month), ctx);
 
-        y += tokens.dropdown_item_height + tokens.date_header_gap;
+        y += tokens.dropdown_header_height + tokens.dropdown_section_gap;
 
         draw_weekday_headers(scene, inner_x, y, ctx);
 
@@ -106,8 +103,8 @@ fn header_label(year: i32, month: u32) -> String {
 }
 
 fn draw_header(scene: &mut Scene, inner_x: f32, inner_width: f32, y: f32, label: &str, ctx: &mut RenderCtx<'_>) {
-    let item_height = ctx.theme.tokens.dropdown_item_height;
-    let title_size = ctx.theme.typography.size_base;
+    let item_height = ctx.theme.tokens.dropdown_header_height;
+    let title_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_title_scale;
 
     let (text_width, _) = ctx.text.measure(label, title_size, &ctx.theme.typography.font_family);
     let text_x = inner_x + (inner_width - text_width) / 2.0;
@@ -189,7 +186,7 @@ fn draw_day_grid(
     ctx: &mut RenderCtx<'_>,
 ) {
     let tokens = ctx.theme.tokens;
-    let size = ctx.theme.typography.size_base * DAY_TEXT_SCALE;
+    let size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
 
     let grid = month_grid(year, month);
 
@@ -224,8 +221,6 @@ fn draw_day_grid(
 
         if is_today {
             draw_today_marker(scene, cell_x, cell_y, ctx);
-        } else if today_row != Some(row) {
-            draw_day_chip(scene, cell_x, cell_y, ctx);
         }
 
         let color = if is_today {
@@ -248,10 +243,6 @@ fn draw_day_grid(
             tokens.date_cell_size,
             TextStyle::new(size, &ctx.theme.typography.font_family, color),
         );
-
-        if is_past && !is_today {
-            draw_strikethrough(scene, cell_x, cell_y, text_width, ctx);
-        }
     }
 }
 
@@ -265,35 +256,6 @@ fn draw_today_marker(scene: &mut Scene, cell_x: f32, cell_y: f32, ctx: &mut Rend
     let marker = Circle::new((center_x as f64, center_y as f64), radius as f64);
 
     scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_active_bg, None, &marker);
-}
-
-fn draw_day_chip(scene: &mut Scene, cell_x: f32, cell_y: f32, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
-    let radius = tokens.date_day_radius as f64;
-
-    let chip = RoundedRect::new(
-        cell_x as f64,
-        cell_y as f64,
-        (cell_x + tokens.date_cell_size) as f64,
-        (cell_y + tokens.date_cell_size) as f64,
-        radius,
-    );
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_empty_bg, None, &chip);
-}
-
-fn draw_strikethrough(scene: &mut Scene, cell_x: f32, cell_y: f32, text_width: f32, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
-
-    let line_width = text_width + tokens.date_strike_padding * 2.0;
-    let line_x = cell_x + (tokens.date_cell_size - line_width) / 2.0;
-    let center_y = (cell_y + tokens.date_cell_size / 2.0) as f64;
-    let half_thickness = (tokens.date_strike_thickness / 2.0) as f64;
-
-    let line =
-        RoundedRect::new(line_x as f64, center_y - half_thickness, (line_x + line_width) as f64, center_y + half_thickness, half_thickness);
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.text_secondary, None, &line);
 }
 
 fn draw_week_band(scene: &mut Scene, x: f32, y: f32, row: usize, ctx: &mut RenderCtx<'_>) {
@@ -315,11 +277,11 @@ fn nav_button_rects(bounds: Rect, theme: &Theme) -> [(CalendarAction, Rect); 2] 
     let tokens = theme.tokens;
 
     let size = tokens.date_nav_button_size;
-    let header_y = bounds.y + tokens.date_panel_padding_y;
-    let y = header_y + (tokens.dropdown_item_height - size) / 2.0;
+    let header_y = bounds.y + tokens.dropdown_panel_padding_y;
+    let y = header_y + (tokens.dropdown_header_height - size) / 2.0;
 
-    let prev_x = bounds.x + tokens.date_panel_padding_x;
-    let next_x = bounds.x + bounds.width - tokens.date_panel_padding_x - size;
+    let prev_x = bounds.x + tokens.dropdown_panel_padding_x;
+    let next_x = bounds.x + bounds.width - tokens.dropdown_panel_padding_x - size;
 
     [
         (CalendarAction::PrevMonth, Rect::new(prev_x, y, size, size)),
@@ -333,8 +295,8 @@ fn today_hit_rect(bounds: Rect, theme: &Theme) -> Rect {
     let [(_, prev_rect), (_, next_rect)] = nav_button_rects(bounds, theme);
 
     let x = prev_rect.x + prev_rect.width + tokens.date_nav_button_gap;
-    let y = bounds.y + tokens.date_panel_padding_y;
+    let y = bounds.y + tokens.dropdown_panel_padding_y;
     let width = (next_rect.x - tokens.date_nav_button_gap - x).max(0.0);
 
-    Rect::new(x, y, width, tokens.dropdown_item_height)
+    Rect::new(x, y, width, tokens.dropdown_header_height)
 }
