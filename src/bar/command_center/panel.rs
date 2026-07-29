@@ -177,6 +177,14 @@ impl CommandPanel {
 
         draw_volume_row(scene, volume_row, data, drag, availability.volume, ctx);
         draw_brightness_row(scene, brightness_row, data, drag, availability.brightness, ctx);
+
+        let media_row = media_row_rect(bounds, theme);
+        let toggles_y = toggle_rects(bounds, theme)[0].1.y;
+        let section_gap = theme.tokens.command_section_gap;
+
+        DropdownFrame::draw_divider(scene, media_row.x, media_row.y - section_gap / 2.0, media_row.width, theme);
+        DropdownFrame::draw_divider(scene, media_row.x, toggles_y - section_gap / 2.0, media_row.width, theme);
+
         draw_media_row(scene, bounds, data.media.as_ref(), ctx);
         draw_toggles(scene, bounds, data, ctx);
     }
@@ -363,9 +371,9 @@ fn draw_slider_row(
     let radius = (track.height / 2.0) as f64;
 
     let track_color = if enabled {
-        ctx.theme.palette.slot_empty_bg
+        ctx.theme.palette.panel_raised
     } else {
-        dim(ctx.theme.palette.slot_empty_bg, DISABLED_ALPHA)
+        dim(ctx.theme.palette.panel_raised, DISABLED_ALPHA)
     };
 
     let track_shape =
@@ -486,9 +494,9 @@ fn draw_media_buttons(scene: &mut Scene, bounds: Rect, playing: bool, ctx: &mut 
         let (background, foreground) = if is_play {
             (ctx.theme.palette.slot_active_bg, ctx.theme.palette.slot_active_text)
         } else if is_hovered {
-            (ctx.theme.palette.slot_hover_bg, ctx.theme.palette.text_primary)
+            (ctx.theme.palette.control_hover_bg, ctx.theme.palette.text_primary)
         } else {
-            (ctx.theme.palette.slot_inactive_bg, ctx.theme.palette.text_primary)
+            (ctx.theme.palette.control_bg, ctx.theme.palette.text_primary)
         };
 
         let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, radius);
@@ -576,12 +584,12 @@ fn draw_toggle(scene: &mut Scene, rect: Rect, toggle: &ToggleVisual, ctx: &mut R
 
     let (background, foreground) = match toggle.state {
         ToggleState::Disabled => {
-            (dim(ctx.theme.palette.slot_empty_bg, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
+            (dim(ctx.theme.palette.panel_raised, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
         }
         ToggleState::Active => (ctx.theme.palette.slot_active_bg, ctx.theme.palette.slot_active_text),
         ToggleState::Alert => (ctx.theme.palette.danger_bg, ctx.theme.palette.danger_text),
-        ToggleState::Inactive if is_hovered => (ctx.theme.palette.slot_hover_bg, ctx.theme.palette.text_primary),
-        ToggleState::Inactive => (ctx.theme.palette.slot_inactive_bg, ctx.theme.palette.text_primary),
+        ToggleState::Inactive if is_hovered => (ctx.theme.palette.control_hover_bg, ctx.theme.palette.text_primary),
+        ToggleState::Inactive => (ctx.theme.palette.control_bg, ctx.theme.palette.text_primary),
     };
 
     let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, radius);

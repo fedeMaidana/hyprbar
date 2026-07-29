@@ -68,7 +68,11 @@ impl ClockPanel {
 
         draw_header(scene, inner_x, y, now_local, local_offset_minutes, ctx);
 
-        y += tokens.dropdown_header_height + tokens.dropdown_section_gap;
+        y += tokens.dropdown_header_height;
+
+        DropdownFrame::draw_divider(scene, inner_x, y + tokens.dropdown_section_gap / 2.0, inner_width, theme);
+
+        y += tokens.dropdown_section_gap;
 
         let rows = zone_rows(now_utc, local_offset_minutes);
 
@@ -227,7 +231,7 @@ fn draw_offset_chip(scene: &mut Scene, right: f32, row_y: f32, row_height: f32, 
         tokens.clock_chip_radius as f64,
     );
 
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_empty_bg, None, &body);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_raised, None, &body);
 
     ctx.text.draw_centered_v(
         scene,

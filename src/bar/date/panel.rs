@@ -127,9 +127,9 @@ fn draw_nav_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let is_hovered = ctx.hovered_interaction == Some(Interaction::Calendar(action));
 
         let background = if is_hovered {
-            ctx.theme.palette.slot_hover_bg
+            ctx.theme.palette.control_hover_bg
         } else {
-            ctx.theme.palette.slot_inactive_bg
+            ctx.theme.palette.control_bg
         };
 
         let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, radius);

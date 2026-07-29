@@ -28,7 +28,23 @@ use crate::components::Point;
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl CompositorHandler for AppState {
-    fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_factor: i32) {}
+    fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, surface: &wl_surface::WlSurface, new_factor: i32) {
+        if surface != self.layer_surface().wl_surface() {
+            return;
+        }
+
+        let new_factor = new_factor.max(1);
+
+        if new_factor == self.surface.scale {
+            return;
+        }
+
+        log::info!("buffer scale: {} -> {new_factor}", self.surface.scale);
+
+        self.surface.scale = new_factor;
+        self.surface.pending_resize = true;
+        self.needs_redraw = true;
+    }
 
     fn transform_changed(
         &mut self,

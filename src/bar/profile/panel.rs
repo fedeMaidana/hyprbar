@@ -70,6 +70,12 @@ impl ProfilePanel {
         let title = format!("{}, {}", greeting(Local::now().hour()), user);
 
         draw_header(scene, inner_x, y, avatar, &title, host, ctx);
+
+        let inner_width = bounds.width - tokens.profile_panel_padding_x * 2.0;
+        let buttons_y = bounds.y + bounds.height - tokens.profile_panel_padding_y - tokens.profile_button_height;
+
+        DropdownFrame::draw_divider(scene, inner_x, buttons_y - tokens.profile_section_gap / 2.0, inner_width, theme);
+
         draw_buttons(scene, bounds, ctx);
     }
 
@@ -87,7 +93,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, avatar: Option<&ImageData>, ti
 
     let circle = AvatarCircle::new(x + radius, y + radius, radius, tokens.profile_avatar_border_width);
 
-    draw_avatar_circle(scene, avatar, &circle, ctx.theme.palette.slot_inactive_bg, ctx.theme.palette.text_secondary);
+    draw_avatar_circle(scene, avatar, &circle, ctx.theme.palette.panel_raised, ctx.theme.palette.text_secondary);
 
     let text_x = x + avatar_size + tokens.profile_avatar_gap;
 
@@ -142,9 +148,9 @@ fn draw_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let is_hovered = ctx.hovered_interaction == Some(Interaction::Session(action));
 
         let background = if is_hovered {
-            ctx.theme.palette.slot_hover_bg
+            ctx.theme.palette.control_hover_bg
         } else {
-            ctx.theme.palette.slot_inactive_bg
+            ctx.theme.palette.control_bg
         };
 
         let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, radius);

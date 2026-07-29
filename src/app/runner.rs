@@ -72,7 +72,8 @@ fn create_render_surface(conn: &Connection, app: &mut AppState) -> Result<()> {
     let wl_surface = app.layer_surface().wl_surface().clone();
     let handle = SurfaceHandle::new(conn, &wl_surface);
 
-    app.render_ctx.create_surface(handle, app.surface.width, app.surface.height)?;
+    app.render_ctx
+        .create_surface(handle, app.surface.physical_width(), app.surface.physical_height())?;
 
     app.surface.pending_resize = false;
 

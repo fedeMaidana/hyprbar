@@ -109,6 +109,10 @@ impl SystemPanel {
 
         draw_updates_row(scene, inner_x, y, inner_width, data.pending_updates, ctx);
 
+        let buttons_y = bounds.y + bounds.height - tokens.dropdown_panel_padding_y - tokens.system_button_height;
+
+        DropdownFrame::draw_divider(scene, inner_x, buttons_y - tokens.dropdown_section_gap / 2.0, inner_width, theme);
+
         draw_power_buttons(scene, bounds, ctx);
     }
 
@@ -164,7 +168,7 @@ fn draw_uptime_badge(scene: &mut Scene, right_x: f32, row_y: f32, row_height: f3
 
     let body = RoundedRect::new(badge_x as f64, badge_y as f64, (badge_x + badge_width) as f64, (badge_y + badge_height) as f64, radius);
 
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_empty_bg, None, &body);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_raised, None, &body);
 
     ctx.text.draw_centered_v(
         scene,
@@ -314,7 +318,7 @@ fn draw_meter(scene: &mut Scene, x: f32, y: f32, width: f32, fraction: Option<f3
     let radius = (height / 2.0) as f64;
 
     let track = RoundedRect::new(x as f64, y as f64, (x + width) as f64, (y + height) as f64, radius);
-    scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.slot_empty_bg, None, &track);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.panel_raised, None, &track);
 
     let Some(fraction) = fraction else {
         return;
@@ -388,12 +392,12 @@ fn draw_power_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) 
 
 fn button_colors(action: PowerAction, hovered: bool, theme: &Theme) -> (Color, Color) {
     if !hovered {
-        return (theme.palette.slot_inactive_bg, theme.palette.text_primary);
+        return (theme.palette.control_bg, theme.palette.text_primary);
     }
 
     match action {
         PowerAction::Shutdown => (theme.palette.danger_bg, theme.palette.danger_text),
-        _ => (theme.palette.slot_hover_bg, theme.palette.text_primary),
+        _ => (theme.palette.control_hover_bg, theme.palette.text_primary),
     }
 }
 

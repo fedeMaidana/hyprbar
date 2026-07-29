@@ -21,6 +21,11 @@ pub struct Tokens {
     pub dropdown_item_height: f32,
     pub dropdown_item_gap: f32,
     pub dropdown_radius: f32,
+    pub dropdown_border_width: f32,
+    pub dropdown_shadow_key_offset_y: f32,
+    pub dropdown_shadow_key_blur: f32,
+    pub dropdown_shadow_ambient_offset_y: f32,
+    pub dropdown_shadow_ambient_blur: f32,
 
     pub dropdown_panel_width: f32,
     pub dropdown_panel_padding_x: f32,
@@ -65,20 +70,16 @@ pub struct Tokens {
     pub clock_chip_padding_y: f32,
     pub clock_chip_radius: f32,
 
-    pub weather_panel_width: f32,
-    pub weather_panel_padding_x: f32,
-    pub weather_panel_padding_y: f32,
-    pub weather_header_height: f32,
     pub weather_temp_scale: f32,
     pub weather_header_icon_scale: f32,
-    pub weather_section_gap: f32,
     pub weather_details_row_height: f32,
     pub weather_forecast_day_height: f32,
     pub weather_forecast_icon_height: f32,
     pub weather_forecast_max_height: f32,
     pub weather_forecast_min_height: f32,
-    pub weather_forecast_bar_gap: f32,
-    pub weather_forecast_bar_height: f32,
+    pub weather_today_pill_radius: f32,
+    pub weather_today_pill_padding_x: f32,
+    pub weather_today_pill_inset_y: f32,
 
     pub command_panel_width: f32,
     pub command_panel_padding_x: f32,
@@ -131,6 +132,7 @@ pub struct Tokens {
     pub notification_dot_y_icon_scale: f32,
 
     pub shadow_offset_y: f32,
+    pub pill_shadow_blur: f32,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -156,14 +158,19 @@ impl Default for Tokens {
             dropdown_padding_y: 10.0,
             dropdown_item_height: 34.0,
             dropdown_item_gap: 4.0,
-            dropdown_radius: 14.0,
+            dropdown_radius: 16.0,
+            dropdown_border_width: 1.0,
+            dropdown_shadow_key_offset_y: 3.0,
+            dropdown_shadow_key_blur: 7.0,
+            dropdown_shadow_ambient_offset_y: 12.0,
+            dropdown_shadow_ambient_blur: 22.0,
 
             dropdown_panel_width: 222.0,
             dropdown_panel_padding_x: 14.0,
             dropdown_panel_padding_y: 12.0,
             dropdown_header_height: 38.0,
-            dropdown_section_gap: 10.0,
-            dropdown_title_scale: 1.1,
+            dropdown_section_gap: 12.0,
+            dropdown_title_scale: 1.15,
             dropdown_subtitle_scale: 0.78,
             dropdown_body_scale: 0.9,
 
@@ -201,20 +208,16 @@ impl Default for Tokens {
             clock_chip_padding_y: 1.5,
             clock_chip_radius: 5.0,
 
-            weather_panel_width: 248.0,
-            weather_panel_padding_x: 14.0,
-            weather_panel_padding_y: 12.0,
-            weather_header_height: 38.0,
             weather_temp_scale: 1.8,
             weather_header_icon_scale: 2.0,
-            weather_section_gap: 11.0,
             weather_details_row_height: 16.0,
             weather_forecast_day_height: 14.0,
             weather_forecast_icon_height: 24.0,
             weather_forecast_max_height: 15.0,
             weather_forecast_min_height: 14.0,
-            weather_forecast_bar_gap: 5.0,
-            weather_forecast_bar_height: 4.0,
+            weather_today_pill_radius: 9.0,
+            weather_today_pill_padding_x: 3.0,
+            weather_today_pill_inset_y: 2.0,
 
             command_panel_width: 264.0,
             command_panel_padding_x: 14.0,
@@ -266,7 +269,8 @@ impl Default for Tokens {
             notification_dot_x_overlap_scale: 0.5,
             notification_dot_y_icon_scale: 0.35,
 
-            shadow_offset_y: 1.0,
+            shadow_offset_y: 1.5,
+            pill_shadow_blur: 3.0,
         }
     }
 }

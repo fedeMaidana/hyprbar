@@ -1,7 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use vello::Scene;
-use vello::kurbo::{Affine, RoundedRect};
+use vello::kurbo::{Affine, Rect as KurboRect, RoundedRect, Stroke};
 use vello::peniko::{Color, Fill};
 
 use crate::render::Rect;
@@ -21,20 +21,25 @@ impl Pill {
     pub fn draw_with_background(scene: &mut Scene, bounds: Rect, theme: &Theme, background: Color) {
         let radius = theme.tokens.pill_radius as f64;
 
+        let body_rect =
+            KurboRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64);
+
         let shadow_offset = theme.tokens.shadow_offset_y as f64;
-        let shadow = RoundedRect::new(
-            bounds.x as f64,
-            bounds.y as f64 + shadow_offset,
-            (bounds.x + bounds.width) as f64,
-            (bounds.y + bounds.height) as f64 + shadow_offset,
+
+        scene.draw_blurred_rounded_rect(
+            Affine::IDENTITY,
+            KurboRect::new(body_rect.x0, body_rect.y0 + shadow_offset, body_rect.x1, body_rect.y1 + shadow_offset),
+            theme.palette.shadow,
             radius,
+            theme.tokens.pill_shadow_blur as f64,
         );
 
-        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.shadow, None, &shadow);
-
-        let body =
-            RoundedRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64, radius);
+        let body = RoundedRect::from_rect(body_rect, radius);
 
         scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &body);
+
+        let border = RoundedRect::new(body_rect.x0 + 0.5, body_rect.y0 + 0.5, body_rect.x1 - 0.5, body_rect.y1 - 0.5, radius - 0.5);
+
+        scene.stroke(&Stroke::new(1.0), Affine::IDENTITY, theme.palette.pill_border, None, &border);
     }
 }

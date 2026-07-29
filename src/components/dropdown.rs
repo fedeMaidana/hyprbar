@@ -1,7 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use vello::Scene;
-use vello::kurbo::{Affine, RoundedRect};
+use vello::kurbo::{Affine, Rect as KurboRect, RoundedRect, Stroke};
 use vello::peniko::Fill;
 
 use crate::render::{Rect, TextStyle};
@@ -58,30 +58,59 @@ impl DropdownFrame {
         let min_x = surface.x + margin;
         let max_x = (surface.x + surface.width - margin - self.width).max(min_x);
 
-        let x = anchor.x.max(min_x).min(max_x);
+        let centered_x = anchor.x + (anchor.width - self.width) / 2.0;
+        let x = centered_x.max(min_x).min(max_x);
         let y = anchor.y + anchor.height + theme.tokens.dropdown_margin_top;
 
         Rect::new(x, y, self.width, self.height)
     }
 
     pub fn draw_background(&self, scene: &mut Scene, bounds: Rect, theme: &Theme) {
-        let radius = theme.tokens.dropdown_radius as f64;
-        let shadow_offset = theme.tokens.shadow_offset_y as f64;
+        let tokens = theme.tokens;
+        let radius = tokens.dropdown_radius as f64;
 
-        let shadow = RoundedRect::new(
-            bounds.x as f64,
-            bounds.y as f64 + shadow_offset,
-            (bounds.x + bounds.width) as f64,
-            (bounds.y + bounds.height) as f64 + shadow_offset,
+        let body_rect =
+            KurboRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64);
+
+        // Layered soft shadows: a wide ambient halo plus a tighter key shadow
+        // give the panel real elevation instead of a hard 1px offset.
+        let ambient_offset = tokens.dropdown_shadow_ambient_offset_y as f64;
+
+        scene.draw_blurred_rounded_rect(
+            Affine::IDENTITY,
+            KurboRect::new(body_rect.x0, body_rect.y0 + ambient_offset, body_rect.x1, body_rect.y1 + ambient_offset),
+            theme.palette.panel_shadow_ambient,
             radius,
+            tokens.dropdown_shadow_ambient_blur as f64,
         );
 
-        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.shadow, None, &shadow);
+        let key_offset = tokens.dropdown_shadow_key_offset_y as f64;
 
-        let body =
-            RoundedRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64, radius);
+        scene.draw_blurred_rounded_rect(
+            Affine::IDENTITY,
+            KurboRect::new(body_rect.x0, body_rect.y0 + key_offset, body_rect.x1, body_rect.y1 + key_offset),
+            theme.palette.panel_shadow_key,
+            radius,
+            tokens.dropdown_shadow_key_blur as f64,
+        );
 
-        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.pill_bg, None, &body);
+        let body = RoundedRect::from_rect(body_rect, radius);
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.panel_bg, None, &body);
+
+        // Hairline border keeps the panel edge readable over any wallpaper.
+        let border_width = tokens.dropdown_border_width as f64;
+        let inset = border_width / 2.0;
+        let border =
+            RoundedRect::new(body_rect.x0 + inset, body_rect.y0 + inset, body_rect.x1 - inset, body_rect.y1 - inset, radius - inset);
+
+        scene.stroke(&Stroke::new(border_width), Affine::IDENTITY, theme.palette.panel_border, None, &border);
+    }
+
+    pub fn draw_divider(scene: &mut Scene, x: f32, y: f32, width: f32, theme: &Theme) {
+        let line = KurboRect::new(x as f64, (y - 0.5) as f64, (x + width) as f64, (y + 0.5) as f64);
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.panel_divider, None, &line);
     }
 }
 
