@@ -26,17 +26,18 @@ const WIFI_TITLE: &str = "Wi-Fi";
 const WIFI_ON_TEXT: &str = "Activado";
 const WIFI_OFF_TEXT: &str = "Desactivado";
 const SOUND_TITLE: &str = "Sonido";
-const MIC_LABEL: &str = "Mic";
-const THEME_LABEL: &str = "Claro";
 const ELLIPSIS: &str = "…";
 
 const SMALL_TEXT_SCALE: f32 = 0.78;
 const SUBTITLE_TEXT_SCALE: f32 = 0.7;
 const DISABLED_ALPHA: f32 = 0.35;
-const CARD_LABEL_EDGE: f32 = 6.0;
-const HANDLE_HOVER_GROWTH: f32 = 1.5;
-const MUTED_FILL_ALPHA: f32 = 0.35;
-const MUTE_HOVER_RADIUS: f32 = 6.0;
+const MUTED_FILL_ALPHA: f32 = 0.4;
+
+const WIFI_TEXT_BLOCK_HEIGHT: f32 = 30.0;
+const SLIDER_ICON_INSET: f32 = 9.0;
+const SLIDER_MIN_FILL: f32 = 34.0;
+const MUTE_ZONE_WIDTH: f32 = 36.0;
+const KNOB_EXTRA_RADIUS: f32 = 2.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -49,28 +50,20 @@ pub struct PanelAvailability {
     pub wifi: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ToggleState {
-    Disabled,
-    Inactive,
-    Active,
-    Alert,
-}
-
-struct ToggleVisual {
-    action: CommandAction,
-    glyph: &'static str,
-    label: String,
-    state: ToggleState,
-}
-
 struct SliderVisual {
     glyph: &'static str,
-    icon_color: Color,
     fraction: Option<f32>,
     muted: bool,
     enabled: bool,
     engaged: bool,
+    icon_hovered: bool,
+}
+
+struct CircleButton {
+    glyph: &'static str,
+    background: Color,
+    foreground: Color,
+    hoverable: bool,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -93,8 +86,6 @@ impl CommandPanel {
             + tokens.command_wifi_card_height
             + tokens.command_card_gap
             + tokens.command_sound_card_height
-            + tokens.command_card_gap
-            + tokens.command_small_card_height
     }
 
     pub fn bounds(surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
@@ -107,7 +98,7 @@ impl CommandPanel {
         }
 
         let bounds = Self::bounds(surface, anchor, theme);
-        let track = slider_track_rect(sound_slider_row(bounds, theme), theme);
+        let track = sound_slider_row(bounds, theme);
 
         if track.width <= 0.0 {
             return None;
@@ -120,7 +111,7 @@ impl CommandPanel {
         let bounds = Self::bounds(surface, anchor, theme);
         let slider_row = sound_slider_row(bounds, theme);
 
-        if availability.volume && volume_icon_rect(slider_row, theme).contains_point(point.x, point.y) {
+        if availability.volume && mute_zone_rect(slider_row).contains_point(point.x, point.y) {
             return Some(Interaction::Command(CommandAction::ToggleSinkMute));
         }
 
@@ -132,15 +123,14 @@ impl CommandPanel {
             return Some(Interaction::Command(CommandAction::ToggleWifi));
         }
 
-        for (action, rect) in small_card_rects(bounds, theme) {
-            let enabled = match action {
-                CommandAction::ToggleMicMute => availability.mic,
-                _ => true,
-            };
+        let [(mic_action, mic_rect), (theme_action, theme_rect)] = circle_button_rects(bounds, theme);
 
-            if enabled && rect.contains_point(point.x, point.y) {
-                return Some(Interaction::Command(action));
-            }
+        if availability.mic && mic_rect.contains_point(point.x, point.y) {
+            return Some(Interaction::Command(mic_action));
+        }
+
+        if theme_rect.contains_point(point.x, point.y) {
+            return Some(Interaction::Command(theme_action));
         }
 
         None
@@ -163,8 +153,8 @@ impl CommandPanel {
         frame.draw_background(scene, bounds, theme);
 
         draw_wifi_card(scene, wifi_card_rect(bounds, theme), data, availability.wifi, ctx);
+        draw_circle_buttons(scene, bounds, data, availability, ctx);
         draw_sound_card(scene, sound_card_rect(bounds, theme), data, drag, availability.volume, ctx);
-        draw_small_cards(scene, bounds, data, ctx);
     }
 
     fn frame(theme: &Theme) -> DropdownFrame {
@@ -186,9 +176,36 @@ fn inner_rect(bounds: Rect, theme: &Theme) -> Rect {
 }
 
 fn wifi_card_rect(bounds: Rect, theme: &Theme) -> Rect {
+    let tokens = theme.tokens;
     let inner = inner_rect(bounds, theme);
 
-    Rect::new(inner.x, inner.y, inner.width, theme.tokens.command_wifi_card_height)
+    Rect::new(inner.x, inner.y, (inner.width - tokens.command_card_gap) / 2.0, tokens.command_wifi_card_height)
+}
+
+fn circle_button_rects(bounds: Rect, theme: &Theme) -> [(CommandAction, Rect); 2] {
+    let tokens = theme.tokens;
+    let inner = inner_rect(bounds, theme);
+
+    let zone_x = inner.x + (inner.width + tokens.command_card_gap) / 2.0;
+    let zone_width = (inner.width - tokens.command_card_gap) / 2.0;
+
+    let radius = tokens.command_circle_button_radius;
+    let gap = tokens.command_circle_button_gap;
+
+    let center_y = inner.y + tokens.command_wifi_card_height / 2.0;
+    let zone_center_x = zone_x + zone_width / 2.0;
+
+    let mic_center_x = zone_center_x - radius - gap / 2.0;
+    let theme_center_x = zone_center_x + radius + gap / 2.0;
+
+    [
+        (CommandAction::ToggleMicMute, circle_bounds(mic_center_x, center_y, radius)),
+        (CommandAction::ToggleTheme, circle_bounds(theme_center_x, center_y, radius)),
+    ]
+}
+
+fn circle_bounds(center_x: f32, center_y: f32, radius: f32) -> Rect {
+    Rect::new(center_x - radius, center_y - radius, radius * 2.0, radius * 2.0)
 }
 
 fn sound_card_rect(bounds: Rect, theme: &Theme) -> Rect {
@@ -215,38 +232,8 @@ fn slider_row_in(card: Rect, theme: &Theme) -> Rect {
     )
 }
 
-fn slider_track_rect(row: Rect, theme: &Theme) -> Rect {
-    let tokens = theme.tokens;
-
-    let x = row.x + tokens.command_icon_slot + tokens.command_inner_gap;
-    let width = (row.width - tokens.command_icon_slot - tokens.command_inner_gap * 2.0 - tokens.command_value_width).max(0.0);
-    let y = row.y + (row.height - tokens.command_track_height) / 2.0;
-
-    Rect::new(x, y, width, tokens.command_track_height)
-}
-
-fn volume_icon_rect(row: Rect, theme: &Theme) -> Rect {
-    Rect::new(row.x, row.y, theme.tokens.command_icon_slot, row.height)
-}
-
-fn small_card_rects(bounds: Rect, theme: &Theme) -> [(CommandAction, Rect); 2] {
-    let tokens = theme.tokens;
-    let inner = inner_rect(bounds, theme);
-
-    let y = inner.y + inner.height - tokens.command_small_card_height;
-    let gap = tokens.command_card_gap;
-    let width = (inner.width - gap) / 2.0;
-
-    let actions = [CommandAction::ToggleMicMute, CommandAction::ToggleTheme];
-
-    let mut rects = [(CommandAction::ToggleMicMute, Rect::new(0.0, 0.0, 0.0, 0.0)); 2];
-
-    for (index, action) in actions.into_iter().enumerate() {
-        let x = inner.x + index as f32 * (width + gap);
-        rects[index] = (action, Rect::new(x, y, width, tokens.command_small_card_height));
-    }
-
-    rects
+fn mute_zone_rect(row: Rect) -> Rect {
+    Rect::new(row.x, row.y, MUTE_ZONE_WIDTH, row.height)
 }
 
 // ─── < Private Functions: Drawing > ────────────────────────────────────────────────────
@@ -280,9 +267,9 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
 
     let wifi_on = data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false);
 
-    // macOS-style circular icon button: accent-filled when the radio is on.
+    // macOS-style module: circular icon on top, labels stacked below.
     let circle_x = card.x + tokens.command_card_padding_x + tokens.command_icon_circle_radius;
-    let circle_y = card.y + card.height / 2.0;
+    let circle_y = card.y + tokens.command_card_padding_y + tokens.command_icon_circle_radius;
     let circle = Circle::new((circle_x as f64, circle_y as f64), tokens.command_icon_circle_radius as f64);
 
     let (circle_bg, icon_color) = if !enabled {
@@ -309,10 +296,9 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
         TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
     );
 
-    let text_x = circle_x + tokens.command_icon_circle_radius + tokens.command_inner_gap;
-    let text_width = (card.x + card.width - tokens.command_card_padding_x - text_x).max(0.0);
-    let content_y = card.y + tokens.command_card_padding_y;
-    let content_height = card.height - tokens.command_card_padding_y * 2.0;
+    let text_x = card.x + tokens.command_card_padding_x;
+    let text_width = card.width - tokens.command_card_padding_x * 2.0;
+    let block_y = card.y + card.height - tokens.command_card_padding_y - WIFI_TEXT_BLOCK_HEIGHT;
 
     let title_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
     let subtitle_size = ctx.theme.typography.size_base * SUBTITLE_TEXT_SCALE;
@@ -327,8 +313,8 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
         scene,
         WIFI_TITLE,
         text_x,
-        content_y,
-        content_height * 0.5,
+        block_y,
+        WIFI_TEXT_BLOCK_HEIGHT * 0.55,
         TextStyle::new(title_size, &ctx.theme.typography.font_family, title_color),
     );
 
@@ -339,8 +325,8 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
         scene,
         &subtitle,
         text_x,
-        content_y + content_height * 0.5,
-        content_height * 0.5,
+        block_y + WIFI_TEXT_BLOCK_HEIGHT * 0.55,
+        WIFI_TEXT_BLOCK_HEIGHT * 0.45,
         TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, subtitle_color),
     );
 }
@@ -355,6 +341,76 @@ fn wifi_subtitle(data: &CommandData, enabled: bool) -> String {
         Some(_) => WIFI_OFF_TEXT.to_string(),
         None => VALUE_PLACEHOLDER.to_string(),
     }
+}
+
+fn draw_circle_buttons(scene: &mut Scene, bounds: Rect, data: &CommandData, availability: PanelAvailability, ctx: &mut RenderCtx<'_>) {
+    let mic_muted = data.mic_muted == Some(true);
+    let light_mode = ctx.theme.mode == ThemeMode::Light;
+    let palette = &ctx.theme.palette;
+
+    // Bare circular buttons, like Bluetooth and AirDrop on macOS.
+    let buttons = [
+        CircleButton {
+            glyph: if mic_muted { MIC_OFF_GLYPH } else { MIC_GLYPH },
+            background: if !availability.mic {
+                dim(palette.control_bg, DISABLED_ALPHA)
+            } else if mic_muted {
+                palette.danger_bg
+            } else {
+                palette.slot_active_bg
+            },
+            foreground: if !availability.mic {
+                dim(palette.text_secondary, DISABLED_ALPHA)
+            } else if mic_muted {
+                palette.danger_text
+            } else {
+                palette.slot_active_text
+            },
+            hoverable: availability.mic,
+        },
+        CircleButton {
+            glyph: THEME_GLYPH,
+            background: if light_mode { palette.slot_active_bg } else { palette.control_bg },
+            foreground: if light_mode {
+                palette.slot_active_text
+            } else {
+                palette.text_secondary
+            },
+            hoverable: true,
+        },
+    ];
+
+    for ((action, rect), button) in circle_button_rects(bounds, ctx.theme).into_iter().zip(buttons) {
+        draw_circle_button(scene, action, rect, &button, ctx);
+    }
+}
+
+fn draw_circle_button(scene: &mut Scene, action: CommandAction, rect: Rect, button: &CircleButton, ctx: &mut RenderCtx<'_>) {
+    let radius = rect.width / 2.0;
+    let center_x = rect.x + radius;
+    let center_y = rect.y + radius;
+
+    let circle = Circle::new((center_x as f64, center_y as f64), radius as f64);
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, button.background, None, &circle);
+
+    let is_hovered = button.hoverable && ctx.hovered_interaction == Some(Interaction::Command(action));
+
+    if is_hovered {
+        scene.stroke(&Stroke::new(1.5), Affine::IDENTITY, ctx.theme.palette.text_primary.with_alpha(0.5), None, &circle);
+    }
+
+    let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
+    let (glyph_width, _) = ctx.text.measure(button.glyph, icon_size, &ctx.theme.typography.icon_font_family);
+
+    ctx.text.draw_centered_v(
+        scene,
+        button.glyph,
+        center_x - glyph_width / 2.0,
+        rect.y,
+        rect.height,
+        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, button.foreground),
+    );
 }
 
 fn draw_sound_card(
@@ -383,68 +439,27 @@ fn draw_sound_card(
     let row = slider_row_in(card, ctx.theme);
 
     let muted = data.sink.map(|sink| sink.muted).unwrap_or(false);
-    let glyph = if muted { VOLUME_MUTED_GLYPH } else { VOLUME_GLYPH };
-
-    let fraction = drag_fraction(drag, CommandAction::VolumeSlider).or_else(|| data.sink.map(|sink| sink.volume.clamp(0.0, 1.0)));
-
-    let icon_color = if muted {
-        ctx.theme.palette.text_secondary
-    } else {
-        ctx.theme.palette.text_primary
-    };
-
-    let engaged = drag_fraction(drag, CommandAction::VolumeSlider).is_some()
-        || ctx.hovered_interaction == Some(Interaction::Command(CommandAction::VolumeSlider));
-
-    if ctx.hovered_interaction == Some(Interaction::Command(CommandAction::ToggleSinkMute)) {
-        draw_mute_hover(scene, volume_icon_rect(row, ctx.theme), ctx.theme);
-    }
 
     let visual = SliderVisual {
-        glyph,
-        icon_color,
-        fraction,
+        glyph: if muted { VOLUME_MUTED_GLYPH } else { VOLUME_GLYPH },
+        fraction: drag_fraction(drag, CommandAction::VolumeSlider).or_else(|| data.sink.map(|sink| sink.volume.clamp(0.0, 1.0))),
         muted,
         enabled,
-        engaged,
+        engaged: drag_fraction(drag, CommandAction::VolumeSlider).is_some()
+            || ctx.hovered_interaction == Some(Interaction::Command(CommandAction::VolumeSlider)),
+        icon_hovered: ctx.hovered_interaction == Some(Interaction::Command(CommandAction::ToggleSinkMute)),
     };
 
-    draw_slider_row(scene, row, &visual, ctx);
+    draw_thick_slider(scene, row, &visual, ctx);
 }
 
-fn draw_mute_hover(scene: &mut Scene, rect: Rect, theme: &Theme) {
-    let body = RoundedRect::new(
-        rect.x as f64 - 2.0,
-        rect.y as f64,
-        (rect.x + rect.width) as f64,
-        (rect.y + rect.height) as f64,
-        MUTE_HOVER_RADIUS as f64,
-    );
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.control_hover_bg, None, &body);
-}
-
-fn draw_slider_row(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &mut RenderCtx<'_>) {
+/// macOS-style slider: a tall rounded track with the icon embedded inside.
+fn draw_thick_slider(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &mut RenderCtx<'_>) {
     let tokens = ctx.theme.tokens;
-    let icon_size = ctx.theme.typography.size_base * tokens.icon_scale;
 
-    let icon_color = if visual.enabled {
-        visual.icon_color
-    } else {
-        dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA)
-    };
-
-    ctx.text.draw_centered_v(
-        scene,
-        visual.glyph,
-        row.x,
-        row.y,
-        row.height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
-    );
-
-    let track = slider_track_rect(row, ctx.theme);
-    let radius = (track.height / 2.0) as f64;
+    let track_height = tokens.command_thick_track_height;
+    let track = Rect::new(row.x, row.y + (row.height - track_height) / 2.0, row.width, track_height);
+    let radius = (track_height / 2.0) as f64;
 
     let track_color = if visual.enabled {
         ctx.theme.palette.control_bg
@@ -458,13 +473,13 @@ fn draw_slider_row(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &mu
     scene.fill(Fill::NonZero, Affine::IDENTITY, track_color, None, &track_shape);
 
     if visual.enabled && let Some(fraction) = visual.fraction {
-        let fill_width = (track.width * fraction).max(track.height);
+        // The fill never uncovers the embedded icon, mirroring macOS.
+        let fill_width = (track.width * fraction).max(SLIDER_MIN_FILL);
 
-        // A muted channel keeps its level visible but visually steps back.
         let fill_color = if visual.muted {
-            dim(ctx.theme.palette.accent, MUTED_FILL_ALPHA)
+            dim(ctx.theme.palette.text_primary, MUTED_FILL_ALPHA)
         } else {
-            ctx.theme.palette.accent
+            ctx.theme.palette.text_primary
         };
 
         let fill_shape =
@@ -472,136 +487,37 @@ fn draw_slider_row(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &mu
 
         scene.fill(Fill::NonZero, Affine::IDENTITY, fill_color, None, &fill_shape);
 
-        // The handle grows on hover/drag for a tactile feel.
-        let handle_radius = if visual.engaged {
-            tokens.command_handle_radius + HANDLE_HOVER_GROWTH
-        } else {
-            tokens.command_handle_radius
-        };
-
-        let handle_x = track.x + track.width * fraction;
-        let handle_y = track.y + track.height / 2.0;
-
-        let handle = Circle::new((handle_x as f64, handle_y as f64), handle_radius as f64);
-
-        scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_active_bg, None, &handle);
-
+        // The knob only shows up while hovering or dragging, like macOS.
         if visual.engaged {
-            scene.stroke(&Stroke::new(1.0), Affine::IDENTITY, ctx.theme.palette.panel_border, None, &handle);
+            let knob_radius = track_height / 2.0 + KNOB_EXTRA_RADIUS;
+            let knob_x = (track.x + fill_width).min(track.x + track.width - knob_radius).max(track.x + knob_radius);
+            let knob_y = track.y + track_height / 2.0;
+
+            let knob = Circle::new((knob_x as f64, knob_y as f64), knob_radius as f64);
+
+            scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.text_primary, None, &knob);
+            scene.stroke(&Stroke::new(1.0), Affine::IDENTITY, ctx.theme.palette.panel_border, None, &knob);
         }
     }
 
-    let value_text = if visual.enabled {
-        visual
-            .fraction
-            .map(|fraction| format!("{}%", (fraction * 100.0).round() as u32))
-            .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string())
-    } else {
-        VALUE_PLACEHOLDER.to_string()
-    };
+    // Embedded icon: dark over the light fill (which always covers it).
+    let icon_size = ctx.theme.typography.size_base;
 
-    let value_color = if !visual.enabled {
+    let icon_color = if !visual.enabled {
         dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA)
-    } else if visual.muted {
-        ctx.theme.palette.text_secondary
+    } else if visual.icon_hovered {
+        ctx.theme.palette.accent
     } else {
-        ctx.theme.palette.text_primary
+        ctx.theme.palette.panel_bg
     };
 
-    let value_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
-    let (value_width, _) = ctx.text.measure(&value_text, value_size, &ctx.theme.typography.font_family);
-
     ctx.text.draw_centered_v(
         scene,
-        &value_text,
-        row.x + row.width - value_width,
-        row.y,
-        row.height,
-        TextStyle::new(value_size, &ctx.theme.typography.font_family, value_color),
-    );
-}
-
-fn draw_small_cards(scene: &mut Scene, bounds: Rect, data: &CommandData, ctx: &mut RenderCtx<'_>) {
-    let mic_muted = data.mic_muted == Some(true);
-    let light_mode = ctx.theme.mode == ThemeMode::Light;
-
-    let cards = [
-        ToggleVisual {
-            action: CommandAction::ToggleMicMute,
-            glyph: if mic_muted { MIC_OFF_GLYPH } else { MIC_GLYPH },
-            label: MIC_LABEL.to_string(),
-            state: toggle_state(data.mic_muted.is_some(), !mic_muted, mic_muted),
-        },
-        ToggleVisual {
-            action: CommandAction::ToggleTheme,
-            glyph: THEME_GLYPH,
-            label: THEME_LABEL.to_string(),
-            state: toggle_state(true, light_mode, false),
-        },
-    ];
-
-    for ((_, rect), card) in small_card_rects(bounds, ctx.theme).into_iter().zip(cards) {
-        draw_small_card(scene, rect, &card, ctx);
-    }
-}
-
-fn toggle_state(available: bool, active: bool, alert: bool) -> ToggleState {
-    if !available {
-        ToggleState::Disabled
-    } else if alert {
-        ToggleState::Alert
-    } else if active {
-        ToggleState::Active
-    } else {
-        ToggleState::Inactive
-    }
-}
-
-fn draw_small_card(scene: &mut Scene, rect: Rect, card: &ToggleVisual, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
-    let is_hovered = card.state == ToggleState::Inactive && ctx.hovered_interaction == Some(Interaction::Command(card.action));
-
-    let (background, foreground) = match card.state {
-        ToggleState::Disabled => {
-            (dim(ctx.theme.palette.panel_raised, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
-        }
-        ToggleState::Active => (ctx.theme.palette.slot_active_bg, ctx.theme.palette.slot_active_text),
-        ToggleState::Alert => (ctx.theme.palette.danger_bg, ctx.theme.palette.danger_text),
-        ToggleState::Inactive if is_hovered => (ctx.theme.palette.control_hover_bg, ctx.theme.palette.text_primary),
-        ToggleState::Inactive => (ctx.theme.palette.panel_raised, ctx.theme.palette.text_primary),
-    };
-
-    fill_card(scene, rect, tokens.command_card_radius, background);
-
-    let icon_size = ctx.theme.typography.size_base * tokens.icon_scale;
-    let label_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
-
-    let (icon_width, _) = ctx.text.measure(card.glyph, icon_size, &ctx.theme.typography.icon_font_family);
-
-    let max_label_width = (rect.width - icon_width - tokens.command_inner_gap - CARD_LABEL_EDGE * 2.0).max(0.0);
-    let label = truncate_to_width(ctx, &card.label, label_size, max_label_width);
-
-    let (label_width, _) = ctx.text.measure(&label, label_size, &ctx.theme.typography.font_family);
-
-    let group_width = icon_width + tokens.command_inner_gap + label_width;
-    let group_x = rect.x + (rect.width - group_width) / 2.0;
-
-    ctx.text.draw_centered_v(
-        scene,
-        card.glyph,
-        group_x,
-        rect.y,
-        rect.height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, foreground),
-    );
-
-    ctx.text.draw_centered_v(
-        scene,
-        &label,
-        group_x + icon_width + tokens.command_inner_gap,
-        rect.y,
-        rect.height,
-        TextStyle::new(label_size, &ctx.theme.typography.font_family, foreground),
+        visual.glyph,
+        track.x + SLIDER_ICON_INSET,
+        track.y,
+        track_height,
+        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
     );
 }
 
