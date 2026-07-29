@@ -67,7 +67,7 @@ impl Component for ProfilePill {
             ctx.theme.palette.pill_bg
         };
 
-        Pill::draw_with_background(scene, bounds, ctx.theme, background);
+        Pill::draw_circular(scene, bounds, ctx.theme, background);
 
         let center_x = bounds.x + bounds.width / 2.0;
         let center_y = bounds.y + bounds.height / 2.0;

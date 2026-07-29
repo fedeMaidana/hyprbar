@@ -19,8 +19,15 @@ impl Pill {
     }
 
     pub fn draw_with_background(scene: &mut Scene, bounds: Rect, theme: &Theme, background: Color) {
-        let radius = theme.tokens.pill_radius as f64;
+        Self::draw_shape(scene, bounds, theme, background, theme.tokens.pill_radius as f64);
+    }
 
+    /// Same glass treatment, but fully round (radius = half the short side).
+    pub fn draw_circular(scene: &mut Scene, bounds: Rect, theme: &Theme, background: Color) {
+        Self::draw_shape(scene, bounds, theme, background, (bounds.width.min(bounds.height) / 2.0) as f64);
+    }
+
+    fn draw_shape(scene: &mut Scene, bounds: Rect, theme: &Theme, background: Color, radius: f64) {
         let body_rect =
             KurboRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64);
 
