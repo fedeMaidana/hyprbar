@@ -5,7 +5,7 @@ use std::path::Path;
 use vello::Scene;
 use vello::peniko::ImageData;
 
-use crate::components::{Component, DropdownId, Interaction, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
 use crate::render::Rect;
 use crate::theme::Theme;
 
@@ -60,19 +60,22 @@ impl Component for ProfilePill {
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let tokens = ctx.theme.tokens;
 
+        // Same glass treatment as every other pill; the avatar sits inset.
+        let background = if self.is_active(ctx) {
+            ctx.theme.palette.slot_active_bg
+        } else {
+            ctx.theme.palette.pill_bg
+        };
+
+        Pill::draw_with_background(scene, bounds, ctx.theme, background);
+
         let center_x = bounds.x + bounds.width / 2.0;
         let center_y = bounds.y + bounds.height / 2.0;
         let outer_radius = (bounds.width.min(bounds.height) / 2.0) - tokens.avatar_outer_radius_offset;
 
         let circle = AvatarCircle::new(center_x, center_y, outer_radius, tokens.avatar_border_width);
 
-        let border = if self.is_active(ctx) {
-            ctx.theme.palette.accent
-        } else {
-            ctx.theme.palette.pill_bg
-        };
-
-        draw_avatar_circle(scene, self.avatar.as_ref(), &circle, border, ctx.theme.palette.text_secondary);
+        draw_avatar_circle(scene, self.avatar.as_ref(), &circle, ctx.theme.palette.panel_raised, ctx.theme.palette.text_secondary);
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {

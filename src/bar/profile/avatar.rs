@@ -4,7 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use vello::Scene;
-use vello::kurbo::{Affine, Circle};
+use vello::kurbo::{Affine, Circle, Stroke};
 use vello::peniko::{BlendMode, Blob, Color, Compose, Fill, ImageAlphaType, ImageData, ImageFormat, Mix};
 
 // ─── < Constants > ────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ pub fn draw_avatar_circle(
     scene.fill(Fill::NonZero, Affine::IDENTITY, border_color, None, &circle.outer());
 
     match avatar {
-        Some(avatar) => draw_avatar_image(scene, avatar, circle),
+        Some(avatar) => draw_avatar_image(scene, avatar, circle, border_color),
         None => {
             scene.fill(Fill::NonZero, Affine::IDENTITY, placeholder_color, None, &circle.inner());
         }
@@ -79,7 +79,7 @@ pub fn draw_avatar_circle(
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn draw_avatar_image(scene: &mut Scene, avatar: &ImageData, circle: &AvatarCircle) {
+fn draw_avatar_image(scene: &mut Scene, avatar: &ImageData, circle: &AvatarCircle, border_color: Color) {
     let inner_circle = circle.inner();
     let blend = BlendMode::new(Mix::Normal, Compose::SrcOver);
 
@@ -89,6 +89,10 @@ fn draw_avatar_image(scene: &mut Scene, avatar: &ImageData, circle: &AvatarCircl
     scene.draw_image(avatar, transform);
 
     scene.pop_layer();
+
+    // Paint over the seam where the clipped image meets the ring: the two
+    // antialiased edges otherwise blend into a dark crescent artifact.
+    scene.stroke(&Stroke::new(1.5), Affine::IDENTITY, border_color, None, &inner_circle);
 }
 
 fn avatar_cover_transform(avatar: &ImageData, circle: &AvatarCircle) -> Affine {
