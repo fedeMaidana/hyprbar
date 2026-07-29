@@ -253,7 +253,7 @@ impl Default for Tokens {
             workspace_inactive_radius_scale: 0.35,
 
             avatar_border_width: 1.5,
-            avatar_outer_radius_offset: 1.0,
+            avatar_outer_radius_offset: 2.5,
 
             notification_dot_radius: 3.5,
             notification_dot_x_overlap_scale: 0.5,
