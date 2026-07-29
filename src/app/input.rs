@@ -4,10 +4,12 @@ use smithay_client_toolkit::seat::pointer::CursorIcon;
 use wayland_client::Connection;
 
 use super::state::AppState;
+use crate::bar::command_center::CommandAction;
 use crate::bar::profile::SessionAction;
 use crate::bar::system::PowerAction;
 use crate::components::{Interaction, Point};
 use crate::hyprland_ipc;
+use crate::theme::mode as theme_mode;
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
@@ -94,6 +96,9 @@ impl AppState {
                     self.needs_redraw = true;
                 }
             }
+            Interaction::Command(CommandAction::ToggleTheme) => {
+                self.toggle_theme();
+            }
             Interaction::Command(action) => {
                 if action.is_slider() {
                     self.pointer.dragging = Some(interaction);
@@ -127,6 +132,15 @@ impl AppState {
         if self.bar.handle_scroll(point, delta) {
             self.needs_redraw = true;
         }
+    }
+
+    fn toggle_theme(&mut self) {
+        self.theme = self.theme.toggled();
+
+        theme_mode::persist(self.theme.mode);
+        theme_mode::run_hook(self.theme.mode);
+
+        self.needs_redraw = true;
     }
 
     fn set_cursor_icon(&mut self, conn: &Connection, icon: CursorIcon, force_reload: bool) {

@@ -84,6 +84,46 @@ impl Palette {
         palette
     }
 
+    pub fn light() -> Self {
+        let mut palette = Self {
+            pill_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0xb8),
+            pill_border: Color::from_rgba8(0x00, 0x00, 0x00, 0x14),
+            text_primary: Color::from_rgba8(0x1c, 0x1c, 0x22, 0xff),
+            text_secondary: Color::from_rgba8(0x55, 0x55, 0x5f, 0xff),
+            accent: Color::from_rgba8(0x6a, 0x5a, 0xe0, 0xff),
+            shadow: Color::from_rgba8(0x00, 0x00, 0x00, 0x2b),
+
+            panel_bg: Color::from_rgba8(0xf7, 0xf7, 0xfa, 0xf7),
+            panel_border: Color::from_rgba8(0x00, 0x00, 0x00, 0x1a),
+            panel_divider: Color::from_rgba8(0x00, 0x00, 0x00, 0x12),
+            panel_raised: Color::from_rgba8(0x00, 0x00, 0x00, 0x0d),
+            panel_shadow_key: Color::from_rgba8(0x00, 0x00, 0x00, 0x38),
+            panel_shadow_ambient: Color::from_rgba8(0x00, 0x00, 0x00, 0x24),
+
+            control_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x0f),
+            control_hover_bg: Color::from_rgba8(0x6a, 0x5a, 0xe0, 0x38),
+
+            slot_active_bg: Color::from_rgba8(0x6a, 0x5a, 0xe0, 0xff),
+            slot_active_text: Color::from_rgba8(0xff, 0xff, 0xff, 0xff),
+            slot_inactive_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x26),
+            slot_empty_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x14),
+            slot_hover_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x3d),
+
+            danger_bg: Color::from_rgba8(0xd6, 0x45, 0x45, 0xff),
+            danger_text: Color::from_rgba8(0xff, 0xff, 0xff, 0xff),
+
+            meter_warning: Color::from_rgba8(0xb0, 0x7a, 0x18, 0xff),
+            meter_critical: Color::from_rgba8(0xc2, 0x3a, 0x3a, 0xff),
+
+            clock_day: Color::from_rgba8(0xb5, 0x7a, 0x10, 0xff),
+            clock_night: Color::from_rgba8(0x4a, 0x5e, 0xae, 0xff),
+        };
+
+        palette.refresh_from_hyprcolor();
+
+        palette
+    }
+
     pub fn refresh_from_hyprcolor(&mut self) {
         let Some(hyprcolor) = hyprcolor::load() else {
             return;
@@ -91,7 +131,21 @@ impl Palette {
 
         self.accent = hyprcolor.accent;
         self.slot_active_bg = hyprcolor.accent;
-        self.slot_active_text = hyprcolor.foreground;
+        self.slot_active_text = contrast_text_for(hyprcolor.accent);
         self.control_hover_bg = hyprcolor.accent.with_alpha(0.22);
+    }
+}
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
+
+/// Picks dark or light text based on the perceived luminance of the background.
+fn contrast_text_for(background: Color) -> Color {
+    let [r, g, b, _] = background.components;
+    let luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+
+    if luminance > 0.6 {
+        Color::from_rgba8(0x20, 0x20, 0x28, 0xff)
+    } else {
+        Color::from_rgba8(0xf5, 0xf5, 0xf7, 0xff)
     }
 }

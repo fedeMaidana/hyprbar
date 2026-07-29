@@ -14,7 +14,7 @@ use crate::theme::Theme;
 use super::action::CommandAction;
 use super::control;
 use super::panel::{CommandPanel, PanelAvailability};
-use super::state::{BrightnessState, CommandStore};
+use super::state::CommandStore;
 use super::worker::spawn_poller;
 
 // ─── < Constants > ────────────────────────────────────────────────────
@@ -67,11 +67,8 @@ impl CommandCenterPill {
     }
 
     fn slider_available(&self, action: CommandAction) -> bool {
-        let data = self.store.data();
-
         match action {
-            CommandAction::VolumeSlider => data.sink.is_some(),
-            CommandAction::BrightnessSlider => data.brightness.is_some(),
+            CommandAction::VolumeSlider => self.store.data().sink.is_some(),
             _ => false,
         }
     }
@@ -90,7 +87,6 @@ impl CommandCenterPill {
 
         let result = match action {
             CommandAction::VolumeSlider => control::set_sink_volume(fraction),
-            CommandAction::BrightnessSlider => control::set_brightness(fraction),
             _ => return,
         };
 
@@ -100,20 +96,12 @@ impl CommandCenterPill {
     }
 
     fn apply_drag_to_store(&self, action: CommandAction, fraction: f32) {
-        match action {
-            CommandAction::VolumeSlider => {
-                self.store.update(|data| {
-                    if let Some(sink) = &mut data.sink {
-                        sink.volume = fraction;
-                    }
-                });
-            }
-            CommandAction::BrightnessSlider => {
-                self.store.update(|data| {
-                    data.brightness = Some(BrightnessState { fraction });
-                });
-            }
-            _ => {}
+        if action == CommandAction::VolumeSlider {
+            self.store.update(|data| {
+                if let Some(sink) = &mut data.sink {
+                    sink.volume = fraction;
+                }
+            });
         }
     }
 
@@ -125,14 +113,8 @@ impl CommandCenterPill {
                 let enabled = self.store.data().wifi.map(|wifi| wifi.enabled).unwrap_or(false);
                 control::set_wifi_enabled(!enabled)
             }
-            CommandAction::ToggleBluetooth => {
-                let powered = self.store.data().bluetooth.map(|bt| bt.powered).unwrap_or(false);
-                control::set_bluetooth_powered(!powered)
-            }
-            CommandAction::MediaPlayPause => control::media_play_pause(),
-            CommandAction::MediaPrevious => control::media_previous(),
-            CommandAction::MediaNext => control::media_next(),
-            CommandAction::VolumeSlider | CommandAction::BrightnessSlider => return false,
+            // Theme toggling is handled at the app level, where the theme lives.
+            CommandAction::VolumeSlider | CommandAction::ToggleTheme => return false,
         };
 
         if let Err(error) = result {
@@ -158,16 +140,6 @@ impl CommandCenterPill {
                     if !wifi.enabled {
                         wifi.ssid = None;
                     }
-                }
-            }),
-            CommandAction::ToggleBluetooth => self.store.update(|data| {
-                if let Some(bluetooth) = &mut data.bluetooth {
-                    bluetooth.powered = !bluetooth.powered;
-                }
-            }),
-            CommandAction::MediaPlayPause => self.store.update(|data| {
-                if let Some(media) = &mut data.media {
-                    media.playing = !media.playing;
                 }
             }),
             _ => {}

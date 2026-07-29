@@ -2,12 +2,14 @@
 
 pub mod colors;
 pub mod hyprcolor;
+pub mod mode;
 pub mod tokens;
 pub mod typography;
 
 // ─── < Imports > ────────────────────────────────────────────────────
 
 pub use colors::Palette;
+pub use mode::ThemeMode;
 pub use tokens::Tokens;
 pub use typography::Typography;
 
@@ -15,6 +17,7 @@ pub use typography::Typography;
 
 #[derive(Debug, Clone)]
 pub struct Theme {
+    pub mode: ThemeMode,
     pub palette: Palette,
     pub tokens: Tokens,
     pub typography: Typography,
@@ -24,11 +27,34 @@ pub struct Theme {
 
 impl Theme {
     pub fn dark() -> Self {
+        Self::of(ThemeMode::Dark)
+    }
+
+    pub fn light() -> Self {
+        Self::of(ThemeMode::Light)
+    }
+
+    pub fn of(mode: ThemeMode) -> Self {
+        let palette = match mode {
+            ThemeMode::Dark => Palette::dark(),
+            ThemeMode::Light => Palette::light(),
+        };
+
         Self {
-            palette: Palette::dark(),
+            mode,
+            palette,
             tokens: Tokens::default(),
             typography: Typography::default(),
         }
+    }
+
+    /// Builds the theme for the mode persisted by the user.
+    pub fn preferred() -> Self {
+        Self::of(mode::load_preferred())
+    }
+
+    pub fn toggled(&self) -> Self {
+        Self::of(self.mode.toggled())
     }
 
     pub fn refresh_dynamic_colors(&mut self) {

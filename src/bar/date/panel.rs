@@ -27,7 +27,7 @@ const TITLE_HOVER_PAD_X: f32 = 10.0;
 const TITLE_HOVER_HEIGHT: f32 = 26.0;
 const TITLE_HOVER_RADIUS: f32 = 8.0;
 const TODAY_HINT_DOT_RADIUS: f32 = 2.0;
-const TODAY_HINT_DOT_OFFSET: f32 = 3.0;
+const TODAY_HINT_DOT_OFFSET: f32 = 1.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 

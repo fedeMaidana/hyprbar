@@ -29,7 +29,7 @@ pub struct App;
 
 impl App {
     pub fn run() -> Result<()> {
-        let theme = Theme::dark();
+        let theme = Theme::preferred();
         let surface_height = top_bar_surface_height(&theme);
         let exclusive_zone = top_bar_exclusive_zone(&theme);
 
