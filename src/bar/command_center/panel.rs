@@ -1,7 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use vello::Scene;
-use vello::kurbo::{Affine, Circle, RoundedRect};
+use vello::kurbo::{Affine, Circle, RoundedRect, Stroke};
 use vello::peniko::{Color, Fill};
 
 use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
@@ -22,14 +22,18 @@ const WIFI_OFF_GLYPH: &str = "\u{f05aa}";
 const THEME_GLYPH: &str = "\u{f0599}";
 
 const VALUE_PLACEHOLDER: &str = "—";
-const WIFI_LABEL: &str = "WiFi";
+const WIFI_TITLE: &str = "Wi-Fi";
+const WIFI_ON_TEXT: &str = "Activado";
+const WIFI_OFF_TEXT: &str = "Desactivado";
+const SOUND_TITLE: &str = "Sonido";
 const MIC_LABEL: &str = "Mic";
 const THEME_LABEL: &str = "Claro";
 const ELLIPSIS: &str = "…";
 
 const SMALL_TEXT_SCALE: f32 = 0.78;
+const SUBTITLE_TEXT_SCALE: f32 = 0.7;
 const DISABLED_ALPHA: f32 = 0.35;
-const TOGGLE_LABEL_EDGE: f32 = 6.0;
+const CARD_LABEL_EDGE: f32 = 6.0;
 const HANDLE_HOVER_GROWTH: f32 = 1.5;
 const MUTED_FILL_ALPHA: f32 = 0.35;
 const MUTE_HOVER_RADIUS: f32 = 6.0;
@@ -86,9 +90,11 @@ impl CommandPanel {
         let tokens = theme.tokens;
 
         tokens.command_panel_padding_y * 2.0
-            + tokens.command_slider_row_height
-            + tokens.command_section_gap
-            + tokens.command_toggle_height
+            + tokens.command_wifi_card_height
+            + tokens.command_card_gap
+            + tokens.command_sound_card_height
+            + tokens.command_card_gap
+            + tokens.command_small_card_height
     }
 
     pub fn bounds(surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
@@ -101,7 +107,7 @@ impl CommandPanel {
         }
 
         let bounds = Self::bounds(surface, anchor, theme);
-        let track = slider_track_rect(volume_row(bounds, theme), theme);
+        let track = slider_track_rect(sound_slider_row(bounds, theme), theme);
 
         if track.width <= 0.0 {
             return None;
@@ -112,19 +118,22 @@ impl CommandPanel {
 
     pub fn hit_test(point: Point, surface: Rect, anchor: Rect, theme: &Theme, availability: PanelAvailability) -> Option<Interaction> {
         let bounds = Self::bounds(surface, anchor, theme);
-        let row = volume_row(bounds, theme);
+        let slider_row = sound_slider_row(bounds, theme);
 
-        if availability.volume && volume_icon_rect(row, theme).contains_point(point.x, point.y) {
+        if availability.volume && volume_icon_rect(slider_row, theme).contains_point(point.x, point.y) {
             return Some(Interaction::Command(CommandAction::ToggleSinkMute));
         }
 
-        if availability.volume && row.contains_point(point.x, point.y) {
+        if availability.volume && slider_row.contains_point(point.x, point.y) {
             return Some(Interaction::Command(CommandAction::VolumeSlider));
         }
 
-        for (action, rect) in toggle_rects(bounds, theme) {
+        if availability.wifi && wifi_card_rect(bounds, theme).contains_point(point.x, point.y) {
+            return Some(Interaction::Command(CommandAction::ToggleWifi));
+        }
+
+        for (action, rect) in small_card_rects(bounds, theme) {
             let enabled = match action {
-                CommandAction::ToggleWifi => availability.wifi,
                 CommandAction::ToggleMicMute => availability.mic,
                 _ => true,
             };
@@ -153,15 +162,9 @@ impl CommandPanel {
 
         frame.draw_background(scene, bounds, theme);
 
-        let row = volume_row(bounds, theme);
-
-        draw_volume_row(scene, row, data, drag, availability.volume, ctx);
-
-        let toggles_y = toggle_rects(bounds, theme)[0].1.y;
-
-        DropdownFrame::draw_divider(scene, row.x, toggles_y - theme.tokens.command_section_gap / 2.0, row.width, theme);
-
-        draw_toggles(scene, bounds, data, ctx);
+        draw_wifi_card(scene, wifi_card_rect(bounds, theme), data, availability.wifi, ctx);
+        draw_sound_card(scene, sound_card_rect(bounds, theme), data, drag, availability.volume, ctx);
+        draw_small_cards(scene, bounds, data, ctx);
     }
 
     fn frame(theme: &Theme) -> DropdownFrame {
@@ -182,10 +185,34 @@ fn inner_rect(bounds: Rect, theme: &Theme) -> Rect {
     )
 }
 
-fn volume_row(bounds: Rect, theme: &Theme) -> Rect {
+fn wifi_card_rect(bounds: Rect, theme: &Theme) -> Rect {
     let inner = inner_rect(bounds, theme);
 
-    Rect::new(inner.x, inner.y, inner.width, theme.tokens.command_slider_row_height)
+    Rect::new(inner.x, inner.y, inner.width, theme.tokens.command_wifi_card_height)
+}
+
+fn sound_card_rect(bounds: Rect, theme: &Theme) -> Rect {
+    let tokens = theme.tokens;
+    let inner = inner_rect(bounds, theme);
+
+    let y = inner.y + tokens.command_wifi_card_height + tokens.command_card_gap;
+
+    Rect::new(inner.x, y, inner.width, tokens.command_sound_card_height)
+}
+
+fn sound_slider_row(bounds: Rect, theme: &Theme) -> Rect {
+    slider_row_in(sound_card_rect(bounds, theme), theme)
+}
+
+fn slider_row_in(card: Rect, theme: &Theme) -> Rect {
+    let tokens = theme.tokens;
+
+    Rect::new(
+        card.x + tokens.command_card_padding_x,
+        card.y + tokens.command_card_padding_y + tokens.command_card_title_height,
+        card.width - tokens.command_card_padding_x * 2.0,
+        tokens.command_slider_row_height,
+    )
 }
 
 fn slider_track_rect(row: Rect, theme: &Theme) -> Rect {
@@ -202,21 +229,21 @@ fn volume_icon_rect(row: Rect, theme: &Theme) -> Rect {
     Rect::new(row.x, row.y, theme.tokens.command_icon_slot, row.height)
 }
 
-fn toggle_rects(bounds: Rect, theme: &Theme) -> [(CommandAction, Rect); 3] {
+fn small_card_rects(bounds: Rect, theme: &Theme) -> [(CommandAction, Rect); 2] {
     let tokens = theme.tokens;
     let inner = inner_rect(bounds, theme);
 
-    let y = inner.y + inner.height - tokens.command_toggle_height;
-    let gap = tokens.command_toggle_gap;
-    let width = (inner.width - gap * 2.0) / 3.0;
+    let y = inner.y + inner.height - tokens.command_small_card_height;
+    let gap = tokens.command_card_gap;
+    let width = (inner.width - gap) / 2.0;
 
-    let actions = [CommandAction::ToggleWifi, CommandAction::ToggleMicMute, CommandAction::ToggleTheme];
+    let actions = [CommandAction::ToggleMicMute, CommandAction::ToggleTheme];
 
-    let mut rects = [(CommandAction::ToggleWifi, Rect::new(0.0, 0.0, 0.0, 0.0)); 3];
+    let mut rects = [(CommandAction::ToggleMicMute, Rect::new(0.0, 0.0, 0.0, 0.0)); 2];
 
     for (index, action) in actions.into_iter().enumerate() {
         let x = inner.x + index as f32 * (width + gap);
-        rects[index] = (action, Rect::new(x, y, width, tokens.command_toggle_height));
+        rects[index] = (action, Rect::new(x, y, width, tokens.command_small_card_height));
     }
 
     rects
@@ -232,14 +259,129 @@ fn drag_fraction(drag: Option<(CommandAction, f32)>, action: CommandAction) -> O
     drag.filter(|(drag_action, _)| *drag_action == action).map(|(_, fraction)| fraction)
 }
 
-fn draw_volume_row(
+fn fill_card(scene: &mut Scene, rect: Rect, radius: f32, color: Color) {
+    let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, radius as f64);
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &body);
+}
+
+fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bool, ctx: &mut RenderCtx<'_>) {
+    let tokens = ctx.theme.tokens;
+
+    let is_hovered = enabled && ctx.hovered_interaction == Some(Interaction::Command(CommandAction::ToggleWifi));
+
+    let card_bg = if is_hovered {
+        ctx.theme.palette.control_hover_bg
+    } else {
+        ctx.theme.palette.panel_raised
+    };
+
+    fill_card(scene, card, tokens.command_card_radius, card_bg);
+
+    let wifi_on = data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false);
+
+    // macOS-style circular icon button: accent-filled when the radio is on.
+    let circle_x = card.x + tokens.command_card_padding_x + tokens.command_icon_circle_radius;
+    let circle_y = card.y + card.height / 2.0;
+    let circle = Circle::new((circle_x as f64, circle_y as f64), tokens.command_icon_circle_radius as f64);
+
+    let (circle_bg, icon_color) = if !enabled {
+        (dim(ctx.theme.palette.control_bg, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
+    } else if wifi_on {
+        (ctx.theme.palette.slot_active_bg, ctx.theme.palette.slot_active_text)
+    } else {
+        (ctx.theme.palette.control_bg, ctx.theme.palette.text_secondary)
+    };
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, circle_bg, None, &circle);
+
+    let glyph = if wifi_on { WIFI_GLYPH } else { WIFI_OFF_GLYPH };
+    let icon_size = ctx.theme.typography.size_base * tokens.icon_scale;
+
+    let (glyph_width, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
+
+    ctx.text.draw_centered_v(
+        scene,
+        glyph,
+        circle_x - glyph_width / 2.0,
+        circle_y - tokens.command_icon_circle_radius,
+        tokens.command_icon_circle_radius * 2.0,
+        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
+    );
+
+    let text_x = circle_x + tokens.command_icon_circle_radius + tokens.command_inner_gap;
+    let text_width = (card.x + card.width - tokens.command_card_padding_x - text_x).max(0.0);
+    let content_y = card.y + tokens.command_card_padding_y;
+    let content_height = card.height - tokens.command_card_padding_y * 2.0;
+
+    let title_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
+    let subtitle_size = ctx.theme.typography.size_base * SUBTITLE_TEXT_SCALE;
+
+    let (title_color, subtitle_color) = if enabled {
+        (ctx.theme.palette.text_primary, ctx.theme.palette.text_secondary)
+    } else {
+        (dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
+    };
+
+    ctx.text.draw_centered_v(
+        scene,
+        WIFI_TITLE,
+        text_x,
+        content_y,
+        content_height * 0.5,
+        TextStyle::new(title_size, &ctx.theme.typography.font_family, title_color),
+    );
+
+    let subtitle = wifi_subtitle(data, enabled);
+    let subtitle = truncate_to_width(ctx, &subtitle, subtitle_size, text_width);
+
+    ctx.text.draw_centered_v(
+        scene,
+        &subtitle,
+        text_x,
+        content_y + content_height * 0.5,
+        content_height * 0.5,
+        TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, subtitle_color),
+    );
+}
+
+fn wifi_subtitle(data: &CommandData, enabled: bool) -> String {
+    if !enabled {
+        return VALUE_PLACEHOLDER.to_string();
+    }
+
+    match data.wifi.as_ref() {
+        Some(wifi) if wifi.enabled => wifi.ssid.clone().unwrap_or_else(|| WIFI_ON_TEXT.to_string()),
+        Some(_) => WIFI_OFF_TEXT.to_string(),
+        None => VALUE_PLACEHOLDER.to_string(),
+    }
+}
+
+fn draw_sound_card(
     scene: &mut Scene,
-    row: Rect,
+    card: Rect,
     data: &CommandData,
     drag: Option<(CommandAction, f32)>,
     enabled: bool,
     ctx: &mut RenderCtx<'_>,
 ) {
+    let tokens = ctx.theme.tokens;
+
+    fill_card(scene, card, tokens.command_card_radius, ctx.theme.palette.panel_raised);
+
+    let title_size = ctx.theme.typography.size_base * SUBTITLE_TEXT_SCALE;
+
+    ctx.text.draw_centered_v(
+        scene,
+        SOUND_TITLE,
+        card.x + tokens.command_card_padding_x,
+        card.y + tokens.command_card_padding_y,
+        tokens.command_card_title_height,
+        TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+    );
+
+    let row = slider_row_in(card, ctx.theme);
+
     let muted = data.sink.map(|sink| sink.muted).unwrap_or(false);
     let glyph = if muted { VOLUME_MUTED_GLYPH } else { VOLUME_GLYPH };
 
@@ -305,9 +447,9 @@ fn draw_slider_row(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &mu
     let radius = (track.height / 2.0) as f64;
 
     let track_color = if visual.enabled {
-        ctx.theme.palette.panel_raised
+        ctx.theme.palette.control_bg
     } else {
-        dim(ctx.theme.palette.panel_raised, DISABLED_ALPHA)
+        dim(ctx.theme.palette.control_bg, DISABLED_ALPHA)
     };
 
     let track_shape =
@@ -343,6 +485,10 @@ fn draw_slider_row(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &mu
         let handle = Circle::new((handle_x as f64, handle_y as f64), handle_radius as f64);
 
         scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.slot_active_bg, None, &handle);
+
+        if visual.engaged {
+            scene.stroke(&Stroke::new(1.0), Affine::IDENTITY, ctx.theme.palette.panel_border, None, &handle);
+        }
     }
 
     let value_text = if visual.enabled {
@@ -375,25 +521,11 @@ fn draw_slider_row(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &mu
     );
 }
 
-fn draw_toggles(scene: &mut Scene, bounds: Rect, data: &CommandData, ctx: &mut RenderCtx<'_>) {
-    let wifi_on = data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false);
-    let wifi_label = data
-        .wifi
-        .as_ref()
-        .filter(|wifi| wifi.enabled)
-        .and_then(|wifi| wifi.ssid.clone())
-        .unwrap_or_else(|| WIFI_LABEL.to_string());
-
+fn draw_small_cards(scene: &mut Scene, bounds: Rect, data: &CommandData, ctx: &mut RenderCtx<'_>) {
     let mic_muted = data.mic_muted == Some(true);
     let light_mode = ctx.theme.mode == ThemeMode::Light;
 
-    let toggles = [
-        ToggleVisual {
-            action: CommandAction::ToggleWifi,
-            glyph: if wifi_on { WIFI_GLYPH } else { WIFI_OFF_GLYPH },
-            label: wifi_label,
-            state: toggle_state(data.wifi.is_some(), wifi_on, false),
-        },
+    let cards = [
         ToggleVisual {
             action: CommandAction::ToggleMicMute,
             glyph: if mic_muted { MIC_OFF_GLYPH } else { MIC_GLYPH },
@@ -408,8 +540,8 @@ fn draw_toggles(scene: &mut Scene, bounds: Rect, data: &CommandData, ctx: &mut R
         },
     ];
 
-    for ((_, rect), toggle) in toggle_rects(bounds, ctx.theme).into_iter().zip(toggles) {
-        draw_toggle(scene, rect, &toggle, ctx);
+    for ((_, rect), card) in small_card_rects(bounds, ctx.theme).into_iter().zip(cards) {
+        draw_small_card(scene, rect, &card, ctx);
     }
 }
 
@@ -425,40 +557,38 @@ fn toggle_state(available: bool, active: bool, alert: bool) -> ToggleState {
     }
 }
 
-fn draw_toggle(scene: &mut Scene, rect: Rect, toggle: &ToggleVisual, ctx: &mut RenderCtx<'_>) {
-    let radius = ctx.theme.tokens.command_toggle_radius as f64;
-    let is_hovered = toggle.state == ToggleState::Inactive && ctx.hovered_interaction == Some(Interaction::Command(toggle.action));
+fn draw_small_card(scene: &mut Scene, rect: Rect, card: &ToggleVisual, ctx: &mut RenderCtx<'_>) {
+    let tokens = ctx.theme.tokens;
+    let is_hovered = card.state == ToggleState::Inactive && ctx.hovered_interaction == Some(Interaction::Command(card.action));
 
-    let (background, foreground) = match toggle.state {
+    let (background, foreground) = match card.state {
         ToggleState::Disabled => {
             (dim(ctx.theme.palette.panel_raised, DISABLED_ALPHA), dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA))
         }
         ToggleState::Active => (ctx.theme.palette.slot_active_bg, ctx.theme.palette.slot_active_text),
         ToggleState::Alert => (ctx.theme.palette.danger_bg, ctx.theme.palette.danger_text),
         ToggleState::Inactive if is_hovered => (ctx.theme.palette.control_hover_bg, ctx.theme.palette.text_primary),
-        ToggleState::Inactive => (ctx.theme.palette.control_bg, ctx.theme.palette.text_primary),
+        ToggleState::Inactive => (ctx.theme.palette.panel_raised, ctx.theme.palette.text_primary),
     };
 
-    let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, radius);
+    fill_card(scene, rect, tokens.command_card_radius, background);
 
-    scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &body);
-
-    let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
+    let icon_size = ctx.theme.typography.size_base * tokens.icon_scale;
     let label_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
 
-    let (icon_width, _) = ctx.text.measure(toggle.glyph, icon_size, &ctx.theme.typography.icon_font_family);
+    let (icon_width, _) = ctx.text.measure(card.glyph, icon_size, &ctx.theme.typography.icon_font_family);
 
-    let max_label_width = (rect.width - icon_width - ctx.theme.tokens.command_inner_gap - TOGGLE_LABEL_EDGE * 2.0).max(0.0);
-    let label = truncate_to_width(ctx, &toggle.label, label_size, max_label_width);
+    let max_label_width = (rect.width - icon_width - tokens.command_inner_gap - CARD_LABEL_EDGE * 2.0).max(0.0);
+    let label = truncate_to_width(ctx, &card.label, label_size, max_label_width);
 
     let (label_width, _) = ctx.text.measure(&label, label_size, &ctx.theme.typography.font_family);
 
-    let group_width = icon_width + ctx.theme.tokens.command_inner_gap + label_width;
+    let group_width = icon_width + tokens.command_inner_gap + label_width;
     let group_x = rect.x + (rect.width - group_width) / 2.0;
 
     ctx.text.draw_centered_v(
         scene,
-        toggle.glyph,
+        card.glyph,
         group_x,
         rect.y,
         rect.height,
@@ -468,7 +598,7 @@ fn draw_toggle(scene: &mut Scene, rect: Rect, toggle: &ToggleVisual, ctx: &mut R
     ctx.text.draw_centered_v(
         scene,
         &label,
-        group_x + icon_width + ctx.theme.tokens.command_inner_gap,
+        group_x + icon_width + tokens.command_inner_gap,
         rect.y,
         rect.height,
         TextStyle::new(label_size, &ctx.theme.typography.font_family, foreground),
