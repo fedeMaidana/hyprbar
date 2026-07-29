@@ -34,10 +34,12 @@ const DISABLED_ALPHA: f32 = 0.35;
 const MUTED_FILL_ALPHA: f32 = 0.4;
 
 const WIFI_TEXT_BLOCK_HEIGHT: f32 = 30.0;
-const SLIDER_ICON_INSET: f32 = 9.0;
-const SLIDER_MIN_FILL: f32 = 34.0;
-const MUTE_ZONE_WIDTH: f32 = 36.0;
+const WIFI_TEXT_GAP: f32 = 10.0;
+const SLIDER_ICON_INSET: f32 = 8.0;
+const SLIDER_MIN_FILL: f32 = 30.0;
+const MUTE_ZONE_WIDTH: f32 = 32.0;
 const KNOB_EXTRA_RADIUS: f32 = 2.0;
+const EMBED_ICON_SCALE: f32 = 0.82;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -179,24 +181,25 @@ fn wifi_card_rect(bounds: Rect, theme: &Theme) -> Rect {
     let tokens = theme.tokens;
     let inner = inner_rect(bounds, theme);
 
-    Rect::new(inner.x, inner.y, (inner.width - tokens.command_card_gap) / 2.0, tokens.command_wifi_card_height)
+    // The card takes whatever the two circle buttons beside it leave free.
+    let circles_width = tokens.command_circle_button_radius * 4.0 + tokens.command_circle_button_gap + tokens.command_card_gap;
+
+    Rect::new(inner.x, inner.y, (inner.width - circles_width).max(0.0), tokens.command_wifi_card_height)
 }
 
 fn circle_button_rects(bounds: Rect, theme: &Theme) -> [(CommandAction, Rect); 2] {
     let tokens = theme.tokens;
     let inner = inner_rect(bounds, theme);
-
-    let zone_x = inner.x + (inner.width + tokens.command_card_gap) / 2.0;
-    let zone_width = (inner.width - tokens.command_card_gap) / 2.0;
+    let card = wifi_card_rect(bounds, theme);
 
     let radius = tokens.command_circle_button_radius;
     let gap = tokens.command_circle_button_gap;
 
+    let zone_x = card.x + card.width + tokens.command_card_gap;
     let center_y = inner.y + tokens.command_wifi_card_height / 2.0;
-    let zone_center_x = zone_x + zone_width / 2.0;
 
-    let mic_center_x = zone_center_x - radius - gap / 2.0;
-    let theme_center_x = zone_center_x + radius + gap / 2.0;
+    let mic_center_x = zone_x + radius;
+    let theme_center_x = zone_x + radius * 3.0 + gap;
 
     [
         (CommandAction::ToggleMicMute, circle_bounds(mic_center_x, center_y, radius)),
@@ -267,9 +270,9 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
 
     let wifi_on = data.wifi.as_ref().map(|wifi| wifi.enabled).unwrap_or(false);
 
-    // macOS-style module: circular icon on top, labels stacked below.
+    // Horizontal module: circular icon at the left, labels stacked beside it.
     let circle_x = card.x + tokens.command_card_padding_x + tokens.command_icon_circle_radius;
-    let circle_y = card.y + tokens.command_card_padding_y + tokens.command_icon_circle_radius;
+    let circle_y = card.y + card.height / 2.0;
     let circle = Circle::new((circle_x as f64, circle_y as f64), tokens.command_icon_circle_radius as f64);
 
     let (circle_bg, icon_color) = if !enabled {
@@ -296,9 +299,9 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
         TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
     );
 
-    let text_x = card.x + tokens.command_card_padding_x;
-    let text_width = card.width - tokens.command_card_padding_x * 2.0;
-    let block_y = card.y + card.height - tokens.command_card_padding_y - WIFI_TEXT_BLOCK_HEIGHT;
+    let text_x = circle_x + tokens.command_icon_circle_radius + WIFI_TEXT_GAP;
+    let text_width = (card.x + card.width - tokens.command_card_padding_x - text_x).max(0.0);
+    let block_y = card.y + (card.height - WIFI_TEXT_BLOCK_HEIGHT) / 2.0;
 
     let title_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
     let subtitle_size = ctx.theme.typography.size_base * SUBTITLE_TEXT_SCALE;
@@ -501,7 +504,7 @@ fn draw_thick_slider(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &
     }
 
     // Embedded icon: dark over the light fill (which always covers it).
-    let icon_size = ctx.theme.typography.size_base;
+    let icon_size = ctx.theme.typography.size_base * EMBED_ICON_SCALE;
 
     let icon_color = if !visual.enabled {
         dim(ctx.theme.palette.text_secondary, DISABLED_ALPHA)
