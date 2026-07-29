@@ -31,6 +31,12 @@ pub fn monday_offset(year: i32, month: u32) -> u32 {
         .unwrap_or(0)
 }
 
+pub fn rows_in_month(year: i32, month: u32) -> usize {
+    let cells = monday_offset(year, month) as usize + days_in_month(year, month) as usize;
+
+    cells.div_ceil(GRID_COLUMNS).clamp(1, GRID_ROWS)
+}
+
 pub fn month_grid(year: i32, month: u32) -> [Option<u8>; GRID_CELLS] {
     let mut grid = [None; GRID_CELLS];
 

@@ -116,11 +116,11 @@ impl Component for DatePill {
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(DatePanel::bounds(surface, anchor, theme))
+        Some(DatePanel::bounds(surface, anchor, self.month_offset, theme))
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        DatePanel::hit_test(point, surface, anchor, theme)
+        DatePanel::hit_test(point, surface, anchor, self.month_offset, theme)
     }
 
     fn handle_interaction(&mut self, interaction: Interaction) -> bool {

@@ -11,7 +11,7 @@ use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
 use super::action::CalendarAction;
-use super::grid::{GRID_CELLS, GRID_COLUMNS, GRID_ROWS, month_grid, shift_month};
+use super::grid::{GRID_COLUMNS, GRID_ROWS, days_in_month, monday_offset, month_grid, rows_in_month, shift_month};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -19,6 +19,15 @@ const NAV_PREV_GLYPH: &str = "\u{f0141}";
 const NAV_NEXT_GLYPH: &str = "\u{f0142}";
 
 const WEEKDAY_TEXT_SCALE: f32 = 0.7;
+
+const PAST_DAY_ALPHA: f32 = 0.55;
+const ADJACENT_DAY_ALPHA: f32 = 0.35;
+
+const TITLE_HOVER_PAD_X: f32 = 10.0;
+const TITLE_HOVER_HEIGHT: f32 = 26.0;
+const TITLE_HOVER_RADIUS: f32 = 8.0;
+const TODAY_HINT_DOT_RADIUS: f32 = 2.0;
+const TODAY_HINT_DOT_OFFSET: f32 = 5.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -31,23 +40,35 @@ impl DatePanel {
         theme.tokens.dropdown_panel_width
     }
 
-    pub fn height(theme: &Theme) -> f32 {
+    pub fn max_height(theme: &Theme) -> f32 {
+        Self::height_for_rows(theme, GRID_ROWS)
+    }
+
+    pub fn height(theme: &Theme, month_offset: i32) -> f32 {
+        let today = Local::now().date_naive();
+        let (year, month) = shift_month(today.year(), today.month(), month_offset);
+
+        Self::height_for_rows(theme, rows_in_month(year, month))
+    }
+
+    fn height_for_rows(theme: &Theme, rows: usize) -> f32 {
         let tokens = theme.tokens;
+        let rows = rows as f32;
 
         tokens.dropdown_panel_padding_y * 2.0
             + tokens.dropdown_header_height
             + tokens.dropdown_section_gap
             + tokens.date_weekday_row_height
-            + tokens.date_cell_size * GRID_ROWS as f32
-            + tokens.date_cell_gap * (GRID_ROWS - 1) as f32
+            + tokens.date_cell_size * rows
+            + tokens.date_cell_gap * (rows - 1.0)
     }
 
-    pub fn bounds(surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
-        Self::frame(theme).bounds(surface, anchor, theme)
+    pub fn bounds(surface: Rect, anchor: Rect, month_offset: i32, theme: &Theme) -> Rect {
+        Self::frame(theme, month_offset).bounds(surface, anchor, theme)
     }
 
-    pub fn hit_test(point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        let bounds = Self::bounds(surface, anchor, theme);
+    pub fn hit_test(point: Point, surface: Rect, anchor: Rect, month_offset: i32, theme: &Theme) -> Option<Interaction> {
+        let bounds = Self::bounds(surface, anchor, month_offset, theme);
 
         for (action, rect) in nav_button_rects(bounds, theme) {
             if rect.contains_point(point.x, point.y) {
@@ -66,7 +87,7 @@ impl DatePanel {
         let theme = ctx.theme;
         let tokens = theme.tokens;
 
-        let frame = Self::frame(theme);
+        let frame = Self::frame(theme, month_offset);
         let bounds = frame.bounds(surface, anchor, theme);
 
         frame.draw_background(scene, bounds, theme);
@@ -80,9 +101,13 @@ impl DatePanel {
         let mut y = bounds.y + tokens.dropdown_panel_padding_y;
 
         draw_nav_buttons(scene, bounds, ctx);
-        draw_header(scene, inner_x, inner_width, y, &header_label(year, month), ctx);
+        draw_header(scene, inner_x, inner_width, y, &header_label(year, month), viewing_current_month, ctx);
 
-        y += tokens.dropdown_header_height + tokens.dropdown_section_gap;
+        y += tokens.dropdown_header_height;
+
+        DropdownFrame::draw_divider(scene, inner_x, y + tokens.dropdown_section_gap / 2.0, inner_width, theme);
+
+        y += tokens.dropdown_section_gap;
 
         draw_weekday_headers(scene, inner_x, y, ctx);
 
@@ -91,8 +116,8 @@ impl DatePanel {
         draw_day_grid(scene, inner_x, y, year, month, today, viewing_current_month, ctx);
     }
 
-    fn frame(theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(Self::width(theme), Self::height(theme))
+    fn frame(theme: &Theme, month_offset: i32) -> DropdownFrame {
+        DropdownFrame::new(Self::width(theme), Self::height(theme, month_offset))
     }
 }
 
@@ -102,12 +127,37 @@ fn header_label(year: i32, month: u32) -> String {
     format!("{} {year}", month_name(month))
 }
 
-fn draw_header(scene: &mut Scene, inner_x: f32, inner_width: f32, y: f32, label: &str, ctx: &mut RenderCtx<'_>) {
+fn draw_header(
+    scene: &mut Scene,
+    inner_x: f32,
+    inner_width: f32,
+    y: f32,
+    label: &str,
+    viewing_current_month: bool,
+    ctx: &mut RenderCtx<'_>,
+) {
     let item_height = ctx.theme.tokens.dropdown_header_height;
     let title_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_title_scale;
 
     let (text_width, _) = ctx.text.measure(label, title_size, &ctx.theme.typography.font_family);
     let text_x = inner_x + (inner_width - text_width) / 2.0;
+
+    // The title doubles as a "back to today" button; hover makes that visible.
+    if ctx.hovered_interaction == Some(Interaction::Calendar(CalendarAction::Today)) {
+        let pill_x = text_x - TITLE_HOVER_PAD_X;
+        let pill_y = y + (item_height - TITLE_HOVER_HEIGHT) / 2.0;
+        let pill_width = text_width + TITLE_HOVER_PAD_X * 2.0;
+
+        let body = RoundedRect::new(
+            pill_x as f64,
+            pill_y as f64,
+            (pill_x + pill_width) as f64,
+            (pill_y + TITLE_HOVER_HEIGHT) as f64,
+            TITLE_HOVER_RADIUS as f64,
+        );
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.control_hover_bg, None, &body);
+    }
 
     ctx.text.draw_centered_v(
         scene,
@@ -117,6 +167,16 @@ fn draw_header(scene: &mut Scene, inner_x: f32, inner_width: f32, y: f32, label:
         item_height,
         TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
+
+    // Accent dot hints that a shortcut back to the current month exists.
+    if !viewing_current_month {
+        let center_x = (inner_x + inner_width / 2.0) as f64;
+        let center_y = (y + item_height - TODAY_HINT_DOT_OFFSET) as f64;
+
+        let dot = Circle::new((center_x, center_y), TODAY_HINT_DOT_RADIUS as f64);
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.accent, None, &dot);
+    }
 }
 
 fn draw_nav_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
@@ -189,6 +249,12 @@ fn draw_day_grid(
     let size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
 
     let grid = month_grid(year, month);
+    let start = monday_offset(year, month) as usize;
+    let day_count = days_in_month(year, month) as usize;
+    let visible_cells = rows_in_month(year, month) * GRID_COLUMNS;
+
+    let (prev_year, prev_month) = shift_month(year, month, -1);
+    let prev_month_days = days_in_month(prev_year, prev_month) as usize;
 
     let today_day = if viewing_current_month && today.year() == year && today.month() == month {
         Some(today.day() as u8)
@@ -204,34 +270,48 @@ fn draw_day_grid(
         draw_week_band(scene, x, y, row, ctx);
     }
 
-    for (index, cell) in grid.iter().enumerate().take(GRID_CELLS) {
-        let Some(day) = cell else {
-            continue;
-        };
-
+    for (index, cell) in grid.iter().enumerate().take(visible_cells) {
         let column = index % GRID_COLUMNS;
         let row = index / GRID_COLUMNS;
 
         let cell_x = x + column as f32 * (tokens.date_cell_size + tokens.date_cell_gap);
         let cell_y = y + row as f32 * (tokens.date_cell_size + tokens.date_cell_gap);
 
-        let is_today = today_day == Some(*day);
-        let is_weekend = column >= 5;
-        let is_past = NaiveDate::from_ymd_opt(year, month, *day as u32).is_some_and(|date| date < today);
+        let (label, color) = match cell {
+            Some(day) => {
+                let is_today = today_day == Some(*day);
+                let is_weekend = column >= 5;
+                let is_past = NaiveDate::from_ymd_opt(year, month, *day as u32).is_some_and(|date| date < today);
 
-        if is_today {
-            draw_today_marker(scene, cell_x, cell_y, ctx);
-        }
+                if is_today {
+                    draw_today_marker(scene, cell_x, cell_y, ctx);
+                }
 
-        let color = if is_today {
-            ctx.theme.palette.slot_active_text
-        } else if is_past || is_weekend {
-            ctx.theme.palette.text_secondary
-        } else {
-            ctx.theme.palette.text_primary
+                // Three levels: past < future weekend < future weekday.
+                let color = if is_today {
+                    ctx.theme.palette.slot_active_text
+                } else if is_past {
+                    ctx.theme.palette.text_secondary.with_alpha(PAST_DAY_ALPHA)
+                } else if is_weekend {
+                    ctx.theme.palette.text_secondary
+                } else {
+                    ctx.theme.palette.text_primary
+                };
+
+                (day.to_string(), color)
+            }
+            None => {
+                // Ghost days from the adjacent months keep the grid complete.
+                let adjacent_day = if index < start {
+                    prev_month_days - start + index + 1
+                } else {
+                    index - start - day_count + 1
+                };
+
+                (adjacent_day.to_string(), ctx.theme.palette.text_secondary.with_alpha(ADJACENT_DAY_ALPHA))
+            }
         };
 
-        let label = day.to_string();
         let (text_width, _) = ctx.text.measure(&label, size, &ctx.theme.typography.font_family);
         let text_x = cell_x + (tokens.date_cell_size - text_width) / 2.0;
 

@@ -106,7 +106,7 @@ fn top_bar_surface_height(theme: &Theme) -> u32 {
         .tokens
         .dropdown_height
         .max(SystemPanel::height(theme))
-        .max(DatePanel::height(theme))
+        .max(DatePanel::max_height(theme))
         .max(ClockPanel::height(theme))
         .max(WeatherPanel::height(theme))
         .max(CommandPanel::height(theme))

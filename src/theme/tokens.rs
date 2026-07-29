@@ -193,7 +193,7 @@ impl Default for Tokens {
             date_weekday_row_height: 16.0,
             date_cell_size: 26.0,
             date_cell_gap: 2.0,
-            date_nav_button_size: 20.0,
+            date_nav_button_size: 22.0,
             date_nav_button_gap: 6.0,
             date_nav_button_radius: 6.0,
             date_today_marker_scale: 0.82,
