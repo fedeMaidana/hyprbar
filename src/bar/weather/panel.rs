@@ -8,9 +8,9 @@ use vello::peniko::Fill;
 use crate::components::{DropdownFrame, RenderCtx};
 use crate::locale::weekday_abbrev;
 use crate::render::{Rect, TextStyle};
-use crate::theme::Theme;
+use crate::theme::{Palette, Theme};
 
-use super::icons::{UNKNOWN_WEATHER_ICON, weather_description, weather_icon};
+use super::icons::{UNKNOWN_WEATHER_ICON, weather_description, weather_icon, weather_icon_color};
 use super::state::{DailyForecast, WeatherData, WeatherSnapshot};
 
 // ─── < Constants > ────────────────────────────────────────────────────
@@ -18,6 +18,8 @@ use super::state::{DailyForecast, WeatherData, WeatherSnapshot};
 const FORECAST_COLUMNS: usize = 5;
 const VALUE_PLACEHOLDER: &str = "—";
 const FALLBACK_TITLE: &str = "Clima";
+const TODAY_LABEL: &str = "hoy";
+const PRECIP_EMPHASIS_MIN: u8 = 50;
 
 const HUMIDITY_GLYPH: &str = "\u{f058e}";
 const WIND_GLYPH: &str = "\u{f059d}";
@@ -34,11 +36,13 @@ pub struct WeatherPanel;
 struct DetailItem {
     glyph: &'static str,
     text: String,
+    emphasis: bool,
 }
 
 struct ForecastColumn {
     day: &'static str,
     icon: &'static str,
+    icon_color: vello::peniko::Color,
     max: String,
     min: String,
     is_today: bool,
@@ -216,18 +220,25 @@ fn detail_items(snapshot: Option<&WeatherSnapshot>) -> [DetailItem; 3] {
         .and_then(|snapshot| snapshot.precipitation_percent)
         .map(|value| format!("{value}%"));
 
+    let rain_likely = snapshot
+        .and_then(|snapshot| snapshot.precipitation_percent)
+        .is_some_and(|value| value >= PRECIP_EMPHASIS_MIN);
+
     [
         DetailItem {
             glyph: HUMIDITY_GLYPH,
             text: humidity.unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
+            emphasis: false,
         },
         DetailItem {
             glyph: WIND_GLYPH,
             text: wind.unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
+            emphasis: false,
         },
         DetailItem {
             glyph: PRECIPITATION_GLYPH,
             text: precipitation.unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
+            emphasis: rain_likely,
         },
     ]
 }
@@ -258,6 +269,13 @@ fn draw_detail_item(scene: &mut Scene, x: f32, y: f32, item: &DetailItem, ctx: &
     let icon_size = ctx.theme.typography.size_base * DETAIL_ICON_SCALE;
     let text_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_body_scale;
 
+    // Emphasized items (e.g. likely rain) light up in accent.
+    let (icon_color, text_color) = if item.emphasis {
+        (ctx.theme.palette.accent, ctx.theme.palette.accent)
+    } else {
+        (ctx.theme.palette.text_secondary, ctx.theme.palette.text_primary)
+    };
+
     let (icon_width, _) = ctx.text.measure(item.glyph, icon_size, &ctx.theme.typography.icon_font_family);
 
     ctx.text.draw_centered_v(
@@ -266,7 +284,7 @@ fn draw_detail_item(scene: &mut Scene, x: f32, y: f32, item: &DetailItem, ctx: &
         x,
         y,
         row_height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
     );
 
     ctx.text.draw_centered_v(
@@ -275,20 +293,29 @@ fn draw_detail_item(scene: &mut Scene, x: f32, y: f32, item: &DetailItem, ctx: &
         x + icon_width + ctx.theme.tokens.weather_inner_gap,
         y,
         row_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(text_size, &ctx.theme.typography.font_family, text_color),
     );
 }
 
-fn forecast_columns(daily: &[DailyForecast], today: NaiveDate) -> Vec<ForecastColumn> {
+fn forecast_columns(daily: &[DailyForecast], today: NaiveDate, palette: &Palette) -> Vec<ForecastColumn> {
     let mut columns: Vec<ForecastColumn> = daily
         .iter()
         .take(FORECAST_COLUMNS)
-        .map(|forecast| ForecastColumn {
-            day: weekday_abbrev(forecast.date.weekday().num_days_from_monday() as usize),
-            icon: weather_icon(forecast.weather_code),
-            max: format!("{}°", forecast.max_c.round() as i32),
-            min: format!("{}°", forecast.min_c.round() as i32),
-            is_today: forecast.date == today,
+        .map(|forecast| {
+            let is_today = forecast.date == today;
+
+            ForecastColumn {
+                day: if is_today {
+                    TODAY_LABEL
+                } else {
+                    weekday_abbrev(forecast.date.weekday().num_days_from_monday() as usize)
+                },
+                icon: weather_icon(forecast.weather_code),
+                icon_color: weather_icon_color(forecast.weather_code, palette),
+                max: format!("{}°", forecast.max_c.round() as i32),
+                min: format!("{}°", forecast.min_c.round() as i32),
+                is_today,
+            }
         })
         .collect();
 
@@ -296,6 +323,7 @@ fn forecast_columns(daily: &[DailyForecast], today: NaiveDate) -> Vec<ForecastCo
         columns.push(ForecastColumn {
             day: VALUE_PLACEHOLDER,
             icon: UNKNOWN_WEATHER_ICON,
+            icon_color: palette.text_secondary,
             max: VALUE_PLACEHOLDER.to_string(),
             min: VALUE_PLACEHOLDER.to_string(),
             is_today: false,
@@ -306,7 +334,7 @@ fn forecast_columns(daily: &[DailyForecast], today: NaiveDate) -> Vec<ForecastCo
 }
 
 fn draw_forecast(scene: &mut Scene, x: f32, y: f32, width: f32, daily: &[DailyForecast], today: NaiveDate, ctx: &mut RenderCtx<'_>) {
-    let columns = forecast_columns(daily, today);
+    let columns = forecast_columns(daily, today, &ctx.theme.palette);
     let column_width = width / FORECAST_COLUMNS as f32;
 
     for (index, column) in columns.iter().enumerate() {
@@ -347,6 +375,13 @@ fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &
 
     let mut cell_y = y;
 
+    // Today's label speaks for itself and picks up the accent.
+    let day_color = if column.is_today {
+        ctx.theme.palette.accent
+    } else {
+        ctx.theme.palette.text_secondary
+    };
+
     draw_centered_text(
         scene,
         column.day,
@@ -356,7 +391,7 @@ fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &
         tokens.weather_forecast_day_height,
         base * FORECAST_DAY_SCALE,
         &ctx.theme.typography.font_family.clone(),
-        ctx.theme.palette.text_secondary,
+        day_color,
         ctx,
     );
 
@@ -371,7 +406,7 @@ fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &
         tokens.weather_forecast_icon_height,
         base * FORECAST_ICON_SCALE,
         &ctx.theme.typography.icon_font_family.clone(),
-        ctx.theme.palette.text_primary,
+        column.icon_color,
         ctx,
     );
 
