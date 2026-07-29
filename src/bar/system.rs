@@ -15,6 +15,7 @@ pub use panel::SystemPanel;
 pub use pill::ArchLogoPill;
 pub use power::PowerAction;
 pub use state::{MetricsSnapshot, SystemData};
+pub use updates::launch_update;
 
 // ─── < Tests > ────────────────────────────────────────────────────
 

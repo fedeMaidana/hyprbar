@@ -81,6 +81,10 @@ impl AppState {
                 self.close_dropdown();
                 run_power_action(action);
             }
+            Interaction::Updates => {
+                self.close_dropdown();
+                run_update_launch();
+            }
             Interaction::Session(action) => {
                 self.close_dropdown();
                 run_session_action(action);
@@ -163,6 +167,17 @@ fn run_power_action(action: PowerAction) {
         }
         Err(error) => {
             log::warn!("power action {action:?} failed: {error}");
+        }
+    }
+}
+
+fn run_update_launch() {
+    match crate::bar::system::launch_update() {
+        Ok(()) => {
+            log::info!("update launcher opened");
+        }
+        Err(error) => {
+            log::warn!("update launcher failed: {error}");
         }
     }
 }

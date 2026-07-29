@@ -45,7 +45,7 @@ pub struct Tokens {
     pub system_button_gap: f32,
     pub system_button_radius: f32,
     pub system_temp_gauge_max_c: f32,
-    pub system_icon_gap: f32,
+    pub system_icon_slot: f32,
 
     pub system_load_warn_fraction: f32,
     pub system_load_crit_fraction: f32,
@@ -183,7 +183,7 @@ impl Default for Tokens {
             system_button_gap: 6.0,
             system_button_radius: 9.0,
             system_temp_gauge_max_c: 90.0,
-            system_icon_gap: 6.0,
+            system_icon_slot: 22.0,
 
             system_load_warn_fraction: 0.75,
             system_load_crit_fraction: 0.90,

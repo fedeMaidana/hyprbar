@@ -34,6 +34,7 @@ pub enum Interaction {
     Workspace(WorkspaceId),
     Dropdown(DropdownId),
     Power(PowerAction),
+    Updates,
     Calendar(CalendarAction),
     Command(CommandAction),
     Session(SessionAction),

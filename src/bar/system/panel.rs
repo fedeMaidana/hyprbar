@@ -30,6 +30,11 @@ const BADGE_TEXT_SCALE: f32 = 0.82;
 const BADGE_PADDING_X: f32 = 7.0;
 const BADGE_VERTICAL_INSET: f32 = 3.0;
 
+const UPDATES_CHIP_BG_ALPHA: f32 = 0.16;
+const UPDATES_HOVER_PAD_X: f32 = 7.0;
+const UPDATES_HOVER_PAD_Y: f32 = 3.0;
+const UPDATES_HOVER_RADIUS: f32 = 8.0;
+
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct SystemPanel;
@@ -77,6 +82,10 @@ impl SystemPanel {
             }
         }
 
+        if updates_row_rect(bounds, theme).contains_point(point.x, point.y) {
+            return Some(Interaction::Updates);
+        }
+
         None
     }
 
@@ -94,7 +103,11 @@ impl SystemPanel {
         let mut y = bounds.y + tokens.dropdown_panel_padding_y;
 
         draw_header(scene, inner_x, y, inner_width, data, ctx);
-        y += tokens.dropdown_header_height + tokens.dropdown_section_gap;
+        y += tokens.dropdown_header_height;
+
+        DropdownFrame::draw_divider(scene, inner_x, y + tokens.dropdown_section_gap / 2.0, inner_width, theme);
+
+        y += tokens.dropdown_section_gap;
 
         let rows = metric_rows(data.metrics, theme);
 
@@ -106,6 +119,10 @@ impl SystemPanel {
         y += tokens.system_metric_row_height * METRIC_ROW_COUNT
             + tokens.system_metric_gap * (METRIC_ROW_COUNT - 1.0)
             + tokens.dropdown_section_gap;
+
+        if ctx.hovered_interaction == Some(Interaction::Updates) {
+            draw_updates_hover(scene, updates_row_rect(bounds, theme), ctx.theme);
+        }
 
         draw_updates_row(scene, inner_x, y, inner_width, data.pending_updates, ctx);
 
@@ -141,7 +158,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &SystemData,
     );
 
     if let Some(uptime) = uptime_label(data) {
-        draw_uptime_badge(scene, x + width, y, title_box, &uptime, ctx);
+        draw_badge(scene, x + width, y, title_box, &uptime, ctx.theme.palette.panel_raised, ctx.theme.palette.text_secondary, ctx);
     }
 
     let subtitle = kernel_label(data);
@@ -156,7 +173,17 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &SystemData,
     );
 }
 
-fn draw_uptime_badge(scene: &mut Scene, right_x: f32, row_y: f32, row_height: f32, text: &str, ctx: &mut RenderCtx<'_>) {
+#[allow(clippy::too_many_arguments)]
+fn draw_badge(
+    scene: &mut Scene,
+    right_x: f32,
+    row_y: f32,
+    row_height: f32,
+    text: &str,
+    background: Color,
+    foreground: Color,
+    ctx: &mut RenderCtx<'_>,
+) {
     let text_size = ctx.theme.typography.size_base * BADGE_TEXT_SCALE;
     let (text_width, _) = ctx.text.measure(text, text_size, &ctx.theme.typography.font_family);
 
@@ -168,7 +195,7 @@ fn draw_uptime_badge(scene: &mut Scene, right_x: f32, row_y: f32, row_height: f3
 
     let body = RoundedRect::new(badge_x as f64, badge_y as f64, (badge_x + badge_width) as f64, (badge_y + badge_height) as f64, radius);
 
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_raised, None, &body);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &body);
 
     ctx.text.draw_centered_v(
         scene,
@@ -176,7 +203,7 @@ fn draw_uptime_badge(scene: &mut Scene, right_x: f32, row_y: f32, row_height: f3
         badge_x + BADGE_PADDING_X,
         badge_y,
         badge_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(text_size, &ctx.theme.typography.font_family, foreground),
     );
 }
 
@@ -299,8 +326,6 @@ fn draw_metric_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &MetricRo
 fn draw_row_icon(scene: &mut Scene, x: f32, y: f32, box_height: f32, glyph: &str, ctx: &mut RenderCtx<'_>) -> f32 {
     let icon_size = ctx.theme.typography.size_base * ICON_TEXT_SCALE;
 
-    let (icon_width, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
-
     ctx.text.draw_centered_v(
         scene,
         glyph,
@@ -310,7 +335,8 @@ fn draw_row_icon(scene: &mut Scene, x: f32, y: f32, box_height: f32, glyph: &str
         TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_secondary),
     );
 
-    x + icon_width + ctx.theme.tokens.system_icon_gap
+    // Fixed slot keeps every row label aligned regardless of glyph width.
+    x + ctx.theme.tokens.system_icon_slot
 }
 
 fn draw_meter(scene: &mut Scene, x: f32, y: f32, width: f32, fraction: Option<f32>, severity: MeterSeverity, theme: &Theme) {
@@ -330,6 +356,40 @@ fn draw_meter(scene: &mut Scene, x: f32, y: f32, width: f32, fraction: Option<f3
     scene.fill(Fill::NonZero, Affine::IDENTITY, meter_color(severity, theme), None, &fill);
 }
 
+fn updates_row_rect(bounds: Rect, theme: &Theme) -> Rect {
+    let tokens = theme.tokens;
+
+    let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
+    let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
+
+    let y = bounds.y
+        + tokens.dropdown_panel_padding_y
+        + tokens.dropdown_header_height
+        + tokens.dropdown_section_gap
+        + tokens.system_metric_row_height * METRIC_ROW_COUNT
+        + tokens.system_metric_gap * (METRIC_ROW_COUNT - 1.0)
+        + tokens.dropdown_section_gap;
+
+    Rect::new(
+        inner_x - UPDATES_HOVER_PAD_X,
+        y - UPDATES_HOVER_PAD_Y,
+        inner_width + UPDATES_HOVER_PAD_X * 2.0,
+        tokens.system_updates_row_height + UPDATES_HOVER_PAD_Y * 2.0,
+    )
+}
+
+fn draw_updates_hover(scene: &mut Scene, rect: Rect, theme: &Theme) {
+    let body = RoundedRect::new(
+        rect.x as f64,
+        rect.y as f64,
+        (rect.x + rect.width) as f64,
+        (rect.y + rect.height) as f64,
+        UPDATES_HOVER_RADIUS as f64,
+    );
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.control_hover_bg, None, &body);
+}
+
 fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Option<u32>, ctx: &mut RenderCtx<'_>) {
     let text_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_body_scale;
     let row_height = ctx.theme.tokens.system_updates_row_height;
@@ -345,21 +405,30 @@ fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Opti
         TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 
-    let (value, value_color) = match pending {
-        None => (VALUE_PLACEHOLDER.to_string(), ctx.theme.palette.text_secondary),
-        Some(0) => ("up to date".to_string(), ctx.theme.palette.text_secondary),
-        Some(count) => (format!("{count} pending"), ctx.theme.palette.meter_warning),
+    if let Some(count) = pending
+        && count > 0
+    {
+        let chip_bg = ctx.theme.palette.meter_warning.with_alpha(UPDATES_CHIP_BG_ALPHA);
+
+        draw_badge(scene, x + width, y, row_height, &format!("{count} pending"), chip_bg, ctx.theme.palette.meter_warning, ctx);
+
+        return;
+    }
+
+    let value = match pending {
+        Some(0) => "up to date",
+        _ => VALUE_PLACEHOLDER,
     };
 
-    let (value_width, _) = ctx.text.measure(&value, text_size, &ctx.theme.typography.font_family);
+    let (value_width, _) = ctx.text.measure(value, text_size, &ctx.theme.typography.font_family);
 
     ctx.text.draw_centered_v(
         scene,
-        &value,
+        value,
         x + width - value_width,
         y,
         row_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, value_color),
+        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }
 
@@ -391,13 +460,12 @@ fn draw_power_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) 
 }
 
 fn button_colors(action: PowerAction, hovered: bool, theme: &Theme) -> (Color, Color) {
-    if !hovered {
-        return (theme.palette.control_bg, theme.palette.text_primary);
-    }
-
-    match action {
-        PowerAction::Shutdown => (theme.palette.danger_bg, theme.palette.danger_text),
-        _ => (theme.palette.control_hover_bg, theme.palette.text_primary),
+    match (action, hovered) {
+        // The destructive action reads as such before hovering.
+        (PowerAction::Shutdown, false) => (theme.palette.control_bg, theme.palette.meter_critical),
+        (PowerAction::Shutdown, true) => (theme.palette.danger_bg, theme.palette.danger_text),
+        (_, false) => (theme.palette.control_bg, theme.palette.text_primary),
+        (_, true) => (theme.palette.control_hover_bg, theme.palette.text_primary),
     }
 }
 
