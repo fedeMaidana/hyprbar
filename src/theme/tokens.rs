@@ -69,6 +69,7 @@ pub struct Tokens {
     pub clock_chip_padding_x: f32,
     pub clock_chip_padding_y: f32,
     pub clock_chip_radius: f32,
+    pub clock_icon_slot: f32,
 
     pub weather_temp_scale: f32,
     pub weather_header_icon_scale: f32,
@@ -207,6 +208,7 @@ impl Default for Tokens {
             clock_chip_padding_x: 5.0,
             clock_chip_padding_y: 1.5,
             clock_chip_radius: 5.0,
+            clock_icon_slot: 20.0,
 
             weather_temp_scale: 1.8,
             weather_header_icon_scale: 2.0,
