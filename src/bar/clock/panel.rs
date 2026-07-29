@@ -1,6 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use chrono::{DateTime, Local, NaiveDate, Offset, Timelike, Utc};
+use chrono::{DateTime, Local, Offset, Timelike, Utc};
 use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::Fill;
@@ -9,14 +9,13 @@ use crate::components::{DropdownFrame, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
-use super::zones::{WORLD_ZONES, day_tag, is_daytime, local_zone_display_name, offset_label, utc_label, zone_offset_minutes};
+use super::zones::{WORLD_ZONES, is_daytime, local_zone_display_name, offset_label, utc_label, zone_offset_minutes};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
 const OFFSET_TEXT_SCALE: f32 = 0.78;
 const ZONE_ICON_SCALE: f32 = 0.9;
 const SECONDS_TEXT_SCALE: f32 = 0.62;
-const CHIP_TINT_ALPHA: f32 = 0.16;
 
 const DAY_GLYPH: &str = "\u{f0599}";
 const NIGHT_GLYPH: &str = "\u{f0594}";
@@ -31,7 +30,6 @@ struct ZoneRow {
     offset_text: String,
     time_text: String,
     daytime: bool,
-    day_tag: Option<&'static str>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -77,7 +75,7 @@ impl ClockPanel {
 
         y += tokens.dropdown_section_gap;
 
-        let rows = zone_rows(now_utc, now_local.date_naive(), local_offset_minutes);
+        let rows = zone_rows(now_utc, local_offset_minutes);
 
         for (index, row) in rows.iter().enumerate() {
             let row_y = y + index as f32 * (tokens.clock_row_height + tokens.clock_row_gap);
@@ -92,7 +90,7 @@ impl ClockPanel {
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn zone_rows(now_utc: DateTime<Utc>, local_date: NaiveDate, local_offset_minutes: i32) -> Vec<ZoneRow> {
+fn zone_rows(now_utc: DateTime<Utc>, local_offset_minutes: i32) -> Vec<ZoneRow> {
     let mut rows: Vec<ZoneRow> = WORLD_ZONES
         .iter()
         .map(|&(name, tz)| {
@@ -105,7 +103,6 @@ fn zone_rows(now_utc: DateTime<Utc>, local_date: NaiveDate, local_offset_minutes
                 offset_text: offset_label(offset_minutes),
                 time_text: remote.format("%H:%M").to_string(),
                 daytime: is_daytime(remote.hour()),
-                day_tag: day_tag(local_date, remote.date_naive()),
             }
         })
         .collect();
@@ -183,7 +180,7 @@ fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, c
         TextStyle::new(time_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
-    draw_offset_chip(scene, time_x - tokens.clock_row_inner_gap, y, row_height, row, ctx);
+    draw_offset_chip(scene, time_x - tokens.clock_row_inner_gap, y, row_height, &row.offset_text, ctx);
 
     let icon_glyph = if row.daytime { DAY_GLYPH } else { NIGHT_GLYPH };
     let icon_size = ctx.theme.typography.size_base * ZONE_ICON_SCALE;
@@ -219,19 +216,11 @@ fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, c
     );
 }
 
-fn draw_offset_chip(scene: &mut Scene, right: f32, row_y: f32, row_height: f32, row: &ZoneRow, ctx: &mut RenderCtx<'_>) {
+fn draw_offset_chip(scene: &mut Scene, right: f32, row_y: f32, row_height: f32, text: &str, ctx: &mut RenderCtx<'_>) {
     let tokens = ctx.theme.tokens;
     let text_size = ctx.theme.typography.size_base * OFFSET_TEXT_SCALE;
 
-    // Cities living in another day get a tinted chip with the day tag.
-    let (text, chip_bg, chip_fg) = match row.day_tag {
-        Some(tag) => {
-            (format!("{} · {tag}", row.offset_text), ctx.theme.palette.accent.with_alpha(CHIP_TINT_ALPHA), ctx.theme.palette.accent)
-        }
-        None => (row.offset_text.clone(), ctx.theme.palette.panel_raised, ctx.theme.palette.text_secondary),
-    };
-
-    let (text_width, text_height) = ctx.text.measure(&text, text_size, &ctx.theme.typography.font_family);
+    let (text_width, text_height) = ctx.text.measure(text, text_size, &ctx.theme.typography.font_family);
 
     let chip_width = text_width + tokens.clock_chip_padding_x * 2.0;
     let chip_height = text_height + tokens.clock_chip_padding_y * 2.0;
@@ -247,14 +236,14 @@ fn draw_offset_chip(scene: &mut Scene, right: f32, row_y: f32, row_height: f32, 
         tokens.clock_chip_radius as f64,
     );
 
-    scene.fill(Fill::NonZero, Affine::IDENTITY, chip_bg, None, &body);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_raised, None, &body);
 
     ctx.text.draw_centered_v(
         scene,
-        &text,
+        text,
         chip_x + tokens.clock_chip_padding_x,
         chip_y,
         chip_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, chip_fg),
+        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }

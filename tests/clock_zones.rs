@@ -1,5 +1,5 @@
-use chrono::{NaiveDate, TimeZone, Utc};
-use hyprbar::bar::clock::{day_tag, is_daytime, offset_label, utc_label, zone_display_name, zone_offset_minutes};
+use chrono::{TimeZone, Utc};
+use hyprbar::bar::clock::{is_daytime, offset_label, utc_label, zone_display_name, zone_offset_minutes};
 
 #[test]
 fn computes_zone_offset_with_dst() {
@@ -23,17 +23,6 @@ fn formats_fractional_offsets() {
     assert_eq!(offset_label(330), "+5:30");
     assert_eq!(offset_label(-210), "-3:30");
     assert_eq!(offset_label(30), "+0:30");
-}
-
-#[test]
-fn tags_remote_dates() {
-    let today = NaiveDate::from_ymd_opt(2026, 6, 11).unwrap();
-    let tomorrow = NaiveDate::from_ymd_opt(2026, 6, 12).unwrap();
-    let yesterday = NaiveDate::from_ymd_opt(2026, 6, 10).unwrap();
-
-    assert_eq!(day_tag(today, tomorrow), Some("mañ."));
-    assert_eq!(day_tag(today, yesterday), Some("ayer"));
-    assert_eq!(day_tag(today, today), None);
 }
 
 #[test]

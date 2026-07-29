@@ -1,6 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use chrono::{DateTime, NaiveDate, Offset, Utc};
+use chrono::{DateTime, Offset, Utc};
 use chrono_tz::Tz;
 
 // ─── < Constants > ────────────────────────────────────────────────────
@@ -12,9 +12,6 @@ pub const WORLD_ZONES: [(&str, Tz); 5] = [
     ("Tokio", chrono_tz::Asia::Tokyo),
     ("Sídney", chrono_tz::Australia::Sydney),
 ];
-
-pub const TOMORROW_TAG: &str = "mañ.";
-pub const YESTERDAY_TAG: &str = "ayer";
 
 const MINUTES_PER_HOUR: i32 = 60;
 const DAY_START_HOUR: u32 = 7;
@@ -42,18 +39,6 @@ pub fn offset_label(diff_minutes: i32) -> String {
     } else {
         format!("{sign}{hours}:{minutes:02}")
     }
-}
-
-pub fn day_tag(local_date: NaiveDate, remote_date: NaiveDate) -> Option<&'static str> {
-    if remote_date > local_date {
-        return Some(TOMORROW_TAG);
-    }
-
-    if remote_date < local_date {
-        return Some(YESTERDAY_TAG);
-    }
-
-    None
 }
 
 pub fn is_daytime(hour: u32) -> bool {
