@@ -72,46 +72,6 @@ impl DropdownFrame {
         let body_rect =
             KurboRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64);
 
-        // Layered soft shadows: a wide ambient halo plus a tighter key shadow
-        // give the panel real elevation instead of a hard 1px offset. Both are
-        // clipped at the panel's top edge so the blur never bleeds upward onto
-        // the bar pills (light comes from above).
-        let ambient_offset = tokens.dropdown_shadow_ambient_offset_y as f64;
-        let ambient_blur = tokens.dropdown_shadow_ambient_blur as f64;
-        let ambient_spread = ambient_blur * 2.5;
-
-        let ambient_clip = KurboRect::new(
-            body_rect.x0 - ambient_spread,
-            body_rect.y0,
-            body_rect.x1 + ambient_spread,
-            body_rect.y1 + ambient_offset + ambient_spread,
-        );
-
-        scene.draw_blurred_rounded_rect_in(
-            &ambient_clip,
-            Affine::IDENTITY,
-            KurboRect::new(body_rect.x0, body_rect.y0 + ambient_offset, body_rect.x1, body_rect.y1 + ambient_offset),
-            theme.palette.panel_shadow_ambient,
-            radius,
-            ambient_blur,
-        );
-
-        let key_offset = tokens.dropdown_shadow_key_offset_y as f64;
-        let key_blur = tokens.dropdown_shadow_key_blur as f64;
-        let key_spread = key_blur * 2.5;
-
-        let key_clip =
-            KurboRect::new(body_rect.x0 - key_spread, body_rect.y0, body_rect.x1 + key_spread, body_rect.y1 + key_offset + key_spread);
-
-        scene.draw_blurred_rounded_rect_in(
-            &key_clip,
-            Affine::IDENTITY,
-            KurboRect::new(body_rect.x0, body_rect.y0 + key_offset, body_rect.x1, body_rect.y1 + key_offset),
-            theme.palette.panel_shadow_key,
-            radius,
-            key_blur,
-        );
-
         let body = RoundedRect::from_rect(body_rect, radius);
 
         scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.panel_bg, None, &body);

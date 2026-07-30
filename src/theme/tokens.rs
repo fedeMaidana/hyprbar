@@ -22,10 +22,6 @@ pub struct Tokens {
     pub dropdown_item_gap: f32,
     pub dropdown_radius: f32,
     pub dropdown_border_width: f32,
-    pub dropdown_shadow_key_offset_y: f32,
-    pub dropdown_shadow_key_blur: f32,
-    pub dropdown_shadow_ambient_offset_y: f32,
-    pub dropdown_shadow_ambient_blur: f32,
 
     pub dropdown_panel_width: f32,
     pub dropdown_panel_padding_x: f32,
@@ -127,9 +123,6 @@ pub struct Tokens {
     pub notification_dot_radius: f32,
     pub notification_dot_x_overlap_scale: f32,
     pub notification_dot_y_icon_scale: f32,
-
-    pub shadow_offset_y: f32,
-    pub pill_shadow_blur: f32,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -157,10 +150,6 @@ impl Default for Tokens {
             dropdown_item_gap: 4.0,
             dropdown_radius: 16.0,
             dropdown_border_width: 1.0,
-            dropdown_shadow_key_offset_y: 3.0,
-            dropdown_shadow_key_blur: 7.0,
-            dropdown_shadow_ambient_offset_y: 12.0,
-            dropdown_shadow_ambient_blur: 22.0,
 
             dropdown_panel_width: 222.0,
             dropdown_panel_padding_x: 14.0,
@@ -221,7 +210,7 @@ impl Default for Tokens {
             command_panel_padding_x: 14.0,
             command_panel_padding_y: 13.0,
             command_slider_row_height: 20.0,
-            command_thick_track_height: 13.0,
+            command_thick_track_height: 10.0,
             command_card_radius: 14.0,
             command_card_padding_x: 10.0,
             command_card_padding_y: 8.0,
@@ -262,9 +251,6 @@ impl Default for Tokens {
             notification_dot_radius: 3.5,
             notification_dot_x_overlap_scale: 0.5,
             notification_dot_y_icon_scale: 0.35,
-
-            shadow_offset_y: 1.5,
-            pill_shadow_blur: 3.0,
         }
     }
 }

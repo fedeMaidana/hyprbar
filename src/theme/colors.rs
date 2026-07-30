@@ -9,18 +9,16 @@ use super::hyprcolor;
 #[derive(Debug, Clone, Copy)]
 pub struct Palette {
     pub pill_bg: Color,
+    pub pill_hover_bg: Color,
     pub pill_border: Color,
     pub text_primary: Color,
     pub text_secondary: Color,
     pub accent: Color,
-    pub shadow: Color,
 
     pub panel_bg: Color,
     pub panel_border: Color,
     pub panel_divider: Color,
     pub panel_raised: Color,
-    pub panel_shadow_key: Color,
-    pub panel_shadow_ambient: Color,
 
     pub control_bg: Color,
     pub control_hover_bg: Color,
@@ -47,18 +45,16 @@ impl Palette {
     pub fn dark() -> Self {
         let mut palette = Self {
             pill_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x80),
+            pill_hover_bg: Color::from_rgba8(0x2e, 0x2e, 0x36, 0xa8),
             pill_border: Color::from_rgba8(0xff, 0xff, 0xff, 0x0f),
             text_primary: Color::from_rgba8(0xf5, 0xf5, 0xf7, 0xff),
             text_secondary: Color::from_rgba8(0xa0, 0xa0, 0xa8, 0xff),
             accent: Color::from_rgba8(0x9a, 0x8c, 0xff, 0xff),
-            shadow: Color::from_rgba8(0x00, 0x00, 0x00, 0x40),
 
             panel_bg: Color::from_rgba8(0x15, 0x15, 0x1b, 0xf0),
             panel_border: Color::from_rgba8(0xff, 0xff, 0xff, 0x17),
             panel_divider: Color::from_rgba8(0xff, 0xff, 0xff, 0x0e),
             panel_raised: Color::from_rgba8(0xff, 0xff, 0xff, 0x12),
-            panel_shadow_key: Color::from_rgba8(0x00, 0x00, 0x00, 0x55),
-            panel_shadow_ambient: Color::from_rgba8(0x00, 0x00, 0x00, 0x3d),
 
             control_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0x14),
             control_hover_bg: Color::from_rgba8(0x9a, 0x8c, 0xff, 0x38),
@@ -87,18 +83,16 @@ impl Palette {
     pub fn light() -> Self {
         let mut palette = Self {
             pill_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0xb8),
+            pill_hover_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0xe0),
             pill_border: Color::from_rgba8(0x00, 0x00, 0x00, 0x14),
             text_primary: Color::from_rgba8(0x1c, 0x1c, 0x22, 0xff),
             text_secondary: Color::from_rgba8(0x55, 0x55, 0x5f, 0xff),
             accent: Color::from_rgba8(0x6a, 0x5a, 0xe0, 0xff),
-            shadow: Color::from_rgba8(0x00, 0x00, 0x00, 0x2b),
 
             panel_bg: Color::from_rgba8(0xf7, 0xf7, 0xfa, 0xf7),
             panel_border: Color::from_rgba8(0x00, 0x00, 0x00, 0x1a),
             panel_divider: Color::from_rgba8(0x00, 0x00, 0x00, 0x12),
             panel_raised: Color::from_rgba8(0x00, 0x00, 0x00, 0x0d),
-            panel_shadow_key: Color::from_rgba8(0x00, 0x00, 0x00, 0x38),
-            panel_shadow_ambient: Color::from_rgba8(0x00, 0x00, 0x00, 0x24),
 
             control_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x0f),
             control_hover_bg: Color::from_rgba8(0x6a, 0x5a, 0xe0, 0x38),

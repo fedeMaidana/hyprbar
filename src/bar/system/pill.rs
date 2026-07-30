@@ -39,11 +39,9 @@ impl ArchLogoPill {
     }
 
     fn background_color(&self, ctx: &RenderCtx<'_>) -> Color {
-        if self.is_active(ctx) {
-            ctx.theme.palette.slot_active_bg
-        } else {
-            ctx.theme.palette.pill_bg
-        }
+        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DropdownId::ARCH));
+
+        Pill::background_for(self.is_active(ctx), hovered, ctx.theme)
     }
 
     fn icon_color(&self, ctx: &RenderCtx<'_>) -> Color {

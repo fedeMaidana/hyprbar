@@ -66,7 +66,9 @@ impl Component for ProfilePill {
         let tokens = ctx.theme.tokens;
 
         // Same glass treatment as every other pill; the avatar sits inset.
-        Pill::draw_circular(scene, bounds, ctx.theme, ctx.theme.palette.pill_bg);
+        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DropdownId::PROFILE));
+
+        Pill::draw_circular(scene, bounds, ctx.theme, Pill::background_for(false, hovered, ctx.theme));
 
         let center_x = bounds.x + bounds.width / 2.0;
         let center_y = bounds.y + bounds.height / 2.0;

@@ -35,11 +35,11 @@ const MUTED_FILL_ALPHA: f32 = 0.4;
 
 const WIFI_TEXT_BLOCK_HEIGHT: f32 = 30.0;
 const WIFI_TEXT_GAP: f32 = 10.0;
-const SLIDER_ICON_INSET: f32 = 8.0;
-const SLIDER_MIN_FILL: f32 = 30.0;
-const MUTE_ZONE_WIDTH: f32 = 32.0;
+const SLIDER_ICON_INSET: f32 = 7.0;
+const SLIDER_MIN_FILL: f32 = 26.0;
+const MUTE_ZONE_WIDTH: f32 = 30.0;
 const KNOB_EXTRA_RADIUS: f32 = 2.0;
-const EMBED_ICON_SCALE: f32 = 0.82;
+const EMBED_ICON_SCALE: f32 = 0.75;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
