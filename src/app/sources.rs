@@ -19,6 +19,7 @@ use super::state::AppState;
 
 const CLOCK_TICK_SECONDS: u64 = 60;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
+const PALETTE_POLL_SECONDS: u64 = 1;
 
 // ─── < Public Funtions > ────────────────────────────────────────────────────
 
@@ -33,7 +34,8 @@ pub(crate) fn insert_sources(
     insert_wayland_source(loop_handle.clone(), conn, event_queue)?;
     insert_redraw_source(loop_handle.clone(), redraw_channel)?;
     insert_clock_tick_source(loop_handle.clone())?;
-    insert_panel_seconds_tick_source(loop_handle)?;
+    insert_panel_seconds_tick_source(loop_handle.clone())?;
+    insert_palette_watch_source(loop_handle)?;
 
     Ok(())
 }
@@ -60,6 +62,30 @@ fn insert_redraw_source(loop_handle: calloop::LoopHandle<'_, AppState>, redraw_c
             }
         })
         .map_err(|e| anyhow!("redraw channel insert failed: {e:?}"))?;
+
+    Ok(())
+}
+
+/// Watches the hyprcolor palette file and repaints the bar as soon as it
+/// changes, so accent-tinted elements (active workspace, rings, meters)
+/// follow every wallpaper or mode switch without waiting for other events.
+fn insert_palette_watch_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> Result<()> {
+    let mut last_modified = crate::theme::hyprcolor::modified_time();
+
+    let timer = Timer::from_duration(Duration::from_secs(PALETTE_POLL_SECONDS));
+
+    loop_handle
+        .insert_source(timer, move |_event, _meta, app| {
+            let modified = crate::theme::hyprcolor::modified_time();
+
+            if modified != last_modified {
+                last_modified = modified;
+                app.needs_redraw = true;
+            }
+
+            TimeoutAction::ToDuration(Duration::from_secs(PALETTE_POLL_SECONDS))
+        })
+        .map_err(|e| anyhow!("palette watch timer insert failed: {e:?}"))?;
 
     Ok(())
 }

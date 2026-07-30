@@ -31,6 +31,11 @@ pub fn load() -> Option<HyprcolorPalette> {
     })
 }
 
+/// Last modification time of the palette file, to detect live changes.
+pub fn modified_time() -> Option<std::time::SystemTime> {
+    fs::metadata(colors_json_path()?).ok()?.modified().ok()
+}
+
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn colors_json_path() -> Option<PathBuf> {
