@@ -19,8 +19,13 @@ use smithay_client_toolkit::shell::WaylandSurface;
 use smithay_client_toolkit::shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure};
 use smithay_client_toolkit::shm::{Shm, ShmHandler};
 use wayland_client::Connection;
+use wayland_client::Dispatch;
 use wayland_client::QueueHandle;
 use wayland_client::protocol::{wl_output, wl_pointer, wl_seat, wl_surface};
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_manager_v1::{self, WpFractionalScaleManagerV1};
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::{self, WpFractionalScaleV1};
+use wayland_protocols::wp::viewporter::client::wp_viewport::{self, WpViewport};
+use wayland_protocols::wp::viewporter::client::wp_viewporter::{self, WpViewporter};
 
 use crate::app::AppState;
 use crate::components::Point;
@@ -30,6 +35,11 @@ use crate::components::Point;
 impl CompositorHandler for AppState {
     fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, surface: &wl_surface::WlSurface, new_factor: i32) {
         if surface != self.layer_surface().wl_surface() {
+            return;
+        }
+
+        // With fractional scale + viewport the buffer stays at scale 1; the integer factor is irrelevant.
+        if self.surface.fractional.is_some() {
             return;
         }
 
@@ -209,6 +219,57 @@ impl ProvidesRegistryState for AppState {
     }
 
     registry_handlers![OutputState, SeatState];
+}
+
+// ─── < Fractional Scale + Viewport > ────────────────────────────────────────
+
+impl Dispatch<WpFractionalScaleManagerV1, ()> for AppState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &WpFractionalScaleManagerV1,
+        _event: wp_fractional_scale_manager_v1::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WpFractionalScaleV1, ()> for AppState {
+    fn event(
+        state: &mut Self,
+        _proxy: &WpFractionalScaleV1,
+        event: wp_fractional_scale_v1::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event
+            && state.surface.scale120 != Some(scale)
+        {
+            log::info!("fractional scale: {:?} -> {scale}/120", state.surface.scale120);
+
+            state.surface.scale120 = Some(scale);
+            state.surface.pending_resize = true;
+            state.needs_redraw = true;
+        }
+    }
+}
+
+impl Dispatch<WpViewporter, ()> for AppState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &WpViewporter,
+        _event: wp_viewporter::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WpViewport, ()> for AppState {
+    fn event(_state: &mut Self, _proxy: &WpViewport, _event: wp_viewport::Event, _data: &(), _conn: &Connection, _qh: &QueueHandle<Self>) {}
 }
 
 // ─── < SCTK Delegates > ────────────────────────────────────────────────────

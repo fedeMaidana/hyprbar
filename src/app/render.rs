@@ -35,16 +35,20 @@ impl AppState {
             open_dropdown: self.open_dropdown,
         };
 
-        let scale = self.surface.scale.max(1);
+        let scale = self.surface.effective_scale();
 
-        if scale == 1 {
+        if (scale - 1.0).abs() < f64::EPSILON {
             self.bar.render(&mut self.render_ctx.scene, surface_rect, &self.theme, &mut ctx);
         } else {
             let mut logical_scene = Scene::new();
 
             self.bar.render(&mut logical_scene, surface_rect, &self.theme, &mut ctx);
 
-            self.render_ctx.scene.append(&logical_scene, Some(Affine::scale(scale as f64)));
+            self.render_ctx.scene.append(&logical_scene, Some(Affine::scale(scale)));
+        }
+
+        if let Some(viewport) = &self.surface.viewport {
+            viewport.set_destination(self.surface.width.max(1) as i32, self.surface.height.max(1) as i32);
         }
 
         self.render_ctx.render()?;
@@ -70,6 +74,11 @@ impl AppState {
     }
 
     fn apply_buffer_scale(&mut self) {
+        // With a viewport the buffer stays at scale 1 and the compositor maps physical -> logical.
+        if self.surface.fractional.is_some() {
+            return;
+        }
+
         if self.surface.applied_buffer_scale == self.surface.scale {
             return;
         }

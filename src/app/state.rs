@@ -43,11 +43,13 @@ impl AppState {
             compositor_state,
             layer_shell,
             layer,
+            fractional,
+            viewport,
         } = wl_init;
 
         Self {
             wayland: WaylandState::new(registry_state, output_state, seat_state, shm_state, compositor_state, layer_shell),
-            surface: SurfaceState::new(layer),
+            surface: SurfaceState::new(layer, fractional, viewport),
             pointer: PointerState::new(),
 
             render_ctx: RenderContext::new(),
