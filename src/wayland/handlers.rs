@@ -100,7 +100,9 @@ impl OutputHandler for AppState {
 
 impl LayerShellHandler for AppState {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        self.should_close = true;
+        log::warn!("superficie cerrada por el compositor (¿output apagado?); se recreará");
+        self.surface.lost = true;
+        self.surface.configured = false;
     }
 
     fn configure(
@@ -117,10 +119,10 @@ impl LayerShellHandler for AppState {
             self.surface.width = w;
             self.surface.height = h;
             self.surface.pending_resize = true;
-            self.needs_redraw = true;
         }
 
         self.surface.configured = true;
+        self.needs_redraw = true;
     }
 }
 
@@ -238,12 +240,17 @@ impl Dispatch<WpFractionalScaleManagerV1, ()> for AppState {
 impl Dispatch<WpFractionalScaleV1, ()> for AppState {
     fn event(
         state: &mut Self,
-        _proxy: &WpFractionalScaleV1,
+        proxy: &WpFractionalScaleV1,
         event: wp_fractional_scale_v1::Event,
         _data: &(),
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
+        // Ignore stragglers from an already-destroyed object (surface recreated).
+        if state.surface.fractional.as_ref() != Some(proxy) {
+            return;
+        }
+
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event
             && state.surface.scale120 != Some(scale)
         {

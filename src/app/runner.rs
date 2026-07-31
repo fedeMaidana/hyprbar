@@ -35,14 +35,16 @@ impl App {
 
         let conn = Connection::connect_to_env().context("no se pudo conectar a Wayland")?;
 
-        let (wl_init, mut event_queue) = wayland::init(&conn, LayerConfig::top_bar(surface_height, exclusive_zone))?;
+        let layer_config = LayerConfig::top_bar(surface_height, exclusive_zone);
+        let (wl_init, mut event_queue) = wayland::init(&conn, layer_config)?;
 
         let mut event_loop: EventLoop<AppState> = EventLoop::try_new().context("calloop EventLoop::try_new")?;
 
         let (redraw_sender, redraw_channel) = channel::<()>();
         let bar = default_bar(redraw_sender);
 
-        let mut app = AppState::new(wl_init, theme, bar);
+        let qh = event_queue.handle();
+        let mut app = AppState::new(wl_init, conn.clone(), qh, layer_config, theme, bar);
 
         wait_until_configured(&mut event_queue, &mut app)?;
 
@@ -62,6 +64,12 @@ fn wait_until_configured(event_queue: &mut EventQueue<AppState>, app: &mut AppSt
     event_queue.roundtrip(app).context("roundtrip inicial falló")?;
 
     while !app.surface.configured {
+        // Output gone during startup (e.g. TV off): retry until it returns.
+        if app.surface.lost {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            app.recreate_surface();
+        }
+
         event_queue.blocking_dispatch(app).context("dispatch en espera de configure")?;
     }
 
@@ -76,6 +84,7 @@ fn create_render_surface(conn: &Connection, app: &mut AppState) -> Result<()> {
         .create_surface(handle, app.surface.physical_width(), app.surface.physical_height())?;
 
     app.surface.pending_resize = false;
+    app.render_surface_stale = false;
 
     Ok(())
 }
@@ -89,7 +98,7 @@ fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Resu
             break;
         }
 
-        if app.needs_redraw {
+        if app.needs_redraw && app.surface.configured && !app.surface.lost {
             if let Err(e) = app.render() {
                 log::error!("render error: {e:?}");
             }

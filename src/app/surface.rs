@@ -18,6 +18,9 @@ pub(crate) struct SurfaceState {
     pub(crate) fractional: Option<WpFractionalScaleV1>,
     pub(crate) applied_buffer_scale: i32,
     pub(crate) pending_resize: bool,
+    /// The compositor closed this surface (output gone); a timer retries
+    /// recreating it until a configure arrives.
+    pub(crate) lost: bool,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -35,6 +38,7 @@ impl SurfaceState {
             fractional,
             applied_buffer_scale: 1,
             pending_resize: false,
+            lost: false,
         }
     }
 

@@ -10,11 +10,29 @@ use crate::components::RenderCtx;
 use crate::render::Rect;
 
 use super::state::AppState;
+use super::surface_handle::SurfaceHandle;
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl AppState {
     pub(crate) fn render(&mut self) -> Result<()> {
+        if !self.surface.configured || self.surface.lost {
+            return Ok(());
+        }
+
+        // After recreating the layer surface, the wgpu surface still
+        // points at the dead wl_surface: rebuild it first.
+        if self.render_surface_stale {
+            let wl_surface = self.layer_surface().wl_surface().clone();
+            let handle = SurfaceHandle::new(&self.conn, &wl_surface);
+
+            self.render_ctx
+                .create_surface(handle, self.surface.physical_width(), self.surface.physical_height())?;
+
+            self.render_surface_stale = false;
+            self.surface.pending_resize = false;
+        }
+
         if self.surface.pending_resize {
             self.render_ctx
                 .resize(self.surface.physical_width(), self.surface.physical_height());

@@ -30,6 +30,8 @@ pub struct WaylandInit {
     pub layer: LayerSurface,
     pub fractional: Option<WpFractionalScaleV1>,
     pub viewport: Option<WpViewport>,
+    pub fractional_manager: Option<WpFractionalScaleManagerV1>,
+    pub viewporter: Option<WpViewporter>,
 }
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
@@ -80,6 +82,8 @@ pub fn init(conn: &Connection, config: LayerConfig) -> Result<(WaylandInit, Even
             layer,
             fractional,
             viewport,
+            fractional_manager,
+            viewporter,
         },
         event_queue,
     ))

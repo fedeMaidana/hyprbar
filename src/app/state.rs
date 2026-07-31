@@ -1,12 +1,14 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use smithay_client_toolkit::shell::WaylandSurface;
 use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
-use wayland_client::{QueueHandle, protocol::wl_surface};
+use wayland_client::{Connection, QueueHandle, protocol::wl_surface};
 
 use crate::bar::Bar;
 use crate::components::DropdownId;
 use crate::render::{RenderContext, TextEngine};
 use crate::theme::Theme;
+use crate::wayland::LayerConfig;
 use crate::wayland::init::WaylandInit;
 
 use super::pointer::PointerState;
@@ -19,6 +21,13 @@ pub struct AppState {
     pub(crate) wayland: WaylandState,
     pub(crate) surface: SurfaceState,
     pub(crate) pointer: PointerState,
+
+    pub(crate) conn: Connection,
+    pub(crate) qh: QueueHandle<AppState>,
+    pub(crate) layer_config: LayerConfig,
+    /// The wgpu surface targets a dead wl_surface and must be rebuilt
+    /// before the next render (set after recreating the layer surface).
+    pub(crate) render_surface_stale: bool,
 
     pub render_ctx: RenderContext,
     pub text_engine: TextEngine,
@@ -34,7 +43,7 @@ pub struct AppState {
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl AppState {
-    pub fn new(wl_init: WaylandInit, theme: Theme, bar: Bar) -> Self {
+    pub fn new(wl_init: WaylandInit, conn: Connection, qh: QueueHandle<Self>, layer_config: LayerConfig, theme: Theme, bar: Bar) -> Self {
         let WaylandInit {
             registry_state,
             output_state,
@@ -45,12 +54,28 @@ impl AppState {
             layer,
             fractional,
             viewport,
+            fractional_manager,
+            viewporter,
         } = wl_init;
 
         Self {
-            wayland: WaylandState::new(registry_state, output_state, seat_state, shm_state, compositor_state, layer_shell),
+            wayland: WaylandState::new(
+                registry_state,
+                output_state,
+                seat_state,
+                shm_state,
+                compositor_state,
+                layer_shell,
+                viewporter,
+                fractional_manager,
+            ),
             surface: SurfaceState::new(layer, fractional, viewport),
             pointer: PointerState::new(),
+
+            conn,
+            qh,
+            layer_config,
+            render_surface_stale: false,
 
             render_ctx: RenderContext::new(),
             text_engine: TextEngine::new(),
@@ -62,6 +87,31 @@ impl AppState {
             needs_redraw: true,
             should_close: false,
         }
+    }
+
+    /// The compositor closed the bar surface (output gone, e.g. the TV
+    /// was turned off). Builds a fresh one and marks the GPU surface
+    /// stale so the next render recreates it.
+    pub(crate) fn recreate_surface(&mut self) {
+        log::info!("recreando superficie de la barra");
+
+        // The wgpu surface must die before the wl_surface it targets.
+        self.render_ctx.drop_surface();
+
+        if let Some(viewport) = self.surface.viewport.take() {
+            viewport.destroy();
+        }
+
+        if let Some(fractional) = self.surface.fractional.take() {
+            fractional.destroy();
+        }
+
+        let layer = self.wayland.create_bar_layer(&self.qh, &self.layer_config);
+        let (fractional, viewport) = self.wayland.fractional_objects(layer.wl_surface(), &self.qh);
+
+        self.surface = SurfaceState::new(layer, fractional, viewport);
+        self.render_surface_stale = true;
+        self.needs_redraw = true;
     }
 
     pub fn layer_surface(&self) -> &LayerSurface {

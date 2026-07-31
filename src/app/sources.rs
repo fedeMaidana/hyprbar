@@ -20,6 +20,7 @@ use super::state::AppState;
 const CLOCK_TICK_SECONDS: u64 = 60;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 const PALETTE_POLL_SECONDS: u64 = 1;
+const SURFACE_RETRY_SECONDS: u64 = 1;
 
 // ─── < Public Funtions > ────────────────────────────────────────────────────
 
@@ -35,7 +36,8 @@ pub(crate) fn insert_sources(
     insert_redraw_source(loop_handle.clone(), redraw_channel)?;
     insert_clock_tick_source(loop_handle.clone())?;
     insert_panel_seconds_tick_source(loop_handle.clone())?;
-    insert_palette_watch_source(loop_handle)?;
+    insert_palette_watch_source(loop_handle.clone())?;
+    insert_surface_watch_source(loop_handle)?;
 
     Ok(())
 }
@@ -86,6 +88,24 @@ fn insert_palette_watch_source(loop_handle: calloop::LoopHandle<'_, AppState>) -
             TimeoutAction::ToDuration(Duration::from_secs(PALETTE_POLL_SECONDS))
         })
         .map_err(|e| anyhow!("palette watch timer insert failed: {e:?}"))?;
+
+    Ok(())
+}
+
+/// Rebuilds the bar surface after the compositor closes it (output
+/// unplugged or TV powered off), retrying until a configure arrives.
+fn insert_surface_watch_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> Result<()> {
+    let timer = Timer::from_duration(Duration::from_secs(SURFACE_RETRY_SECONDS));
+
+    loop_handle
+        .insert_source(timer, |_event, _meta, app| {
+            if app.surface.lost {
+                app.recreate_surface();
+            }
+
+            TimeoutAction::ToDuration(Duration::from_secs(SURFACE_RETRY_SECONDS))
+        })
+        .map_err(|e| anyhow!("surface watch timer insert failed: {e:?}"))?;
 
     Ok(())
 }

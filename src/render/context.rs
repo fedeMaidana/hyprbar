@@ -111,6 +111,15 @@ impl RenderContext {
         self.blitter = Some(blitter);
     }
 
+    /// Drops the wgpu surface and its dependent targets so the underlying
+    /// wl_surface can be destroyed safely before a rebuild. The renderer
+    /// is device-bound and survives.
+    pub fn drop_surface(&mut self) {
+        self.surface = None;
+        self.intermediate = None;
+        self.blitter = None;
+    }
+
     pub fn resize(&mut self, width: u32, height: u32) {
         if let Some(surface) = &mut self.surface {
             self.vello_ctx.resize_surface(surface, width, height);

@@ -4,11 +4,17 @@ use smithay_client_toolkit::compositor::{CompositorState, Region};
 use smithay_client_toolkit::output::OutputState;
 use smithay_client_toolkit::registry::RegistryState;
 use smithay_client_toolkit::seat::SeatState;
-use smithay_client_toolkit::shell::wlr_layer::LayerShell;
+use smithay_client_toolkit::shell::WaylandSurface;
+use smithay_client_toolkit::shell::wlr_layer::{LayerShell, LayerSurface};
 use smithay_client_toolkit::shm::Shm;
 use wayland_client::{QueueHandle, protocol::wl_surface};
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1;
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1;
+use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
+use wayland_protocols::wp::viewporter::client::wp_viewporter::WpViewporter;
 
 use crate::app::AppState;
+use crate::wayland::LayerConfig;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -27,7 +33,9 @@ pub(crate) struct WaylandState {
     pub(crate) shm_state: Shm,
 
     compositor_state: CompositorState,
-    _layer_shell: LayerShell,
+    layer_shell: LayerShell,
+    viewporter: Option<WpViewporter>,
+    fractional_manager: Option<WpFractionalScaleManagerV1>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -43,6 +51,7 @@ impl InputRegionRect {
 }
 
 impl WaylandState {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         registry_state: RegistryState,
         output_state: OutputState,
@@ -50,6 +59,8 @@ impl WaylandState {
         shm_state: Shm,
         compositor_state: CompositorState,
         layer_shell: LayerShell,
+        viewporter: Option<WpViewporter>,
+        fractional_manager: Option<WpFractionalScaleManagerV1>,
     ) -> Self {
         Self {
             registry_state,
@@ -57,7 +68,38 @@ impl WaylandState {
             seat_state,
             shm_state,
             compositor_state,
-            _layer_shell: layer_shell,
+            layer_shell,
+            viewporter,
+            fractional_manager,
+        }
+    }
+
+    /// Creates a fresh bar layer surface with the given config applied.
+    pub(crate) fn create_bar_layer(&self, qh: &QueueHandle<AppState>, config: &LayerConfig) -> LayerSurface {
+        let surface = self.compositor_state.create_surface(qh);
+
+        let layer = self
+            .layer_shell
+            .create_layer_surface(qh, surface, config.layer.into(), Some("hyprbar"), None);
+
+        config.apply_to(&layer);
+        layer.commit();
+
+        layer
+    }
+
+    /// Fractional-scale + viewport objects for a surface, when the compositor supports both.
+    pub(crate) fn fractional_objects(
+        &self,
+        surface: &wl_surface::WlSurface,
+        qh: &QueueHandle<AppState>,
+    ) -> (Option<WpFractionalScaleV1>, Option<WpViewport>) {
+        match (&self.fractional_manager, &self.viewporter) {
+            (Some(manager), Some(viewporter)) => (
+                Some(manager.get_fractional_scale(surface, qh, ())),
+                Some(viewporter.get_viewport(surface, qh, ())),
+            ),
+            _ => (None, None),
         }
     }
 
