@@ -38,7 +38,8 @@ impl PanelHeader<'_> {
             x,
             y,
             title_box,
-            TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+            TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary)
+                .with_weight(ctx.theme.typography.weight_title),
         );
 
         ctx.text.draw_centered_v(

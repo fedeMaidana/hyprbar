@@ -3,8 +3,10 @@
 use std::time::Duration;
 
 use vello::Scene;
+use vello::kurbo::{Affine, Rect as KurboRect};
+use vello::peniko::{Fill, Mix};
 
-use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Point, RenderCtx, Transition};
 use crate::render::Rect;
 use crate::theme::Theme;
 
@@ -12,6 +14,14 @@ use crate::theme::Theme;
 
 type Components = Vec<Box<dyn Component>>;
 type ComponentSizes = Vec<(f32, f32)>;
+
+// ─── < Constants > ────────────────────────────────────────────────────
+
+/// Velocidad del fade de apertura del dropdown (1/s, ~170 ms de asentado).
+const DROPDOWN_ANIM_SPEED: f32 = 26.0;
+
+/// Cuántos px se desliza el dropdown hacia abajo mientras aparece.
+const DROPDOWN_SLIDE_PX: f32 = 6.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -29,6 +39,10 @@ pub struct Bar {
     right_bounds: Vec<Rect>,
 
     last_surface: Option<Rect>,
+
+    /// Progreso de la animación de apertura del dropdown activo.
+    dropdown_transition: Transition,
+    animated_dropdown: Option<DropdownId>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -75,6 +89,8 @@ impl Bar {
             center_bounds,
             right_bounds,
             last_surface: None,
+            dropdown_transition: Transition::new(0.0),
+            animated_dropdown: None,
         }
     }
 
@@ -199,15 +215,51 @@ impl Bar {
     }
 
     fn render_active_dropdown(&mut self, scene: &mut Scene, surface: Rect, ctx: &mut RenderCtx<'_>) {
-        let Some(open_dropdown) = ctx.open_dropdown else {
+        let open = ctx.open_dropdown;
+
+        // Un dropdown recién abierto entra con fade + deslizamiento; el
+        // cierre es instantáneo a propósito (como en macOS).
+        if open != self.animated_dropdown {
+            if open.is_some() {
+                self.dropdown_transition.set(0.0);
+            }
+
+            self.animated_dropdown = open;
+        }
+
+        let Some(open_dropdown) = open else {
             return;
         };
+
+        if self.dropdown_transition.advance(1.0, ctx.dt, DROPDOWN_ANIM_SPEED) {
+            ctx.animating = true;
+        }
+
+        let progress = self.dropdown_transition.value();
 
         let Some((component, anchor)) = self.dropdown_component_mut(open_dropdown) else {
             return;
         };
 
+        if progress >= 1.0 {
+            component.render_dropdown(scene, surface, anchor, ctx);
+            return;
+        }
+
+        // Capa con alpha propio: el panel entero aparece y baja a su
+        // lugar sin que cada widget sepa nada de la animación.
+        let slide = ((1.0 - progress) * DROPDOWN_SLIDE_PX) as f64;
+
+        let clip = KurboRect::new(
+            surface.x as f64,
+            surface.y as f64 - DROPDOWN_SLIDE_PX as f64,
+            (surface.x + surface.width) as f64,
+            (surface.y + surface.height + DROPDOWN_SLIDE_PX) as f64,
+        );
+
+        scene.push_layer(Fill::NonZero, Mix::Normal, progress, Affine::translate((0.0, -slide)), &clip);
         component.render_dropdown(scene, surface, anchor, ctx);
+        scene.pop_layer();
     }
 
     fn dropdown_component_mut(&mut self, dropdown_id: DropdownId) -> Option<(&mut dyn Component, Rect)> {
