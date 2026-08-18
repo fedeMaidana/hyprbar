@@ -22,6 +22,7 @@ const RECONNECT_DELAYS: [Duration; 4] = [
 
 // ─── < Enums > ────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SessionEnd {
     /// El worker debe terminar.
     Shutdown,
@@ -49,12 +50,19 @@ pub fn spawn_listener(store: WorkspaceStore, redraw_signal: Sender<()>) -> Optio
 /// arranque solo cuestan un reintento, nunca un worker muerto.
 fn listener_loop(store: WorkspaceStore, redraw: Sender<()>, shutdown: ShutdownToken) {
     let mut failed_attempts: usize = 0;
+    // Un solo warn por caída: mientras hyprland siga sin responder, los
+    // reintentos loguean en debug para no llenar el journal.
+    let mut announced_down = false;
 
     while !shutdown.should_stop() {
-        let delay_index = match run_session(&store, &redraw, &shutdown) {
+        let announce = !announced_down;
+        let end = run_session(&store, &redraw, &shutdown, announce);
+
+        let delay_index = match end {
             SessionEnd::Shutdown => break,
             SessionEnd::Lost => {
-                // Estuvo andando: reintento rápido.
+                // Estuvo andando: reintento rápido y con aviso.
+                announced_down = false;
                 failed_attempts = 0;
                 0
             }
@@ -67,7 +75,15 @@ fn listener_loop(store: WorkspaceStore, redraw: Sender<()>, shutdown: ShutdownTo
 
         let delay = RECONNECT_DELAYS[delay_index];
 
-        log::warn!("workspaces: reintento de conexión a hyprland en {delay:?}");
+        if end == SessionEnd::NeverConnected && !announce {
+            log::debug!("workspaces: reintento de conexión a hyprland en {delay:?}");
+        } else {
+            log::warn!("workspaces: reintento de conexión a hyprland en {delay:?}");
+        }
+
+        if end == SessionEnd::NeverConnected {
+            announced_down = true;
+        }
 
         if shutdown.sleep(delay) {
             break;
@@ -78,20 +94,31 @@ fn listener_loop(store: WorkspaceStore, redraw: Sender<()>, shutdown: ShutdownTo
 }
 
 /// Conecta el stream, hace el fetch inicial y procesa eventos hasta que
-/// el socket se cierre o pidan apagar.
-fn run_session(store: &WorkspaceStore, redraw: &Sender<()>, shutdown: &ShutdownToken) -> SessionEnd {
+/// el socket se cierre o pidan apagar. `announce` decide si las fallas
+/// de conexión merecen warn o ya son el reintento silencioso de siempre.
+fn run_session(store: &WorkspaceStore, redraw: &Sender<()>, shutdown: &ShutdownToken, announce: bool) -> SessionEnd {
     // El stream se abre antes del fetch inicial para no perder eventos
     // que lleguen entre uno y otro.
     let mut stream = match hyprland_ipc::event_stream() {
         Ok(stream) => stream,
         Err(error) => {
-            log::warn!("no se pudo abrir el event stream de hyprland: {error}");
+            if announce {
+                log::warn!("no se pudo abrir el event stream de hyprland: {error}");
+            } else {
+                log::debug!("no se pudo abrir el event stream de hyprland: {error}");
+            }
+
             return SessionEnd::NeverConnected;
         }
     };
 
     if let Err(error) = refresh(store) {
-        log::warn!("falló el fetch inicial de workspaces: {error}");
+        if announce {
+            log::warn!("falló el fetch inicial de workspaces: {error}");
+        } else {
+            log::debug!("falló el fetch inicial de workspaces: {error}");
+        }
+
         return SessionEnd::NeverConnected;
     }
 

@@ -37,7 +37,7 @@ pub struct WaylandInit {
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn init(conn: &Connection, config: LayerConfig) -> Result<(WaylandInit, EventQueue<AppState>)> {
-    let (globals, event_queue) = registry_queue_init::<AppState>(conn).context("registry_queue_init failed")?;
+    let (globals, event_queue) = registry_queue_init::<AppState>(conn).context("falló registry_queue_init")?;
 
     let qh: QueueHandle<AppState> = event_queue.handle();
 

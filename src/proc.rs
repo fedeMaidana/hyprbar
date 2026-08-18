@@ -13,8 +13,14 @@ pub fn spawn_detached(program: &str, arguments: &[&str]) -> Result<()> {
         .spawn()
         .with_context(|| format!("lanzando {program}"))?;
 
-    thread::spawn(move || {
-        let _ = child.wait();
+    let program = program.to_owned();
+
+    // El reaper además avisa si el comando falló: sin esto, un
+    // hyprlock que sale con error es indistinguible de uno exitoso.
+    thread::spawn(move || match child.wait() {
+        Ok(status) if status.success() => {}
+        Ok(status) => log::warn!("{program} terminó mal ({status})"),
+        Err(error) => log::warn!("no se pudo esperar a {program}: {error}"),
     });
 
     Ok(())

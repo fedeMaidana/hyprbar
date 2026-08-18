@@ -42,7 +42,7 @@ fn fails_when_detected_location_has_no_latitude() {
 
     let error = parse_detected_location(body).unwrap_err();
 
-    assert!(error.to_string().contains("location response missing latitude"));
+    assert!(error.to_string().contains("no trae latitude"));
 }
 
 #[test]
@@ -55,5 +55,5 @@ fn fails_when_detected_location_has_no_longitude() {
 
     let error = parse_detected_location(body).unwrap_err();
 
-    assert!(error.to_string().contains("location response missing longitude"));
+    assert!(error.to_string().contains("no trae longitude"));
 }

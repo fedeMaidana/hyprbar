@@ -75,7 +75,7 @@ fn insert_wayland_source(
 ) -> Result<()> {
     WaylandSource::new(conn, event_queue)
         .insert(loop_handle)
-        .map_err(|e| anyhow!("WaylandSource insert failed: {e:?}"))?;
+        .map_err(|e| anyhow!("no se pudo insertar el WaylandSource: {e:?}"))?;
 
     Ok(())
 }
@@ -147,7 +147,7 @@ fn insert_surface_watch_source(loop_handle: calloop::LoopHandle<'_, AppState>) -
 
             TimeoutAction::ToDuration(Duration::from_secs(SURFACE_RETRY_SECONDS))
         })
-        .map_err(|e| anyhow!("surface watch timer insert failed: {e:?}"))?;
+        .map_err(|e| anyhow!("no se pudo insertar el timer de vigilancia de la superficie: {e:?}"))?;
 
     Ok(())
 }
@@ -161,7 +161,7 @@ fn insert_clock_tick_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> R
 
             TimeoutAction::ToDuration(duration_until_next_minute())
         })
-        .map_err(|e| anyhow!("clock tick timer insert failed: {e:?}"))?;
+        .map_err(|e| anyhow!("no se pudo insertar el tick del reloj: {e:?}"))?;
 
     Ok(())
 }

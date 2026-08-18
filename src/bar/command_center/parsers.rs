@@ -16,7 +16,7 @@ pub fn parse_wpctl_volume(output: &str) -> Result<AudioState> {
 
     let rest = output
         .strip_prefix("Volume:")
-        .ok_or_else(|| anyhow!("unexpected wpctl output: {output}"))?
+        .ok_or_else(|| anyhow!("salida inesperada de wpctl: {output}"))?
         .trim();
 
     let muted = rest.ends_with(MUTED_SUFFIX);
@@ -24,9 +24,9 @@ pub fn parse_wpctl_volume(output: &str) -> Result<AudioState> {
     let value = rest
         .split_whitespace()
         .next()
-        .ok_or_else(|| anyhow!("wpctl output missing volume value"))?;
+        .ok_or_else(|| anyhow!("la salida de wpctl no trae el volumen"))?;
 
-    let volume: f32 = value.parse().context("invalid wpctl volume value")?;
+    let volume: f32 = value.parse().context("volumen de wpctl inválido")?;
 
     Ok(AudioState {
         volume: volume.clamp(0.0, MAX_VOLUME),
@@ -38,7 +38,7 @@ pub fn parse_nmcli_radio(output: &str) -> Result<bool> {
     match output.trim() {
         "enabled" => Ok(true),
         "disabled" => Ok(false),
-        other => bail!("unexpected nmcli radio output: {other}"),
+        other => bail!("salida inesperada de nmcli radio: {other}"),
     }
 }
 

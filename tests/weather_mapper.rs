@@ -98,7 +98,7 @@ fn fails_when_current_object_is_missing() {
 
     let error = parse_weather_snapshot(body).unwrap_err();
 
-    assert!(error.to_string().contains("missing current weather object"));
+    assert!(error.to_string().contains("no trae el objeto current"));
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn fails_when_temperature_is_missing() {
 
     let error = parse_weather_snapshot(body).unwrap_err();
 
-    assert!(error.to_string().contains("missing temperature_2m"));
+    assert!(error.to_string().contains("no trae temperature_2m"));
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn fails_when_weather_code_is_missing() {
 
     let error = parse_weather_snapshot(body).unwrap_err();
 
-    assert!(error.to_string().contains("missing weather_code"));
+    assert!(error.to_string().contains("no trae weather_code"));
 }
 
 #[test]
@@ -144,5 +144,5 @@ fn fails_when_weather_code_is_out_of_range() {
 
     let error = parse_weather_snapshot(body).unwrap_err();
 
-    assert!(error.to_string().contains("weather_code out of range"));
+    assert!(error.to_string().contains("weather_code fuera de rango"));
 }

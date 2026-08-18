@@ -56,8 +56,12 @@ pub fn detect_location() -> Result<DetectedLocation> {
 pub fn parse_detected_location(body: &str) -> Result<DetectedLocation> {
     let response: IpLocationResponse = serde_json::from_str(body)?;
 
-    let latitude = response.latitude.ok_or_else(|| anyhow!("location response missing latitude"))?;
-    let longitude = response.longitude.ok_or_else(|| anyhow!("location response missing longitude"))?;
+    let latitude = response
+        .latitude
+        .ok_or_else(|| anyhow!("la respuesta de ubicación no trae latitude"))?;
+    let longitude = response
+        .longitude
+        .ok_or_else(|| anyhow!("la respuesta de ubicación no trae longitude"))?;
 
     Ok(DetectedLocation {
         coordinates: Coordinates::new(latitude, longitude),

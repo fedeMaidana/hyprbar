@@ -50,7 +50,7 @@ impl EventStream {
             Ok(0) => Ok(EventStreamRead::Closed),
             Ok(_) => Ok(EventStreamRead::Event(parse_event(&line)?)),
             Err(error) if is_timeout_error(&error) => Ok(EventStreamRead::Timeout),
-            Err(error) => Err(anyhow!("read_line: {error}")),
+            Err(error) => Err(anyhow!("leyendo evento de hyprland: {error}")),
         }
     }
 }

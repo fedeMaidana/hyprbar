@@ -38,17 +38,17 @@ pub fn parse_cpu_times(stat: &str) -> Result<CpuTimes> {
     let line = stat
         .lines()
         .find(|line| line.starts_with("cpu "))
-        .ok_or_else(|| anyhow!("missing aggregate cpu line in /proc/stat"))?;
+        .ok_or_else(|| anyhow!("falta la línea agregada de cpu en /proc/stat"))?;
 
     let values: Vec<u64> = line
         .split_whitespace()
         .skip(1)
         .map(str::parse)
         .collect::<Result<_, _>>()
-        .context("invalid cpu time value")?;
+        .context("valor de tiempo de cpu inválido")?;
 
     if values.len() < 4 {
-        bail!("aggregate cpu line too short");
+        bail!("línea agregada de cpu demasiado corta");
     }
 
     let idle = values[3] + values.get(4).copied().unwrap_or(0);
@@ -78,7 +78,7 @@ pub fn parse_memory_info(meminfo: &str) -> Result<MemoryInfo> {
 }
 
 pub fn parse_temperature_millidegrees(content: &str) -> Result<f32> {
-    let millidegrees: i64 = content.trim().parse().context("invalid temperature value")?;
+    let millidegrees: i64 = content.trim().parse().context("valor de temperatura inválido")?;
 
     Ok(millidegrees as f32 / 1000.0)
 }
@@ -87,9 +87,9 @@ pub fn parse_uptime_seconds(content: &str) -> Result<u64> {
     let seconds: f64 = content
         .split_whitespace()
         .next()
-        .ok_or_else(|| anyhow!("empty uptime content"))?
+        .ok_or_else(|| anyhow!("contenido de uptime vacío"))?
         .parse()
-        .context("invalid uptime value")?;
+        .context("valor de uptime inválido")?;
 
     Ok(seconds as u64)
 }
@@ -106,9 +106,12 @@ fn parse_meminfo_field(meminfo: &str, field: &str) -> Result<u64> {
     let line = meminfo
         .lines()
         .find(|line| line.starts_with(field))
-        .ok_or_else(|| anyhow!("missing {field} in meminfo"))?;
+        .ok_or_else(|| anyhow!("falta {field} en meminfo"))?;
 
-    let value = line.split_whitespace().nth(1).ok_or_else(|| anyhow!("malformed {field} line"))?;
+    let value = line
+        .split_whitespace()
+        .nth(1)
+        .ok_or_else(|| anyhow!("línea de {field} malformada"))?;
 
-    value.parse().with_context(|| format!("invalid {field} value"))
+    value.parse().with_context(|| format!("valor de {field} inválido"))
 }

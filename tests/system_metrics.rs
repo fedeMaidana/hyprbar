@@ -18,7 +18,7 @@ fn fails_when_aggregate_cpu_line_is_missing() {
 
     let error = parse_cpu_times(stat).unwrap_err();
 
-    assert!(error.to_string().contains("missing aggregate cpu line"));
+    assert!(error.to_string().contains("falta la línea agregada de cpu"));
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn fails_when_mem_available_is_missing() {
 
     let error = parse_memory_info(meminfo).unwrap_err();
 
-    assert!(error.to_string().contains("missing MemAvailable:"));
+    assert!(error.to_string().contains("falta MemAvailable:"));
 }
 
 #[test]

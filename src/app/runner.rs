@@ -22,6 +22,11 @@ use super::sources;
 use super::state::AppState;
 use super::surface_handle::SurfaceHandle;
 
+// ─── < Constants > ────────────────────────────────────────────────────
+
+/// Errores de render seguidos antes de reconstruir la superficie gpu.
+const MAX_RENDER_FAILURES: u32 = 3;
+
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct App;
@@ -45,7 +50,7 @@ impl App {
         let layer_config = LayerConfig::top_bar(surface_height, exclusive_zone);
         let (wl_init, mut event_queue) = wayland::init(&conn, layer_config)?;
 
-        let mut event_loop: EventLoop<'static, AppState> = EventLoop::try_new().context("calloop EventLoop::try_new")?;
+        let mut event_loop: EventLoop<'static, AppState> = EventLoop::try_new().context("no se pudo crear el event loop de calloop")?;
 
         let qh = event_queue.handle();
         let mut app = AppState::new(wl_init, conn.clone(), qh, layer_config, theme, bar, event_loop.handle());
@@ -124,8 +129,10 @@ fn spawn_signal_listener(sender: Sender<()>) {
 }
 
 fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Result<()> {
+    let mut render_failures: u32 = 0;
+
     loop {
-        event_loop.dispatch(None, &mut app).context("event_loop dispatch")?;
+        event_loop.dispatch(None, &mut app).context("dispatch del event loop")?;
 
         if app.should_close {
             log::info!("cierre pedido; se apagan los workers");
@@ -133,11 +140,30 @@ fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Resu
         }
 
         if app.needs_redraw && app.surface.configured && !app.surface.lost {
-            if let Err(e) = app.render() {
-                log::error!("error de render: {e:?}");
-            }
+            match app.render() {
+                Ok(()) => {
+                    render_failures = 0;
+                    app.needs_redraw = false;
+                }
+                Err(e) => {
+                    render_failures += 1;
+                    log::error!("error de render ({render_failures}/{MAX_RENDER_FAILURES}): {e:?}");
 
-            app.needs_redraw = false;
+                    // Auto-heal: tras varios errores seguidos, la superficie
+                    // gpu se reconstruye entera en el próximo render en vez
+                    // de quedarse degradada para siempre.
+                    if render_failures >= MAX_RENDER_FAILURES {
+                        log::warn!("demasiados errores de render seguidos; se reconstruye la superficie gpu");
+
+                        app.render_ctx.drop_surface();
+                        app.render_surface_stale = true;
+                        app.needs_redraw = true;
+                        render_failures = 0;
+                    } else {
+                        app.needs_redraw = false;
+                    }
+                }
+            }
         }
     }
 

@@ -46,13 +46,15 @@ struct DailyWeather {
 pub fn parse_weather_snapshot(body: &str) -> Result<WeatherSnapshot> {
     let response: WeatherResponse = serde_json::from_str(body)?;
 
-    let current = response.current.ok_or_else(|| anyhow!("missing current weather object"))?;
+    let current = response.current.ok_or_else(|| anyhow!("la respuesta no trae el objeto current"))?;
 
-    let temp_c = current.temperature_2m.ok_or_else(|| anyhow!("missing temperature_2m"))? as f32;
+    let temp_c = current
+        .temperature_2m
+        .ok_or_else(|| anyhow!("la respuesta no trae temperature_2m"))? as f32;
 
-    let weather_code = current.weather_code.ok_or_else(|| anyhow!("missing weather_code"))?;
+    let weather_code = current.weather_code.ok_or_else(|| anyhow!("la respuesta no trae weather_code"))?;
 
-    let weather_code = u8::try_from(weather_code).map_err(|_| anyhow!("weather_code out of range"))?;
+    let weather_code = u8::try_from(weather_code).map_err(|_| anyhow!("weather_code fuera de rango"))?;
 
     let daily = response.daily.unwrap_or_default();
 

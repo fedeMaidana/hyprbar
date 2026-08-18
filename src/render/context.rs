@@ -45,7 +45,7 @@ impl RenderContext {
         H: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static,
     {
         let mut surface = pollster::block_on(self.vello_ctx.create_surface(handle, width, height, wgpu::PresentMode::AutoVsync))
-            .map_err(|error| anyhow!("vello create_surface failed: {error:?}"))?;
+            .map_err(|error| anyhow!("falló create_surface de vello: {error:?}"))?;
 
         let device_handle = &self.vello_ctx.devices[surface.dev_id];
         let caps = surface.surface.get_capabilities(device_handle.adapter());
@@ -73,7 +73,7 @@ impl RenderContext {
                 pipeline_cache: None,
             };
 
-            let renderer = Renderer::new(&device_handle.device, options).map_err(|error| anyhow!("Renderer::new failed: {error:?}"))?;
+            let renderer = Renderer::new(&device_handle.device, options).map_err(|error| anyhow!("falló Renderer::new: {error:?}"))?;
 
             self.renderer = Some(renderer);
         }
@@ -85,7 +85,13 @@ impl RenderContext {
     }
 
     fn rebuild_intermediate(&mut self, width: u32, height: u32) {
-        let surface = self.surface.as_ref().expect("surface no inicializado");
+        // Ambos llamadores garantizan superficie viva; si un refactor
+        // rompe ese invariante, degradamos con log en vez de caer
+        // (render() después falla con "intermediate no inicializado").
+        let Some(surface) = self.surface.as_ref() else {
+            log::warn!("rebuild_intermediate sin superficie; se ignora");
+            return;
+        };
         let device = &self.vello_ctx.devices[surface.dev_id].device;
         let surface_format = surface.format;
 
