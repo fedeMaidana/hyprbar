@@ -93,7 +93,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, avatar: Option<&ImageData>, ti
         text_x,
         y,
         avatar_size * 0.5,
-        TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     ctx.text.draw_centered_v(
@@ -102,7 +102,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, avatar: Option<&ImageData>, ti
         text_x,
         y + avatar_size * 0.5,
         avatar_size * 0.5,
-        TextStyle::new(host_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(host_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }
 
@@ -139,8 +139,8 @@ fn draw_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let glyph = action.glyph();
         let label = action.label();
 
-        let (icon_width, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
-        let (label_width, _) = ctx.text.measure(label, label_size, &ctx.theme.typography.font_family);
+        let (icon_width, _) = ctx.text.measure(glyph, icon_size, ctx.theme.typography.icon_font_family);
+        let (label_width, _) = ctx.text.measure(label, label_size, ctx.theme.typography.font_family);
 
         let group_width = icon_width + ctx.theme.tokens.profile_button_inner_gap + label_width;
         let group_x = rect.x + (rect.width - group_width) / 2.0;
@@ -151,7 +151,7 @@ fn draw_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
             group_x,
             rect.y,
             rect.height,
-            TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_primary),
+            TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.text_primary),
         );
 
         ctx.text.draw_centered_v(
@@ -160,7 +160,7 @@ fn draw_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
             group_x + icon_width + ctx.theme.tokens.profile_button_inner_gap,
             rect.y,
             rect.height,
-            TextStyle::new(label_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+            TextStyle::new(label_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
         );
     }
 }

@@ -56,7 +56,7 @@ impl NotificationsPill {
 impl Component for NotificationsPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
         let size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
-        let (iw, _) = ctx.text.measure(BELL_GLYPH, size, &ctx.theme.typography.icon_font_family);
+        let (iw, _) = ctx.text.measure(BELL_GLYPH, size, ctx.theme.typography.icon_font_family);
         let w = iw + ctx.theme.tokens.pill_padding_x * 2.0;
         (w, ctx.theme.tokens.pill_height)
     }
@@ -89,11 +89,11 @@ impl Component for NotificationsPill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, color),
+            TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, color),
         );
 
         if state.history_count > 0 && !active {
-            let (iw, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
+            let (iw, _) = ctx.text.measure(glyph, icon_size, ctx.theme.typography.icon_font_family);
 
             let dot_radius = ctx.theme.tokens.notification_dot_radius;
             let dot_cx = bounds.x + pad_x + iw - dot_radius * ctx.theme.tokens.notification_dot_x_overlap_scale;

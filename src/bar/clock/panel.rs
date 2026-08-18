@@ -118,8 +118,8 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, lo
     let time_box_height = header_height * 0.6;
     let seconds_size = time_size * SECONDS_TEXT_SCALE;
 
-    let (prefix_width, prefix_height) = ctx.text.measure(&time_prefix, time_size, &ctx.theme.typography.font_family);
-    let (_, seconds_height) = ctx.text.measure(&time_seconds, seconds_size, &ctx.theme.typography.font_family);
+    let (prefix_width, prefix_height) = ctx.text.measure(&time_prefix, time_size, ctx.theme.typography.font_family);
+    let (_, seconds_height) = ctx.text.measure(&time_seconds, seconds_size, ctx.theme.typography.font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -127,7 +127,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, lo
         x,
         y,
         time_box_height,
-        TextStyle::new(time_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(time_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     // Smaller seconds, baseline-aligned with the main time.
@@ -139,7 +139,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, lo
         x + prefix_width,
         seconds_y,
         time_box_height,
-        TextStyle::new(seconds_size, &ctx.theme.typography.font_family, ctx.theme.palette.accent),
+        TextStyle::new(seconds_size, ctx.theme.typography.font_family, ctx.theme.palette.accent),
     );
 
     let subtitle = format!("{} · {}", local_zone_display_name(), utc_label(local_offset_minutes));
@@ -150,7 +150,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, lo
         x,
         y + time_box_height,
         header_height - time_box_height,
-        TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(subtitle_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }
 
@@ -161,7 +161,7 @@ fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, c
     let name_size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
     let time_size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
 
-    let (time_width, _) = ctx.text.measure(&row.time_text, time_size, &ctx.theme.typography.font_family);
+    let (time_width, _) = ctx.text.measure(&row.time_text, time_size, ctx.theme.typography.font_family);
     let time_x = x + width - time_width;
 
     ctx.text.draw_centered_v(
@@ -170,7 +170,7 @@ fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, c
         time_x,
         y,
         row_height,
-        TextStyle::new(time_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(time_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     draw_offset_chip(scene, time_x - tokens.clock_row_inner_gap, y, row_height, &row.offset_text, ctx);
@@ -189,7 +189,7 @@ fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, c
         x,
         y,
         row_height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, icon_color),
     );
 
     let name_color = if row.daytime {
@@ -205,7 +205,7 @@ fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, c
         x + tokens.clock_icon_slot,
         y,
         row_height,
-        TextStyle::new(name_size, &ctx.theme.typography.font_family, name_color),
+        TextStyle::new(name_size, ctx.theme.typography.font_family, name_color),
     );
 }
 
@@ -213,7 +213,7 @@ fn draw_offset_chip(scene: &mut Scene, right: f32, row_y: f32, row_height: f32, 
     let tokens = ctx.theme.tokens;
     let text_size = ctx.theme.typography.size_base * OFFSET_TEXT_SCALE;
 
-    let (text_width, text_height) = ctx.text.measure(text, text_size, &ctx.theme.typography.font_family);
+    let (text_width, text_height) = ctx.text.measure(text, text_size, ctx.theme.typography.font_family);
 
     let chip_width = text_width + tokens.clock_chip_padding_x * 2.0;
     let chip_height = text_height + tokens.clock_chip_padding_y * 2.0;
@@ -237,6 +237,6 @@ fn draw_offset_chip(scene: &mut Scene, right: f32, row_y: f32, row_height: f32, 
         chip_x + tokens.clock_chip_padding_x,
         chip_y,
         chip_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(text_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }

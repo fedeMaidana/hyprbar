@@ -80,7 +80,7 @@ impl Panel for NotificationsPanel<'_> {
             bounds.x + pad_x,
             header_y,
             header_height,
-            TextStyle::new(ctx.theme.typography.size_base, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+            TextStyle::new(ctx.theme.typography.size_base, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
         );
 
         // Botón "limpiar"
@@ -103,7 +103,7 @@ impl Panel for NotificationsPanel<'_> {
                 scene,
                 label,
                 clear,
-                TextStyle::new(label_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+                TextStyle::new(label_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
             );
         }
 
@@ -120,7 +120,7 @@ impl Panel for NotificationsPanel<'_> {
                 tokens.notification_empty_height,
                 TextStyle::new(
                     ctx.theme.typography.size_base * ROW_TEXT_SCALE,
-                    &ctx.theme.typography.font_family,
+                    ctx.theme.typography.font_family,
                     ctx.theme.palette.text_secondary,
                 ),
             );
@@ -145,14 +145,14 @@ impl Panel for NotificationsPanel<'_> {
                 scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.accent, None, &dot);
             }
 
-            let summary = truncate_to_width(ctx.text, &note.summary, summary_size, &ctx.theme.typography.font_family, text_w);
+            let summary = truncate_to_width(ctx.text, &note.summary, summary_size, ctx.theme.typography.font_family, text_w);
             ctx.text.draw_centered_v(
                 scene,
                 &summary,
                 text_x,
                 row_y,
                 row_height * 0.55,
-                TextStyle::new(summary_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+                TextStyle::new(summary_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
             );
 
             let mut meta = age(now_unix.saturating_sub(note.closed_at_unix));
@@ -165,14 +165,14 @@ impl Panel for NotificationsPanel<'_> {
                 meta.push_str(note.body.lines().next().unwrap_or(""));
             }
 
-            let meta = truncate_to_width(ctx.text, &meta, meta_size, &ctx.theme.typography.font_family, text_w);
+            let meta = truncate_to_width(ctx.text, &meta, meta_size, ctx.theme.typography.font_family, text_w);
             ctx.text.draw_centered_v(
                 scene,
                 &meta,
                 text_x,
                 row_y + row_height * 0.5,
                 row_height * 0.45,
-                TextStyle::new(meta_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+                TextStyle::new(meta_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
             );
         }
     }

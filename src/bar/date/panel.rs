@@ -150,7 +150,7 @@ fn draw_header(
     let item_height = ctx.theme.tokens.dropdown_header_height;
     let title_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_title_scale;
 
-    let (text_width, _) = ctx.text.measure(label, title_size, &ctx.theme.typography.font_family);
+    let (text_width, _) = ctx.text.measure(label, title_size, ctx.theme.typography.font_family);
     let text_x = inner_x + (inner_width - text_width) / 2.0;
 
     // The title doubles as a "back to today" button; hover makes that visible.
@@ -176,7 +176,7 @@ fn draw_header(
         text_x,
         y,
         item_height,
-        TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     // Accent dot hints that a shortcut back to the current month exists.
@@ -212,7 +212,7 @@ fn draw_nav_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
             _ => NAV_NEXT_GLYPH,
         };
 
-        let (glyph_width, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
+        let (glyph_width, _) = ctx.text.measure(glyph, icon_size, ctx.theme.typography.icon_font_family);
 
         ctx.text.draw_centered_v(
             scene,
@@ -220,7 +220,7 @@ fn draw_nav_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
             rect.x + (rect.width - glyph_width) / 2.0,
             rect.y,
             rect.height,
-            TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_primary),
+            TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.text_primary),
         );
     }
 }
@@ -232,7 +232,7 @@ fn draw_weekday_headers(scene: &mut Scene, x: f32, y: f32, ctx: &mut RenderCtx<'
     for (index, header) in WEEKDAY_HEADERS.iter().enumerate() {
         let cell_x = x + index as f32 * (tokens.date_cell_size + tokens.date_cell_gap);
 
-        let (text_width, _) = ctx.text.measure(header, size, &ctx.theme.typography.font_family);
+        let (text_width, _) = ctx.text.measure(header, size, ctx.theme.typography.font_family);
 
         ctx.text.draw_centered_v(
             scene,
@@ -240,7 +240,7 @@ fn draw_weekday_headers(scene: &mut Scene, x: f32, y: f32, ctx: &mut RenderCtx<'
             cell_x + (tokens.date_cell_size - text_width) / 2.0,
             y,
             tokens.date_weekday_row_height,
-            TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+            TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
         );
     }
 }
@@ -320,7 +320,7 @@ fn draw_day_grid(scene: &mut Scene, x: f32, y: f32, view: &MonthView, ctx: &mut 
             }
         };
 
-        let (text_width, _) = ctx.text.measure(&label, size, &ctx.theme.typography.font_family);
+        let (text_width, _) = ctx.text.measure(&label, size, ctx.theme.typography.font_family);
         let text_x = cell_x + (tokens.date_cell_size - text_width) / 2.0;
 
         ctx.text.draw_centered_v(
@@ -329,7 +329,7 @@ fn draw_day_grid(scene: &mut Scene, x: f32, y: f32, view: &MonthView, ctx: &mut 
             text_x,
             cell_y,
             tokens.date_cell_size,
-            TextStyle::new(size, &ctx.theme.typography.font_family, color),
+            TextStyle::new(size, ctx.theme.typography.font_family, color),
         );
     }
 }

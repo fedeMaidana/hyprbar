@@ -79,7 +79,7 @@ impl Component for DatePill {
 
         let (tw, _) = ctx
             .text
-            .measure(&text, ctx.theme.typography.size_base, &ctx.theme.typography.font_family);
+            .measure(&text, ctx.theme.typography.size_base, ctx.theme.typography.font_family);
 
         self.frame_text = Some(text);
 
@@ -105,7 +105,7 @@ impl Component for DatePill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            TextStyle::new(size, &ctx.theme.typography.font_family, self.text_color(ctx)),
+            TextStyle::new(size, ctx.theme.typography.font_family, self.text_color(ctx)),
         );
     }
 

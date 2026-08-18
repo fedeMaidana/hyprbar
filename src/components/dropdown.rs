@@ -138,7 +138,7 @@ fn draw_item(scene: &mut Scene, x: f32, y: f32, item: &DropdownItem<'_>, ctx: &m
                 text_x,
                 y,
                 item_height * 0.55,
-                TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+                TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
             );
 
             ctx.text.draw_centered_v(
@@ -147,7 +147,7 @@ fn draw_item(scene: &mut Scene, x: f32, y: f32, item: &DropdownItem<'_>, ctx: &m
                 text_x,
                 y + item_height * 0.45,
                 item_height * 0.45,
-                TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+                TextStyle::new(subtitle_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
             );
         }
         None => {
@@ -157,7 +157,7 @@ fn draw_item(scene: &mut Scene, x: f32, y: f32, item: &DropdownItem<'_>, ctx: &m
                 text_x,
                 y,
                 item_height,
-                TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+                TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
             );
         }
     }

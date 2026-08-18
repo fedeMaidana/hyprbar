@@ -265,7 +265,7 @@ fn draw_active_label(scene: &mut Scene, ctx: &mut RenderCtx<'_>, slot_id: Worksp
     let label = slot_id.to_string();
     let size = ctx.theme.typography.size_base;
 
-    let (text_width, _) = ctx.text.measure(&label, size, &ctx.theme.typography.font_family);
+    let (text_width, _) = ctx.text.measure(&label, size, ctx.theme.typography.font_family);
 
     let text_x = slot_x + (slot.width - text_width) / 2.0;
 
@@ -275,6 +275,6 @@ fn draw_active_label(scene: &mut Scene, ctx: &mut RenderCtx<'_>, slot_id: Worksp
         text_x,
         slot_y,
         slot.height,
-        TextStyle::new(size, &ctx.theme.typography.font_family, ctx.theme.palette.slot_active_text),
+        TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.slot_active_text),
     );
 }

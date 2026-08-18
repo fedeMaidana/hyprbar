@@ -43,7 +43,7 @@ pub struct Palette {
 
 impl Palette {
     pub fn dark() -> Self {
-        let mut palette = Self {
+        Self {
             pill_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x80),
             pill_hover_bg: Color::from_rgba8(0x2e, 0x2e, 0x36, 0xa8),
             pill_border: Color::from_rgba8(0xff, 0xff, 0xff, 0x0f),
@@ -73,15 +73,11 @@ impl Palette {
 
             clock_day: Color::from_rgba8(0xef, 0xb3, 0x5a, 0xff),
             clock_night: Color::from_rgba8(0x7e, 0x90, 0xd1, 0xff),
-        };
-
-        palette.refresh_from_hyprcolor();
-
-        palette
+        }
     }
 
     pub fn light() -> Self {
-        let mut palette = Self {
+        Self {
             pill_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0xb8),
             pill_hover_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0xe0),
             pill_border: Color::from_rgba8(0x00, 0x00, 0x00, 0x14),
@@ -111,13 +107,12 @@ impl Palette {
 
             clock_day: Color::from_rgba8(0xb5, 0x7a, 0x10, 0xff),
             clock_night: Color::from_rgba8(0x4a, 0x5e, 0xae, 0xff),
-        };
-
-        palette.refresh_from_hyprcolor();
-
-        palette
+        }
     }
 
+    /// Tiñe la paleta estática con el accent de hyprcolor, si existe.
+    /// El único llamador es `Theme::of` más el watcher de la paleta:
+    /// los constructores de arriba son puros a propósito.
     pub fn refresh_from_hyprcolor(&mut self) {
         let Some(hyprcolor) = hyprcolor::load() else {
             return;
@@ -126,20 +121,34 @@ impl Palette {
         self.accent = hyprcolor.accent;
         self.slot_active_bg = hyprcolor.accent;
         self.slot_active_text = contrast_text_for(hyprcolor.accent);
-        self.control_hover_bg = hyprcolor.accent.with_alpha(0.22);
+        self.control_hover_bg = hyprcolor.accent.with_alpha(ACCENT_HOVER_ALPHA);
     }
 }
 
-// ─── < Private Functions > ────────────────────────────────────────────────────
+// ─── < Constants > ────────────────────────────────────────────────────
 
-/// Picks dark or light text based on the perceived luminance of the background.
-fn contrast_text_for(background: Color) -> Color {
+/// Transparencia del accent cuando pinta fondos de hover.
+const ACCENT_HOVER_ALPHA: f32 = 0.22;
+
+/// Por encima de esta luminancia percibida el fondo se considera claro
+/// y lleva texto oscuro.
+const CONTRAST_LUMINANCE_THRESHOLD: f32 = 0.6;
+
+// ─── < Public Functions > ────────────────────────────────────────────────────
+
+/// Elige texto oscuro o claro según la luminancia percibida del fondo
+/// (pesos Rec. 601 sobre los componentes sRGB; alcanza para decidir
+/// entre dos textos).
+#[doc(hidden)]
+pub fn contrast_text_for(background: Color) -> Color {
     let [r, g, b, _] = background.components;
     let luminance = 0.299 * r + 0.587 * g + 0.114 * b;
 
-    if luminance > 0.6 {
+    if luminance > CONTRAST_LUMINANCE_THRESHOLD {
+        // Texto casi negro para fondos claros.
         Color::from_rgba8(0x20, 0x20, 0x28, 0xff)
     } else {
+        // El mismo blanco tiza que text_primary del modo oscuro.
         Color::from_rgba8(0xf5, 0xf5, 0xf7, 0xff)
     }
 }

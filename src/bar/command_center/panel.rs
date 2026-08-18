@@ -273,7 +273,7 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
     let glyph = if wifi_on { WIFI_GLYPH } else { WIFI_OFF_GLYPH };
     let icon_size = ctx.theme.typography.size_base * tokens.icon_scale;
 
-    let (glyph_width, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
+    let (glyph_width, _) = ctx.text.measure(glyph, icon_size, ctx.theme.typography.icon_font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -281,7 +281,7 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
         circle_x - glyph_width / 2.0,
         circle_y - tokens.command_icon_circle_radius,
         tokens.command_icon_circle_radius * 2.0,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, icon_color),
     );
 
     let text_x = circle_x + tokens.command_icon_circle_radius + WIFI_TEXT_GAP;
@@ -303,11 +303,11 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
         text_x,
         block_y,
         WIFI_TEXT_BLOCK_HEIGHT * 0.55,
-        TextStyle::new(title_size, &ctx.theme.typography.font_family, title_color),
+        TextStyle::new(title_size, ctx.theme.typography.font_family, title_color),
     );
 
     let subtitle = wifi_subtitle(data, enabled);
-    let subtitle = truncate_to_width(ctx.text, &subtitle, subtitle_size, &ctx.theme.typography.font_family, text_width);
+    let subtitle = truncate_to_width(ctx.text, &subtitle, subtitle_size, ctx.theme.typography.font_family, text_width);
 
     ctx.text.draw_centered_v(
         scene,
@@ -315,7 +315,7 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
         text_x,
         block_y + WIFI_TEXT_BLOCK_HEIGHT * 0.55,
         WIFI_TEXT_BLOCK_HEIGHT * 0.45,
-        TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, subtitle_color),
+        TextStyle::new(subtitle_size, ctx.theme.typography.font_family, subtitle_color),
     );
 }
 
@@ -389,7 +389,7 @@ fn draw_circle_button(scene: &mut Scene, action: CommandAction, rect: Rect, butt
     }
 
     let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
-    let (glyph_width, _) = ctx.text.measure(button.glyph, icon_size, &ctx.theme.typography.icon_font_family);
+    let (glyph_width, _) = ctx.text.measure(button.glyph, icon_size, ctx.theme.typography.icon_font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -397,7 +397,7 @@ fn draw_circle_button(scene: &mut Scene, action: CommandAction, rect: Rect, butt
         center_x - glyph_width / 2.0,
         rect.y,
         rect.height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, button.foreground),
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, button.foreground),
     );
 }
 
@@ -421,7 +421,7 @@ fn draw_sound_card(
         card.x + tokens.command_card_padding_x,
         card.y + tokens.command_card_padding_y,
         tokens.command_card_title_height,
-        TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 
     let row = slider_row_in(card, ctx.theme);
@@ -509,6 +509,6 @@ fn draw_thick_slider(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &
         track.x + SLIDER_ICON_INSET,
         track.y,
         track_height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, icon_color),
     );
 }

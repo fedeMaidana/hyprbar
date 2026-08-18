@@ -38,7 +38,7 @@ impl PanelHeader<'_> {
             x,
             y,
             title_box,
-            TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+            TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
         );
 
         ctx.text.draw_centered_v(
@@ -47,7 +47,7 @@ impl PanelHeader<'_> {
             x,
             y + title_box,
             header_height - title_box,
-            TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+            TextStyle::new(subtitle_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
         );
     }
 }

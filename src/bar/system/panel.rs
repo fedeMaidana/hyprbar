@@ -144,7 +144,7 @@ impl Panel for SystemPanel<'_> {
 impl Badge<'_> {
     fn draw(&self, scene: &mut Scene, right_x: f32, row_y: f32, row_height: f32, ctx: &mut RenderCtx<'_>) {
         let text_size = ctx.theme.typography.size_base * BADGE_TEXT_SCALE;
-        let (text_width, _) = ctx.text.measure(self.text, text_size, &ctx.theme.typography.font_family);
+        let (text_width, _) = ctx.text.measure(self.text, text_size, ctx.theme.typography.font_family);
 
         let badge_height = (row_height - BADGE_VERTICAL_INSET * 2.0).max(text_size + 4.0);
         let badge_width = text_width + BADGE_PADDING_X * 2.0;
@@ -163,7 +163,7 @@ impl Badge<'_> {
             badge_x + BADGE_PADDING_X,
             badge_y,
             badge_height,
-            TextStyle::new(text_size, &ctx.theme.typography.font_family, self.foreground),
+            TextStyle::new(text_size, ctx.theme.typography.font_family, self.foreground),
         );
     }
 }
@@ -287,10 +287,10 @@ fn draw_metric_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &MetricRo
         label_x,
         y,
         text_box_height,
-        TextStyle::new(label_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(label_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 
-    let (value_width, _) = ctx.text.measure(&row.value, value_size, &ctx.theme.typography.font_family);
+    let (value_width, _) = ctx.text.measure(&row.value, value_size, ctx.theme.typography.font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -298,7 +298,7 @@ fn draw_metric_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &MetricRo
         x + width - value_width,
         y,
         text_box_height,
-        TextStyle::new(value_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(value_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     let meter_y = y + text_box_height + tokens.system_meter_gap;
@@ -315,7 +315,7 @@ fn draw_row_icon(scene: &mut Scene, x: f32, y: f32, box_height: f32, glyph: &str
         x,
         y,
         box_height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.text_secondary),
     );
 
     // Fixed slot keeps every row label aligned regardless of glyph width.
@@ -385,7 +385,7 @@ fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Opti
         label_x,
         y,
         row_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(text_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 
     if let Some(count) = pending
@@ -409,7 +409,7 @@ fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Opti
         _ => VALUE_PLACEHOLDER,
     };
 
-    let (value_width, _) = ctx.text.measure(value, text_size, &ctx.theme.typography.font_family);
+    let (value_width, _) = ctx.text.measure(value, text_size, ctx.theme.typography.font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -417,7 +417,7 @@ fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Opti
         x + width - value_width,
         y,
         row_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(text_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }
 
@@ -437,7 +437,7 @@ fn draw_power_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) 
         let glyph = action.glyph();
 
         ctx.text
-            .draw_centered(scene, glyph, rect, TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, foreground));
+            .draw_centered(scene, glyph, rect, TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, foreground));
     }
 }
 

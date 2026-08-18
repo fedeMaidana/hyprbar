@@ -138,7 +138,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData
 
     let temp_box_height = header_height * 0.6;
 
-    let (temp_width, _) = ctx.text.measure(&temp_text, temp_size, &ctx.theme.typography.font_family);
+    let (temp_width, _) = ctx.text.measure(&temp_text, temp_size, ctx.theme.typography.font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -146,13 +146,13 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData
         x + width - temp_width,
         y,
         temp_box_height,
-        TextStyle::new(temp_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(temp_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     let mut block_width = temp_width;
 
     if let Some(st_text) = &st_text {
-        let (st_width, _) = ctx.text.measure(st_text, st_size, &ctx.theme.typography.font_family);
+        let (st_width, _) = ctx.text.measure(st_text, st_size, ctx.theme.typography.font_family);
 
         ctx.text.draw_centered_v(
             scene,
@@ -160,7 +160,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData
             x + width - st_width,
             y + temp_box_height,
             header_height - temp_box_height,
-            TextStyle::new(st_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+            TextStyle::new(st_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
         );
 
         block_width = block_width.max(st_width);
@@ -171,7 +171,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData
         .unwrap_or(UNKNOWN_WEATHER_ICON);
     let icon_size = base * tokens.weather_header_icon_scale;
 
-    let (icon_width, _) = ctx.text.measure(icon, icon_size, &ctx.theme.typography.icon_font_family);
+    let (icon_width, _) = ctx.text.measure(icon, icon_size, ctx.theme.typography.icon_font_family);
     let icon_x = x + width - block_width - tokens.weather_inner_gap * 2.0 - icon_width;
 
     ctx.text.draw_centered_v(
@@ -180,7 +180,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData
         icon_x,
         y,
         header_height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, ctx.theme.palette.accent),
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.accent),
     );
 }
 
@@ -235,8 +235,8 @@ fn detail_item_width(item: &DetailItem, ctx: &mut RenderCtx<'_>) -> f32 {
     let icon_size = ctx.theme.typography.size_base * DETAIL_ICON_SCALE;
     let text_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_body_scale;
 
-    let (icon_width, _) = ctx.text.measure(item.glyph, icon_size, &ctx.theme.typography.icon_font_family);
-    let (text_width, _) = ctx.text.measure(&item.text, text_size, &ctx.theme.typography.font_family);
+    let (icon_width, _) = ctx.text.measure(item.glyph, icon_size, ctx.theme.typography.icon_font_family);
+    let (text_width, _) = ctx.text.measure(&item.text, text_size, ctx.theme.typography.font_family);
 
     icon_width + ctx.theme.tokens.weather_inner_gap + text_width
 }
@@ -253,7 +253,7 @@ fn draw_detail_item(scene: &mut Scene, x: f32, y: f32, item: &DetailItem, ctx: &
         (ctx.theme.palette.text_secondary, ctx.theme.palette.text_primary)
     };
 
-    let (icon_width, _) = ctx.text.measure(item.glyph, icon_size, &ctx.theme.typography.icon_font_family);
+    let (icon_width, _) = ctx.text.measure(item.glyph, icon_size, ctx.theme.typography.icon_font_family);
 
     ctx.text.draw_centered_v(
         scene,
@@ -261,7 +261,7 @@ fn draw_detail_item(scene: &mut Scene, x: f32, y: f32, item: &DetailItem, ctx: &
         x,
         y,
         row_height,
-        TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, icon_color),
     );
 
     ctx.text.draw_centered_v(
@@ -270,7 +270,7 @@ fn draw_detail_item(scene: &mut Scene, x: f32, y: f32, item: &DetailItem, ctx: &
         x + icon_width + ctx.theme.tokens.weather_inner_gap,
         y,
         row_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, text_color),
+        TextStyle::new(text_size, ctx.theme.typography.font_family, text_color),
     );
 }
 
@@ -363,7 +363,7 @@ fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &
         scene,
         column.day,
         Rect::new(x, cell_y, width, tokens.weather_forecast_day_height),
-        TextStyle::new(base * FORECAST_DAY_SCALE, &ctx.theme.typography.font_family, day_color),
+        TextStyle::new(base * FORECAST_DAY_SCALE, ctx.theme.typography.font_family, day_color),
     );
 
     cell_y += tokens.weather_forecast_day_height;
@@ -372,7 +372,7 @@ fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &
         scene,
         column.icon,
         Rect::new(x, cell_y, width, tokens.weather_forecast_icon_height),
-        TextStyle::new(base * FORECAST_ICON_SCALE, &ctx.theme.typography.icon_font_family, column.icon_color),
+        TextStyle::new(base * FORECAST_ICON_SCALE, ctx.theme.typography.icon_font_family, column.icon_color),
     );
 
     cell_y += tokens.weather_forecast_icon_height;
@@ -381,7 +381,7 @@ fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &
         scene,
         &column.max,
         Rect::new(x, cell_y, width, tokens.weather_forecast_max_height),
-        TextStyle::new(base * tokens.dropdown_body_scale, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        TextStyle::new(base * tokens.dropdown_body_scale, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     cell_y += tokens.weather_forecast_max_height;
@@ -390,7 +390,7 @@ fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &
         scene,
         &column.min,
         Rect::new(x, cell_y, width, tokens.weather_forecast_min_height),
-        TextStyle::new(base * tokens.dropdown_subtitle_scale, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        TextStyle::new(base * tokens.dropdown_subtitle_scale, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }
 

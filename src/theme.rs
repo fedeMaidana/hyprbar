@@ -35,10 +35,14 @@ impl Theme {
     }
 
     pub fn of(mode: ThemeMode) -> Self {
-        let palette = match mode {
+        let mut palette = match mode {
             ThemeMode::Dark => Palette::dark(),
             ThemeMode::Light => Palette::light(),
         };
+
+        // Único punto donde la paleta estática se tiñe con hyprcolor;
+        // después la mantiene fresca el watcher vía refresh_dynamic_colors.
+        palette.refresh_from_hyprcolor();
 
         Self {
             mode,
@@ -67,3 +71,8 @@ impl Default for Theme {
         Self::dark()
     }
 }
+
+// ─── < Tests > ────────────────────────────────────────────────────
+
+#[doc(hidden)]
+pub use colors::contrast_text_for;

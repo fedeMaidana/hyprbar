@@ -37,8 +37,10 @@ impl ThemeMode {
         }
     }
 
-    fn from_str(value: &str) -> Option<Self> {
-        match value.trim() {
+    /// Parsea el valor persistido, tolerando mayúsculas y espacios.
+    #[doc(hidden)]
+    pub fn from_persisted(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
             "dark" => Some(Self::Dark),
             "light" => Some(Self::Light),
             _ => None,
@@ -48,12 +50,20 @@ impl ThemeMode {
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
-/// Reads the persisted theme mode, defaulting to dark.
+/// Reads the persisted theme mode, defaulting to dark. A missing file is
+/// normal (primer arranque); un contenido irreconocible queda logueado.
 pub fn load_preferred() -> ThemeMode {
-    state_file_path()
-        .and_then(|path| fs::read_to_string(path).ok())
-        .and_then(|content| ThemeMode::from_str(&content))
-        .unwrap_or_default()
+    let Some(content) = state_file_path().and_then(|path| fs::read_to_string(path).ok()) else {
+        return ThemeMode::default();
+    };
+
+    match ThemeMode::from_persisted(&content) {
+        Some(mode) => mode,
+        None => {
+            log::warn!("modo de theme persistido no reconocido: {:?}; se usa dark", content.trim());
+            ThemeMode::default()
+        }
+    }
 }
 
 /// Persists the theme mode so it survives restarts.

@@ -151,7 +151,7 @@ impl CommandCenterPill {
 impl Component for CommandCenterPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
         let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
-        let (iw, _) = ctx.text.measure(TOGGLE_GLYPH, icon_size, &ctx.theme.typography.icon_font_family);
+        let (iw, _) = ctx.text.measure(TOGGLE_GLYPH, icon_size, ctx.theme.typography.icon_font_family);
         let w = iw + ctx.theme.tokens.pill_padding_x * 2.0;
 
         (w, ctx.theme.tokens.pill_height)
@@ -178,7 +178,7 @@ impl Component for CommandCenterPill {
             bounds.x + pad_x,
             bounds.y,
             bounds.height,
-            TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, self.icon_color(ctx)),
+            TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, self.icon_color(ctx)),
         );
     }
 

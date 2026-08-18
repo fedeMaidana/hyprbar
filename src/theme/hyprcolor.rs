@@ -1,6 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use serde::Deserialize;
+use std::io::ErrorKind;
 use std::{env, fs, path::PathBuf};
 use vello::peniko::Color;
 
@@ -9,26 +10,52 @@ use vello::peniko::Color;
 #[derive(Debug, Clone, Copy)]
 pub struct HyprcolorPalette {
     pub accent: Color,
-    pub foreground: Color,
 }
 
+/// El contrato `colors.json` que escribe hyprcolors. Solo se lee lo que
+/// la barra usa; cualquier otro campo del archivo se ignora.
 #[derive(Debug, Deserialize)]
 struct HyprcolorFile {
-    accent: String,
-    foreground: String,
+    #[serde(default)]
+    accent: Option<String>,
 }
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
+/// Carga la paleta dinámica. Que el archivo no exista es normal (hyprcolors
+/// no instalado, silencio); cualquier otra falla queda logueada. Corre solo
+/// en arranque, toggle de theme y cambios del archivo — nunca por frame.
 pub fn load() -> Option<HyprcolorPalette> {
     let path = colors_json_path()?;
-    let content = fs::read_to_string(path).ok()?;
-    let colors: HyprcolorFile = serde_json::from_str(&content).ok()?;
 
-    Some(HyprcolorPalette {
-        accent: parse_hex_color(&colors.accent)?,
-        foreground: parse_hex_color(&colors.foreground)?,
-    })
+    let content = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == ErrorKind::NotFound => return None,
+        Err(error) => {
+            log::warn!("no pude leer {}: {error}", path.display());
+            return None;
+        }
+    };
+
+    let file: HyprcolorFile = match serde_json::from_str(&content) {
+        Ok(file) => file,
+        Err(error) => {
+            log::warn!("paleta inválida en {}: {error}", path.display());
+            return None;
+        }
+    };
+
+    let Some(raw_accent) = file.accent else {
+        log::warn!("la paleta {} no trae 'accent'", path.display());
+        return None;
+    };
+
+    let Some(accent) = parse_hex_color(&raw_accent) else {
+        log::warn!("accent inválido en {}: {raw_accent:?}", path.display());
+        return None;
+    };
+
+    Some(HyprcolorPalette { accent })
 }
 
 /// Last modification time of the palette file, to detect live changes.
