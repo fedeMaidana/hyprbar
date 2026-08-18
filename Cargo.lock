@@ -745,7 +745,6 @@ dependencies = [
  "serde_json",
  "signal-hook",
  "smithay-client-toolkit",
- "thiserror",
  "ureq",
  "vello",
  "wayland-backend",

@@ -11,14 +11,11 @@ use calloop::{
 use calloop_wayland_source::WaylandSource;
 use wayland_client::{Connection, EventQueue};
 
-use crate::bar::clock::CLOCK_DROPDOWN;
-
 use super::state::AppState;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
 const CLOCK_TICK_SECONDS: u64 = 60;
-const NANOS_PER_SECOND: u64 = 1_000_000_000;
 const PALETTE_POLL_SECONDS: u64 = 1;
 const SURFACE_RETRY_SECONDS: u64 = 1;
 
@@ -43,25 +40,28 @@ pub(crate) fn insert_sources(
     Ok(())
 }
 
-/// Per-second repaint for the open clock panel. Armed on demand when the
-/// dropdown opens and drops itself when it closes, so an idle bar never
-/// wakes up once a second for nothing.
-pub(crate) fn insert_panel_seconds_tick_source(loop_handle: &calloop::LoopHandle<'static, AppState>) -> Result<()> {
-    let timer = Timer::from_duration(duration_until_next_second());
+/// Repintado periódico para el dropdown abierto que lo pida (el propio
+/// componente declara su cadencia vía `Component::dropdown_tick`).
+/// Se arma bajo demanda al abrir y se dropea solo cuando ningún dropdown
+/// pide ticks, así una barra idle nunca se despierta de más.
+pub(crate) fn insert_dropdown_tick_source(loop_handle: &calloop::LoopHandle<'static, AppState>, interval: Duration) -> Result<()> {
+    let timer = Timer::from_duration(duration_until_next_tick(interval));
 
     loop_handle
         .insert_source(timer, |_event, _meta, app| {
-            if app.open_dropdown == Some(CLOCK_DROPDOWN) {
-                app.needs_redraw = true;
+            // Se re-consulta en cada disparo: si el usuario cambió a otro
+            // dropdown con otra cadencia, el timer se adapta solo.
+            let Some(interval) = app.bar.open_dropdown_tick(app.open_dropdown) else {
+                app.dropdown_tick_armed = false;
 
-                return TimeoutAction::ToDuration(duration_until_next_second());
-            }
+                return TimeoutAction::Drop;
+            };
 
-            app.seconds_timer_armed = false;
+            app.needs_redraw = true;
 
-            TimeoutAction::Drop
+            TimeoutAction::ToDuration(duration_until_next_tick(interval))
         })
-        .map_err(|e| anyhow!("panel seconds timer insert failed: {e:?}"))?;
+        .map_err(|e| anyhow!("no se pudo insertar el timer de tick del dropdown: {e:?}"))?;
 
     Ok(())
 }
@@ -176,12 +176,15 @@ fn duration_until_next_minute() -> Duration {
     Duration::from_secs(secs_until_next_minute.max(1))
 }
 
-fn duration_until_next_second() -> Duration {
+/// Dispara alineado al próximo múltiplo del intervalo (para 1s, el
+/// próximo segundo de reloj), así los ticks caen donde el ojo espera.
+fn duration_until_next_tick(interval: Duration) -> Duration {
     let Ok(elapsed) = SystemTime::now().duration_since(UNIX_EPOCH) else {
-        return Duration::from_secs(1);
+        return interval;
     };
 
-    let nanos_until_next_second = NANOS_PER_SECOND - elapsed.subsec_nanos() as u64;
+    let interval_nanos = interval.as_nanos().max(1);
+    let until_next = interval_nanos - elapsed.as_nanos() % interval_nanos;
 
-    Duration::from_nanos(nanos_until_next_second.max(1))
+    Duration::from_nanos(until_next.max(1) as u64)
 }

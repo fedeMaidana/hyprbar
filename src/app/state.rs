@@ -6,7 +6,6 @@ use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
 use wayland_client::{Connection, QueueHandle, protocol::wl_surface};
 
 use crate::bar::Bar;
-use crate::bar::clock::CLOCK_DROPDOWN;
 use crate::components::DropdownId;
 use crate::render::{RenderContext, TextEngine};
 use crate::theme::Theme;
@@ -39,8 +38,8 @@ pub struct AppState {
     pub bar: Bar,
 
     pub(crate) open_dropdown: Option<DropdownId>,
-    /// Whether the clock's per-second repaint timer is currently alive.
-    pub(crate) seconds_timer_armed: bool,
+    /// Whether the open dropdown's periodic repaint timer is alive.
+    pub(crate) dropdown_tick_armed: bool,
 
     pub needs_redraw: bool,
     pub should_close: bool,
@@ -98,7 +97,7 @@ impl AppState {
             bar,
 
             open_dropdown: None,
-            seconds_timer_armed: false,
+            dropdown_tick_armed: false,
 
             needs_redraw: true,
             should_close: false,
@@ -145,21 +144,26 @@ impl AppState {
             Some(dropdown_id)
         };
 
-        self.arm_seconds_timer_if_needed();
+        self.arm_dropdown_tick_if_needed();
 
         self.needs_redraw = true;
     }
 
-    /// The clock panel repaints every second, but only while open; the
-    /// timer drops itself as soon as the dropdown closes.
-    fn arm_seconds_timer_if_needed(&mut self) {
-        if self.open_dropdown != Some(CLOCK_DROPDOWN) || self.seconds_timer_armed {
+    /// Si el dropdown recién abierto pide ticks (lo declara su propio
+    /// componente vía `dropdown_tick`), arma el timer; el timer se dropea
+    /// solo cuando ningún dropdown abierto los pide.
+    fn arm_dropdown_tick_if_needed(&mut self) {
+        if self.dropdown_tick_armed {
             return;
         }
 
-        match sources::insert_panel_seconds_tick_source(&self.loop_handle) {
-            Ok(()) => self.seconds_timer_armed = true,
-            Err(error) => log::warn!("no se pudo armar el timer de segundos: {error}"),
+        let Some(interval) = self.bar.open_dropdown_tick(self.open_dropdown) else {
+            return;
+        };
+
+        match sources::insert_dropdown_tick_source(&self.loop_handle, interval) {
+            Ok(()) => self.dropdown_tick_armed = true,
+            Err(error) => log::warn!("no se pudo armar el tick del dropdown: {error}"),
         }
     }
 

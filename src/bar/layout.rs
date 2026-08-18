@@ -1,5 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use std::time::Duration;
+
 use vello::Scene;
 
 use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Point, RenderCtx};
@@ -102,6 +104,15 @@ impl Bar {
         );
 
         self.render_active_dropdown(scene, surface, ctx);
+    }
+
+    /// Cadencia de repintado que pide el dropdown abierto, si es que
+    /// su componente necesita ticks (p. ej. el reloj con segundos).
+    pub fn open_dropdown_tick(&self, open_dropdown: Option<DropdownId>) -> Option<Duration> {
+        let dropdown_id = open_dropdown?;
+        let (component, _anchor) = self.dropdown_component(dropdown_id)?;
+
+        component.dropdown_tick()
     }
 
     /// Tallest dropdown any component can open; sizes the bar surface.

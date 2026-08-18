@@ -1,5 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use std::time::Duration;
+
 use vello::Scene;
 
 use super::dropdown::DropdownId;
@@ -158,6 +160,13 @@ pub trait Component {
     /// Tallest dropdown this component can open; sizes the bar surface.
     fn dropdown_max_height(&self, _theme: &Theme) -> f32 {
         0.0
+    }
+
+    /// Cadencia de repintado que necesita el dropdown de este componente
+    /// mientras está abierto (p. ej. el reloj con sus segundos).
+    /// `None` = no necesita ticks; la app no despierta por él.
+    fn dropdown_tick(&self) -> Option<Duration> {
+        None
     }
 
     fn render_dropdown(&mut self, _scene: &mut Scene, _surface: Rect, _anchor: Rect, _ctx: &mut RenderCtx<'_>) {}

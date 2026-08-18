@@ -83,10 +83,6 @@ impl NotificationsStore {
         self.lock().state
     }
 
-    pub(crate) fn notes_len(&self) -> usize {
-        self.lock().notes.len()
-    }
-
     pub(crate) fn replace_state(&self, state: HyprnotifyState) {
         self.lock().state = state;
     }

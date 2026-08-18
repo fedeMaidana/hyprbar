@@ -15,7 +15,7 @@ use crate::theme::Theme;
 
 use super::action::NotificationAction;
 use super::panel::NotificationsPanel;
-use super::state::{MAX_VISIBLE_ROWS, NotificationsStore};
+use super::state::{MAX_VISIBLE_ROWS, NotificationsData, NotificationsStore};
 use super::worker::spawn_poller;
 
 // ─── < Constants > ────────────────────────────────────────────────────
@@ -30,6 +30,10 @@ const BELL_OFF_GLYPH: &str = "\u{f009b}";
 pub struct NotificationsPill {
     store: NotificationsStore,
     _poller: Option<WorkerHandle>,
+    /// Snapshot del store tomado una vez por frame en `render`; los
+    /// hit-tests y bounds del dropdown lo reusan en vez de clonar el
+    /// historial por cada evento del puntero.
+    frame_data: NotificationsData,
     /// Scroll discreto, en filas.
     scroll: usize,
 }
@@ -44,6 +48,7 @@ impl NotificationsPill {
         Self {
             store,
             _poller: poller,
+            frame_data: NotificationsData::default(),
             scroll: 0,
         }
     }
@@ -64,7 +69,12 @@ impl Component for NotificationsPill {
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let active = self.is_active(ctx);
 
-        if !active && self.scroll != 0 {
+        if active {
+            // El worker puede cambiar el historial entre frames: un solo
+            // snapshot por frame y el scroll se re-clampa contra él.
+            self.frame_data = self.store.data();
+            self.scroll = self.scroll.min(self.frame_data.max_scroll());
+        } else if self.scroll != 0 {
             self.scroll = 0;
         }
 
@@ -117,24 +127,17 @@ impl Component for NotificationsPill {
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        let data = self.store.data();
-
-        // El worker puede achicar el historial entre frames.
-        self.scroll = self.scroll.min(data.max_scroll());
-
         NotificationsPanel {
-            data: &data,
+            data: &self.frame_data,
             scroll: self.scroll,
         }
         .render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        let data = self.store.data();
-
         Some(
             NotificationsPanel {
-                data: &data,
+                data: &self.frame_data,
                 scroll: self.scroll,
             }
             .bounds(surface, anchor, theme),
@@ -142,10 +145,8 @@ impl Component for NotificationsPill {
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        let data = self.store.data();
-
         NotificationsPanel {
-            data: &data,
+            data: &self.frame_data,
             scroll: self.scroll,
         }
         .hit_test(point, surface, anchor, theme)
@@ -161,13 +162,14 @@ impl Component for NotificationsPill {
 
         // Optimista: el daemon reescribe los contratos enseguida
         self.store.clear_history();
+        self.frame_data = NotificationsData::default();
         self.scroll = 0;
 
         Some(InteractionOutcome::redraw())
     }
 
     fn handle_scroll(&mut self, delta: f64) -> bool {
-        let notes_len = self.store.notes_len();
+        let notes_len = self.frame_data.notes.len();
 
         if notes_len <= MAX_VISIBLE_ROWS {
             return false;

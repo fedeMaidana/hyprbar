@@ -1,5 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use std::time::Duration;
+
 use chrono::Local;
 use vello::Scene;
 use vello::peniko::Color;
@@ -102,6 +104,12 @@ impl Component for ClockPill {
 
     fn dropdown_max_height(&self, theme: &Theme) -> f32 {
         ClockPanel::height(theme)
+    }
+
+    /// El panel muestra segundos: pide un repintado por segundo mientras
+    /// está abierto.
+    fn dropdown_tick(&self) -> Option<Duration> {
+        Some(Duration::from_secs(1))
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
