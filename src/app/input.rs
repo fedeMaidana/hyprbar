@@ -96,6 +96,11 @@ impl AppState {
                     self.needs_redraw = true;
                 }
             }
+            Interaction::Notifications(_) => {
+                if self.bar.handle_interaction(interaction) {
+                    self.needs_redraw = true;
+                }
+            }
             Interaction::Command(CommandAction::ToggleTheme) => {
                 self.toggle_theme();
             }

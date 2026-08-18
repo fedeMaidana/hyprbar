@@ -749,6 +749,7 @@ dependencies = [
  "vello",
  "wayland-backend",
  "wayland-client",
+ "wayland-protocols",
 ]
 
 [[package]]
