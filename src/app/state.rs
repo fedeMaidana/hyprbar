@@ -1,10 +1,12 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use calloop::LoopHandle;
 use smithay_client_toolkit::shell::WaylandSurface;
 use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
 use wayland_client::{Connection, QueueHandle, protocol::wl_surface};
 
 use crate::bar::Bar;
+use crate::bar::clock::CLOCK_DROPDOWN;
 use crate::components::DropdownId;
 use crate::render::{RenderContext, TextEngine};
 use crate::theme::Theme;
@@ -12,6 +14,7 @@ use crate::wayland::LayerConfig;
 use crate::wayland::init::WaylandInit;
 
 use super::pointer::PointerState;
+use super::sources;
 use super::surface::SurfaceState;
 use super::wayland_state::WaylandState;
 
@@ -25,6 +28,7 @@ pub struct AppState {
     pub(crate) conn: Connection,
     pub(crate) qh: QueueHandle<AppState>,
     pub(crate) layer_config: LayerConfig,
+    pub(crate) loop_handle: LoopHandle<'static, AppState>,
     /// The wgpu surface targets a dead wl_surface and must be rebuilt
     /// before the next render (set after recreating the layer surface).
     pub(crate) render_surface_stale: bool,
@@ -35,6 +39,8 @@ pub struct AppState {
     pub bar: Bar,
 
     pub(crate) open_dropdown: Option<DropdownId>,
+    /// Whether the clock's per-second repaint timer is currently alive.
+    pub(crate) seconds_timer_armed: bool,
 
     pub needs_redraw: bool,
     pub should_close: bool,
@@ -43,7 +49,15 @@ pub struct AppState {
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl AppState {
-    pub fn new(wl_init: WaylandInit, conn: Connection, qh: QueueHandle<Self>, layer_config: LayerConfig, theme: Theme, bar: Bar) -> Self {
+    pub fn new(
+        wl_init: WaylandInit,
+        conn: Connection,
+        qh: QueueHandle<Self>,
+        layer_config: LayerConfig,
+        theme: Theme,
+        bar: Bar,
+        loop_handle: LoopHandle<'static, AppState>,
+    ) -> Self {
         let WaylandInit {
             registry_state,
             output_state,
@@ -59,7 +73,7 @@ impl AppState {
         } = wl_init;
 
         Self {
-            wayland: WaylandState::new(
+            wayland: WaylandState {
                 registry_state,
                 output_state,
                 seat_state,
@@ -68,13 +82,14 @@ impl AppState {
                 layer_shell,
                 viewporter,
                 fractional_manager,
-            ),
+            },
             surface: SurfaceState::new(layer, fractional, viewport),
             pointer: PointerState::new(),
 
             conn,
             qh,
             layer_config,
+            loop_handle,
             render_surface_stale: false,
 
             render_ctx: RenderContext::new(),
@@ -83,6 +98,7 @@ impl AppState {
             bar,
 
             open_dropdown: None,
+            seconds_timer_armed: false,
 
             needs_redraw: true,
             should_close: false,
@@ -129,7 +145,22 @@ impl AppState {
             Some(dropdown_id)
         };
 
+        self.arm_seconds_timer_if_needed();
+
         self.needs_redraw = true;
+    }
+
+    /// The clock panel repaints every second, but only while open; the
+    /// timer drops itself as soon as the dropdown closes.
+    fn arm_seconds_timer_if_needed(&mut self) {
+        if self.open_dropdown != Some(CLOCK_DROPDOWN) || self.seconds_timer_armed {
+            return;
+        }
+
+        match sources::insert_panel_seconds_tick_source(&self.loop_handle) {
+            Ok(()) => self.seconds_timer_armed = true,
+            Err(error) => log::warn!("panel seconds timer failed to arm: {error}"),
+        }
     }
 
     pub(crate) fn close_dropdown(&mut self) {

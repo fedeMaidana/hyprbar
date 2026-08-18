@@ -6,7 +6,7 @@ use crate::bar::clock::ClockPill;
 use crate::bar::command_center::CommandCenterPill;
 use crate::bar::date::DatePill;
 use crate::bar::layout::Bar;
-use crate::bar::notifications_pill::NotificationsPill;
+use crate::bar::notifications::NotificationsPill;
 use crate::bar::profile::ProfilePill;
 use crate::bar::system::ArchLogoPill;
 use crate::bar::weather::{WeatherConfig, WeatherPill};

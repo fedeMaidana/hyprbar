@@ -5,7 +5,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, Circle, RoundedRect};
 use vello::peniko::Fill;
 
-use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
+use crate::components::{DropdownFrame, Interaction, Panel, Point, RenderCtx};
 use crate::locale::{WEEKDAY_HEADERS, month_name};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
@@ -31,7 +31,17 @@ const TODAY_HINT_DOT_OFFSET: f32 = 1.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
-pub struct DatePanel;
+pub struct DatePanel {
+    pub month_offset: i32,
+}
+
+/// The month the panel is currently looking at.
+struct MonthView {
+    year: i32,
+    month: u32,
+    today: NaiveDate,
+    viewing_current_month: bool,
+}
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
@@ -63,45 +73,36 @@ impl DatePanel {
             + tokens.date_cell_gap * (rows - 1.0)
     }
 
-    pub fn bounds(surface: Rect, anchor: Rect, month_offset: i32, theme: &Theme) -> Rect {
-        Self::frame(theme, month_offset).bounds(surface, anchor, theme)
+    fn month_view(&self) -> MonthView {
+        let today = Local::now().date_naive();
+        let (year, month) = shift_month(today.year(), today.month(), self.month_offset);
+
+        MonthView {
+            year,
+            month,
+            today,
+            viewing_current_month: self.month_offset == 0,
+        }
+    }
+}
+
+impl Panel for DatePanel {
+    fn frame(&self, theme: &Theme) -> DropdownFrame {
+        DropdownFrame::new(Self::width(theme), Self::height(theme, self.month_offset))
     }
 
-    pub fn hit_test(point: Point, surface: Rect, anchor: Rect, month_offset: i32, theme: &Theme) -> Option<Interaction> {
-        let bounds = Self::bounds(surface, anchor, month_offset, theme);
-
-        for (action, rect) in nav_button_rects(bounds, theme) {
-            if rect.contains_point(point.x, point.y) {
-                return Some(Interaction::Calendar(action));
-            }
-        }
-
-        if today_hit_rect(bounds, theme).contains_point(point.x, point.y) {
-            return Some(Interaction::Calendar(CalendarAction::Today));
-        }
-
-        None
-    }
-
-    pub fn draw(scene: &mut Scene, surface: Rect, anchor: Rect, month_offset: i32, ctx: &mut RenderCtx<'_>) {
+    fn draw_content(&self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let theme = ctx.theme;
         let tokens = theme.tokens;
 
-        let frame = Self::frame(theme, month_offset);
-        let bounds = frame.bounds(surface, anchor, theme);
-
-        frame.draw_background(scene, bounds, theme);
-
-        let today = Local::now().date_naive();
-        let (year, month) = shift_month(today.year(), today.month(), month_offset);
-        let viewing_current_month = month_offset == 0;
+        let view = self.month_view();
 
         let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
         let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
         let mut y = bounds.y + tokens.dropdown_panel_padding_y;
 
         draw_nav_buttons(scene, bounds, ctx);
-        draw_header(scene, inner_x, inner_width, y, &header_label(year, month), viewing_current_month, ctx);
+        draw_header(scene, inner_x, inner_width, y, &header_label(view.year, view.month), view.viewing_current_month, ctx);
 
         y += tokens.dropdown_header_height;
 
@@ -113,11 +114,21 @@ impl DatePanel {
 
         y += tokens.date_weekday_row_height;
 
-        draw_day_grid(scene, inner_x, y, year, month, today, viewing_current_month, ctx);
+        draw_day_grid(scene, inner_x, y, &view, ctx);
     }
 
-    fn frame(theme: &Theme, month_offset: i32) -> DropdownFrame {
-        DropdownFrame::new(Self::width(theme), Self::height(theme, month_offset))
+    fn hit_test_content(&self, point: Point, bounds: Rect, theme: &Theme) -> Option<Interaction> {
+        for (action, rect) in nav_button_rects(bounds, theme) {
+            if rect.contains_point(point.x, point.y) {
+                return Some(action.interaction());
+            }
+        }
+
+        if today_hit_rect(bounds, theme).contains_point(point.x, point.y) {
+            return Some(CalendarAction::Today.interaction());
+        }
+
+        None
     }
 }
 
@@ -143,7 +154,7 @@ fn draw_header(
     let text_x = inner_x + (inner_width - text_width) / 2.0;
 
     // The title doubles as a "back to today" button; hover makes that visible.
-    if ctx.hovered_interaction == Some(Interaction::Calendar(CalendarAction::Today)) {
+    if ctx.hovered_interaction == Some(CalendarAction::Today.interaction()) {
         let pill_x = text_x - TITLE_HOVER_PAD_X;
         let pill_y = y + (item_height - TITLE_HOVER_HEIGHT) / 2.0;
         let pill_width = text_width + TITLE_HOVER_PAD_X * 2.0;
@@ -184,7 +195,7 @@ fn draw_nav_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
     let radius = ctx.theme.tokens.date_nav_button_radius as f64;
 
     for (action, rect) in nav_button_rects(bounds, ctx.theme) {
-        let is_hovered = ctx.hovered_interaction == Some(Interaction::Calendar(action));
+        let is_hovered = ctx.hovered_interaction == Some(action.interaction());
 
         let background = if is_hovered {
             ctx.theme.palette.control_hover_bg
@@ -234,19 +245,16 @@ fn draw_weekday_headers(scene: &mut Scene, x: f32, y: f32, ctx: &mut RenderCtx<'
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn draw_day_grid(
-    scene: &mut Scene,
-    x: f32,
-    y: f32,
-    year: i32,
-    month: u32,
-    today: NaiveDate,
-    viewing_current_month: bool,
-    ctx: &mut RenderCtx<'_>,
-) {
+fn draw_day_grid(scene: &mut Scene, x: f32, y: f32, view: &MonthView, ctx: &mut RenderCtx<'_>) {
     let tokens = ctx.theme.tokens;
     let size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
+
+    let MonthView {
+        year,
+        month,
+        today,
+        viewing_current_month,
+    } = *view;
 
     let grid = month_grid(year, month);
     let start = monday_offset(year, month) as usize;

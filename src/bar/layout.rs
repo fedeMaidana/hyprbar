@@ -2,7 +2,7 @@
 
 use vello::Scene;
 
-use crate::components::{Component, DropdownId, Interaction, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Point, RenderCtx};
 use crate::render::Rect;
 use crate::theme::Theme;
 
@@ -101,17 +101,17 @@ impl Bar {
             ctx,
         );
 
-        render_active_dropdown(
-            &mut self.left,
-            &self.left_bounds,
-            &mut self.center,
-            &self.center_bounds,
-            &mut self.right,
-            &self.right_bounds,
-            scene,
-            surface,
-            ctx,
-        );
+        self.render_active_dropdown(scene, surface, ctx);
+    }
+
+    /// Tallest dropdown any component can open; sizes the bar surface.
+    pub fn max_dropdown_height(&self, theme: &Theme) -> f32 {
+        self.left
+            .iter()
+            .chain(self.center.iter())
+            .chain(self.right.iter())
+            .map(|component| component.dropdown_max_height(theme))
+            .fold(0.0, f32::max)
     }
 
     pub fn hit_test(&self, point: Point, theme: &Theme, open_dropdown: Option<DropdownId>) -> Option<Interaction> {
@@ -129,14 +129,14 @@ impl Bar {
         bounds.contains_point(point.x, point.y)
     }
 
-    pub fn handle_interaction(&mut self, interaction: Interaction) -> bool {
+    pub fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
         for component in self.left.iter_mut().chain(self.center.iter_mut()).chain(self.right.iter_mut()) {
-            if component.handle_interaction(interaction) {
-                return true;
+            if let Some(outcome) = component.handle_interaction(interaction) {
+                return Some(outcome);
             }
         }
 
-        false
+        None
     }
 
     pub fn handle_drag(&mut self, interaction: Interaction, point: Point, theme: &Theme, open_dropdown: Option<DropdownId>) -> bool {
@@ -185,6 +185,18 @@ impl Bar {
         for component in self.left.iter_mut().chain(self.center.iter_mut()).chain(self.right.iter_mut()) {
             component.reset_scroll();
         }
+    }
+
+    fn render_active_dropdown(&mut self, scene: &mut Scene, surface: Rect, ctx: &mut RenderCtx<'_>) {
+        let Some(open_dropdown) = ctx.open_dropdown else {
+            return;
+        };
+
+        let Some((component, anchor)) = self.dropdown_component_mut(open_dropdown) else {
+            return;
+        };
+
+        component.render_dropdown(scene, surface, anchor, ctx);
     }
 
     fn dropdown_component_mut(&mut self, dropdown_id: DropdownId) -> Option<(&mut dyn Component, Rect)> {
@@ -337,51 +349,6 @@ fn render_section(
 
         x += width + layout.gap;
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn render_active_dropdown(
-    left: &mut [Box<dyn Component>],
-    left_bounds: &[Rect],
-    center: &mut [Box<dyn Component>],
-    center_bounds: &[Rect],
-    right: &mut [Box<dyn Component>],
-    right_bounds: &[Rect],
-    scene: &mut Scene,
-    surface: Rect,
-    ctx: &mut RenderCtx<'_>,
-) {
-    let Some(open_dropdown) = ctx.open_dropdown else {
-        return;
-    };
-
-    if render_dropdown_in_section(left, left_bounds, open_dropdown, scene, surface, ctx) {
-        return;
-    }
-
-    if render_dropdown_in_section(center, center_bounds, open_dropdown, scene, surface, ctx) {
-        return;
-    }
-
-    render_dropdown_in_section(right, right_bounds, open_dropdown, scene, surface, ctx);
-}
-
-fn render_dropdown_in_section(
-    components: &mut [Box<dyn Component>],
-    bounds: &[Rect],
-    open_dropdown: DropdownId,
-    scene: &mut Scene,
-    surface: Rect,
-    ctx: &mut RenderCtx<'_>,
-) -> bool {
-    for (component, anchor) in components.iter_mut().zip(bounds.iter().copied()) {
-        if component.dropdown_id() == Some(open_dropdown) {
-            component.render_dropdown(scene, surface, anchor, ctx);
-            return true;
-        }
-    }
-
-    false
 }
 
 fn hit_test_section(components: &[Box<dyn Component>], bounds: &[Rect], point: Point, theme: &Theme) -> Option<Interaction> {

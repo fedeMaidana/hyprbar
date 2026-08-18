@@ -61,10 +61,9 @@ pub fn init(conn: &Connection, config: LayerConfig) -> Result<(WaylandInit, Even
     let fractional_manager: Option<WpFractionalScaleManagerV1> = globals.bind(&qh, 1..=1, ()).ok();
 
     let (fractional, viewport) = match (&fractional_manager, &viewporter) {
-        (Some(manager), Some(viewporter)) => (
-            Some(manager.get_fractional_scale(layer.wl_surface(), &qh, ())),
-            Some(viewporter.get_viewport(layer.wl_surface(), &qh, ())),
-        ),
+        (Some(manager), Some(viewporter)) => {
+            (Some(manager.get_fractional_scale(layer.wl_surface(), &qh, ())), Some(viewporter.get_viewport(layer.wl_surface(), &qh, ())))
+        }
         _ => {
             log::info!("compositor sin fractional-scale; se usa escala entera");
             (None, None)

@@ -4,10 +4,11 @@ use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::{Color, Fill};
 
-use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
+use crate::components::{DropdownFrame, Interaction, Panel, PanelHeader, Point, RenderCtx, evenly_spaced_rects};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
+use super::action::SystemAction;
 use super::metrics::{MemoryInfo, short_kernel_version};
 use super::power::PowerAction;
 use super::state::{MetricsSnapshot, SystemData};
@@ -25,6 +26,7 @@ const TEMP_GLYPH: &str = "\u{f050f}";
 const UPDATES_GLYPH: &str = "\u{f03d7}";
 
 const ICON_TEXT_SCALE: f32 = 0.95;
+const HEADER_TITLE_SHARE: f32 = 0.55;
 
 const BADGE_TEXT_SCALE: f32 = 0.82;
 const BADGE_PADDING_X: f32 = 7.0;
@@ -37,7 +39,9 @@ const UPDATES_HOVER_RADIUS: f32 = 8.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
-pub struct SystemPanel;
+pub struct SystemPanel<'a> {
+    pub data: &'a SystemData,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MeterSeverity {
@@ -54,9 +58,16 @@ struct MetricRow {
     severity: MeterSeverity,
 }
 
+/// A small right-aligned rounded chip (uptime, pending updates).
+struct Badge<'a> {
+    text: &'a str,
+    background: Color,
+    foreground: Color,
+}
+
 // ─── < Implementations > ────────────────────────────────────────────────────
 
-impl SystemPanel {
+impl SystemPanel<'_> {
     pub fn height(theme: &Theme) -> f32 {
         let tokens = theme.tokens;
 
@@ -68,35 +79,17 @@ impl SystemPanel {
             + tokens.system_updates_row_height
             + tokens.system_button_height
     }
+}
 
-    pub fn bounds(surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
-        Self::frame(theme).bounds(surface, anchor, theme)
+impl Panel for SystemPanel<'_> {
+    fn frame(&self, theme: &Theme) -> DropdownFrame {
+        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
     }
 
-    pub fn hit_test(point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        let bounds = Self::bounds(surface, anchor, theme);
-
-        for (action, rect) in power_button_rects(bounds, theme) {
-            if rect.contains_point(point.x, point.y) {
-                return Some(Interaction::Power(action));
-            }
-        }
-
-        if updates_row_rect(bounds, theme).contains_point(point.x, point.y) {
-            return Some(Interaction::Updates);
-        }
-
-        None
-    }
-
-    pub fn draw(scene: &mut Scene, surface: Rect, anchor: Rect, data: &SystemData, ctx: &mut RenderCtx<'_>) {
+    fn draw_content(&self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let theme = ctx.theme;
         let tokens = theme.tokens;
-
-        let frame = Self::frame(theme);
-        let bounds = frame.bounds(surface, anchor, theme);
-
-        frame.draw_background(scene, bounds, theme);
+        let data = self.data;
 
         let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
         let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
@@ -120,7 +113,7 @@ impl SystemPanel {
             + tokens.system_metric_gap * (METRIC_ROW_COUNT - 1.0)
             + tokens.dropdown_section_gap;
 
-        if ctx.hovered_interaction == Some(Interaction::Updates) {
+        if ctx.hovered_interaction == Some(SystemAction::Updates.interaction()) {
             draw_updates_hover(scene, updates_row_rect(bounds, theme), ctx.theme);
         }
 
@@ -133,78 +126,68 @@ impl SystemPanel {
         draw_power_buttons(scene, bounds, ctx);
     }
 
-    fn frame(theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
+    fn hit_test_content(&self, point: Point, bounds: Rect, theme: &Theme) -> Option<Interaction> {
+        for (action, rect) in power_button_rects(bounds, theme) {
+            if rect.contains_point(point.x, point.y) {
+                return Some(SystemAction::Power(action).interaction());
+            }
+        }
+
+        if updates_row_rect(bounds, theme).contains_point(point.x, point.y) {
+            return Some(SystemAction::Updates.interaction());
+        }
+
+        None
+    }
+}
+
+impl Badge<'_> {
+    fn draw(&self, scene: &mut Scene, right_x: f32, row_y: f32, row_height: f32, ctx: &mut RenderCtx<'_>) {
+        let text_size = ctx.theme.typography.size_base * BADGE_TEXT_SCALE;
+        let (text_width, _) = ctx.text.measure(self.text, text_size, &ctx.theme.typography.font_family);
+
+        let badge_height = (row_height - BADGE_VERTICAL_INSET * 2.0).max(text_size + 4.0);
+        let badge_width = text_width + BADGE_PADDING_X * 2.0;
+        let badge_x = right_x - badge_width;
+        let badge_y = row_y + (row_height - badge_height) / 2.0;
+        let radius = (badge_height / 2.0) as f64;
+
+        let body =
+            RoundedRect::new(badge_x as f64, badge_y as f64, (badge_x + badge_width) as f64, (badge_y + badge_height) as f64, radius);
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, self.background, None, &body);
+
+        ctx.text.draw_centered_v(
+            scene,
+            self.text,
+            badge_x + BADGE_PADDING_X,
+            badge_y,
+            badge_height,
+            TextStyle::new(text_size, &ctx.theme.typography.font_family, self.foreground),
+        );
     }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &SystemData, ctx: &mut RenderCtx<'_>) {
-    let header_height = ctx.theme.tokens.dropdown_header_height;
-    let title_box = header_height * 0.56;
-    let subtitle_box = header_height - title_box;
-
-    let title_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_title_scale;
-    let subtitle_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_subtitle_scale;
-
-    ctx.text.draw_centered_v(
-        scene,
-        PANEL_TITLE,
-        x,
-        y,
-        title_box,
-        TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
-    );
-
-    if let Some(uptime) = uptime_label(data) {
-        draw_badge(scene, x + width, y, title_box, &uptime, ctx.theme.palette.panel_raised, ctx.theme.palette.text_secondary, ctx);
-    }
-
     let subtitle = kernel_label(data);
 
-    ctx.text.draw_centered_v(
-        scene,
-        &subtitle,
-        x,
-        y + title_box,
-        subtitle_box,
-        TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-    );
-}
+    PanelHeader {
+        title: PANEL_TITLE,
+        subtitle: &subtitle,
+    }
+    .draw(scene, x, y, ctx);
 
-#[allow(clippy::too_many_arguments)]
-fn draw_badge(
-    scene: &mut Scene,
-    right_x: f32,
-    row_y: f32,
-    row_height: f32,
-    text: &str,
-    background: Color,
-    foreground: Color,
-    ctx: &mut RenderCtx<'_>,
-) {
-    let text_size = ctx.theme.typography.size_base * BADGE_TEXT_SCALE;
-    let (text_width, _) = ctx.text.measure(text, text_size, &ctx.theme.typography.font_family);
+    if let Some(uptime) = uptime_label(data) {
+        let badge = Badge {
+            text: &uptime,
+            background: ctx.theme.palette.panel_raised,
+            foreground: ctx.theme.palette.text_secondary,
+        };
 
-    let badge_height = (row_height - BADGE_VERTICAL_INSET * 2.0).max(text_size + 4.0);
-    let badge_width = text_width + BADGE_PADDING_X * 2.0;
-    let badge_x = right_x - badge_width;
-    let badge_y = row_y + (row_height - badge_height) / 2.0;
-    let radius = (badge_height / 2.0) as f64;
-
-    let body = RoundedRect::new(badge_x as f64, badge_y as f64, (badge_x + badge_width) as f64, (badge_y + badge_height) as f64, radius);
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &body);
-
-    ctx.text.draw_centered_v(
-        scene,
-        text,
-        badge_x + BADGE_PADDING_X,
-        badge_y,
-        badge_height,
-        TextStyle::new(text_size, &ctx.theme.typography.font_family, foreground),
-    );
+        badge.draw(scene, x + width, y, ctx.theme.tokens.dropdown_header_height * HEADER_TITLE_SHARE, ctx);
+    }
 }
 
 fn kernel_label(data: &SystemData) -> String {
@@ -408,9 +391,15 @@ fn draw_updates_row(scene: &mut Scene, x: f32, y: f32, width: f32, pending: Opti
     if let Some(count) = pending
         && count > 0
     {
-        let chip_bg = ctx.theme.palette.meter_warning.with_alpha(UPDATES_CHIP_BG_ALPHA);
+        let text = format!("{count} pending");
 
-        draw_badge(scene, x + width, y, row_height, &format!("{count} pending"), chip_bg, ctx.theme.palette.meter_warning, ctx);
+        let badge = Badge {
+            text: &text,
+            background: ctx.theme.palette.meter_warning.with_alpha(UPDATES_CHIP_BG_ALPHA),
+            foreground: ctx.theme.palette.meter_warning,
+        };
+
+        badge.draw(scene, x + width, y, row_height, ctx);
 
         return;
     }
@@ -437,7 +426,7 @@ fn draw_power_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) 
     let radius = ctx.theme.tokens.system_button_radius as f64;
 
     for (action, rect) in power_button_rects(bounds, ctx.theme) {
-        let is_hovered = ctx.hovered_interaction == Some(Interaction::Power(action));
+        let is_hovered = ctx.hovered_interaction == Some(SystemAction::Power(action).interaction());
 
         let (background, foreground) = button_colors(action, is_hovered, ctx.theme);
 
@@ -446,16 +435,9 @@ fn draw_power_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) 
         scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &body);
 
         let glyph = action.glyph();
-        let (glyph_width, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
 
-        ctx.text.draw_centered_v(
-            scene,
-            glyph,
-            rect.x + (rect.width - glyph_width) / 2.0,
-            rect.y,
-            rect.height,
-            TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, foreground),
-        );
+        ctx.text
+            .draw_centered(scene, glyph, rect, TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, foreground));
     }
 }
 
@@ -476,18 +458,9 @@ fn power_button_rects(bounds: Rect, theme: &Theme) -> [(PowerAction, Rect); 3] {
     let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
     let y = bounds.y + bounds.height - tokens.dropdown_panel_padding_y - tokens.system_button_height;
 
-    let count = PowerAction::ALL.len();
-    let gap = tokens.system_button_gap;
-    let button_width = (inner_width - gap * (count - 1) as f32) / count as f32;
+    let rects: [Rect; 3] = evenly_spaced_rects(inner_x, y, inner_width, tokens.system_button_height, tokens.system_button_gap);
 
-    let mut rects = [(PowerAction::Suspend, Rect::new(0.0, 0.0, 0.0, 0.0)); 3];
-
-    for (index, action) in PowerAction::ALL.into_iter().enumerate() {
-        let x = inner_x + index as f32 * (button_width + gap);
-        rects[index] = (action, Rect::new(x, y, button_width, tokens.system_button_height));
-    }
-
-    rects
+    std::array::from_fn(|index| (PowerAction::ALL[index], rects[index]))
 }
 
 fn format_memory(memory: MemoryInfo) -> String {

@@ -4,7 +4,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, Circle, RoundedRect, Stroke};
 use vello::peniko::{Color, Fill};
 
-use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
+use crate::components::{DropdownFrame, Interaction, Panel, Point, RenderCtx, truncate_to_width};
 use crate::render::{Rect, TextStyle};
 use crate::theme::{Theme, ThemeMode};
 
@@ -26,7 +26,6 @@ const WIFI_TITLE: &str = "Wi-Fi";
 const WIFI_ON_TEXT: &str = "Activado";
 const WIFI_OFF_TEXT: &str = "Desactivado";
 const SOUND_TITLE: &str = "Sonido";
-const ELLIPSIS: &str = "…";
 
 const SMALL_TEXT_SCALE: f32 = 0.78;
 const SUBTITLE_TEXT_SCALE: f32 = 0.7;
@@ -43,7 +42,10 @@ const EMBED_ICON_SCALE: f32 = 0.75;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
-pub struct CommandPanel;
+pub struct CommandPanel<'a> {
+    pub data: &'a CommandData,
+    pub drag: Option<(CommandAction, f32)>,
+}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PanelAvailability {
@@ -80,18 +82,11 @@ impl PanelAvailability {
     }
 }
 
-impl CommandPanel {
+impl CommandPanel<'_> {
     pub fn height(theme: &Theme) -> f32 {
         let tokens = theme.tokens;
 
-        tokens.command_panel_padding_y * 2.0
-            + tokens.command_wifi_card_height
-            + tokens.command_card_gap
-            + tokens.command_sound_card_height
-    }
-
-    pub fn bounds(surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
-        Self::frame(theme).bounds(surface, anchor, theme)
+        tokens.command_panel_padding_y * 2.0 + tokens.command_wifi_card_height + tokens.command_card_gap + tokens.command_sound_card_height
     }
 
     pub fn slider_fraction(action: CommandAction, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<f32> {
@@ -99,7 +94,7 @@ impl CommandPanel {
             return None;
         }
 
-        let bounds = Self::bounds(surface, anchor, theme);
+        let bounds = DropdownFrame::new(theme.tokens.command_panel_width, Self::height(theme)).bounds(surface, anchor, theme);
         let track = sound_slider_row(bounds, theme);
 
         if track.width <= 0.0 {
@@ -108,59 +103,49 @@ impl CommandPanel {
 
         Some(((point.x - track.x) / track.width).clamp(0.0, 1.0))
     }
+}
 
-    pub fn hit_test(point: Point, surface: Rect, anchor: Rect, theme: &Theme, availability: PanelAvailability) -> Option<Interaction> {
-        let bounds = Self::bounds(surface, anchor, theme);
+impl Panel for CommandPanel<'_> {
+    fn frame(&self, theme: &Theme) -> DropdownFrame {
+        DropdownFrame::new(theme.tokens.command_panel_width, Self::height(theme))
+    }
+
+    fn draw_content(&self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
+        let theme = ctx.theme;
+        let availability = PanelAvailability::from_data(self.data);
+
+        draw_wifi_card(scene, wifi_card_rect(bounds, theme), self.data, availability.wifi, ctx);
+        draw_circle_buttons(scene, bounds, self.data, availability, ctx);
+        draw_sound_card(scene, sound_card_rect(bounds, theme), self.data, self.drag, availability.volume, ctx);
+    }
+
+    fn hit_test_content(&self, point: Point, bounds: Rect, theme: &Theme) -> Option<Interaction> {
+        let availability = PanelAvailability::from_data(self.data);
         let slider_row = sound_slider_row(bounds, theme);
 
         if availability.volume && mute_zone_rect(slider_row).contains_point(point.x, point.y) {
-            return Some(Interaction::Command(CommandAction::ToggleSinkMute));
+            return Some(CommandAction::ToggleSinkMute.interaction());
         }
 
         if availability.volume && slider_row.contains_point(point.x, point.y) {
-            return Some(Interaction::Command(CommandAction::VolumeSlider));
+            return Some(CommandAction::VolumeSlider.interaction());
         }
 
         if availability.wifi && wifi_card_rect(bounds, theme).contains_point(point.x, point.y) {
-            return Some(Interaction::Command(CommandAction::ToggleWifi));
+            return Some(CommandAction::ToggleWifi.interaction());
         }
 
         let [(mic_action, mic_rect), (theme_action, theme_rect)] = circle_button_rects(bounds, theme);
 
         if availability.mic && mic_rect.contains_point(point.x, point.y) {
-            return Some(Interaction::Command(mic_action));
+            return Some(mic_action.interaction());
         }
 
         if theme_rect.contains_point(point.x, point.y) {
-            return Some(Interaction::Command(theme_action));
+            return Some(theme_action.interaction());
         }
 
         None
-    }
-
-    pub fn draw(
-        scene: &mut Scene,
-        surface: Rect,
-        anchor: Rect,
-        data: &CommandData,
-        drag: Option<(CommandAction, f32)>,
-        ctx: &mut RenderCtx<'_>,
-    ) {
-        let theme = ctx.theme;
-        let availability = PanelAvailability::from_data(data);
-
-        let frame = Self::frame(theme);
-        let bounds = frame.bounds(surface, anchor, theme);
-
-        frame.draw_background(scene, bounds, theme);
-
-        draw_wifi_card(scene, wifi_card_rect(bounds, theme), data, availability.wifi, ctx);
-        draw_circle_buttons(scene, bounds, data, availability, ctx);
-        draw_sound_card(scene, sound_card_rect(bounds, theme), data, drag, availability.volume, ctx);
-    }
-
-    fn frame(theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(theme.tokens.command_panel_width, Self::height(theme))
     }
 }
 
@@ -258,7 +243,7 @@ fn fill_card(scene: &mut Scene, rect: Rect, radius: f32, color: Color) {
 fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bool, ctx: &mut RenderCtx<'_>) {
     let tokens = ctx.theme.tokens;
 
-    let is_hovered = enabled && ctx.hovered_interaction == Some(Interaction::Command(CommandAction::ToggleWifi));
+    let is_hovered = enabled && ctx.hovered_interaction == Some(CommandAction::ToggleWifi.interaction());
 
     let card_bg = if is_hovered {
         ctx.theme.palette.control_hover_bg
@@ -322,7 +307,7 @@ fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &CommandData, enabled: bo
     );
 
     let subtitle = wifi_subtitle(data, enabled);
-    let subtitle = truncate_to_width(ctx, &subtitle, subtitle_size, text_width);
+    let subtitle = truncate_to_width(ctx.text, &subtitle, subtitle_size, &ctx.theme.typography.font_family, text_width);
 
     ctx.text.draw_centered_v(
         scene,
@@ -397,7 +382,7 @@ fn draw_circle_button(scene: &mut Scene, action: CommandAction, rect: Rect, butt
 
     scene.fill(Fill::NonZero, Affine::IDENTITY, button.background, None, &circle);
 
-    let is_hovered = button.hoverable && ctx.hovered_interaction == Some(Interaction::Command(action));
+    let is_hovered = button.hoverable && ctx.hovered_interaction == Some(action.interaction());
 
     if is_hovered {
         scene.stroke(&Stroke::new(1.5), Affine::IDENTITY, ctx.theme.palette.text_primary.with_alpha(0.5), None, &circle);
@@ -449,8 +434,8 @@ fn draw_sound_card(
         muted,
         enabled,
         engaged: drag_fraction(drag, CommandAction::VolumeSlider).is_some()
-            || ctx.hovered_interaction == Some(Interaction::Command(CommandAction::VolumeSlider)),
-        icon_hovered: ctx.hovered_interaction == Some(Interaction::Command(CommandAction::ToggleSinkMute)),
+            || ctx.hovered_interaction == Some(CommandAction::VolumeSlider.interaction()),
+        icon_hovered: ctx.hovered_interaction == Some(CommandAction::ToggleSinkMute.interaction()),
     };
 
     draw_thick_slider(scene, row, &visual, ctx);
@@ -475,7 +460,9 @@ fn draw_thick_slider(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &
 
     scene.fill(Fill::NonZero, Affine::IDENTITY, track_color, None, &track_shape);
 
-    if visual.enabled && let Some(fraction) = visual.fraction {
+    if visual.enabled
+        && let Some(fraction) = visual.fraction
+    {
         // The fill never uncovers the embedded icon, mirroring macOS.
         let fill_width = (track.width * fraction).max(SLIDER_MIN_FILL);
 
@@ -493,7 +480,9 @@ fn draw_thick_slider(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &
         // The knob only shows up while hovering or dragging, like macOS.
         if visual.engaged {
             let knob_radius = track_height / 2.0 + KNOB_EXTRA_RADIUS;
-            let knob_x = (track.x + fill_width).min(track.x + track.width - knob_radius).max(track.x + knob_radius);
+            let knob_x = (track.x + fill_width)
+                .min(track.x + track.width - knob_radius)
+                .max(track.x + knob_radius);
             let knob_y = track.y + track_height / 2.0;
 
             let knob = Circle::new((knob_x as f64, knob_y as f64), knob_radius as f64);
@@ -522,29 +511,4 @@ fn draw_thick_slider(scene: &mut Scene, row: Rect, visual: &SliderVisual, ctx: &
         track_height,
         TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, icon_color),
     );
-}
-
-fn truncate_to_width(ctx: &mut RenderCtx<'_>, text: &str, size: f32, max_width: f32) -> String {
-    let family = ctx.theme.typography.font_family.clone();
-
-    let (full_width, _) = ctx.text.measure(text, size, &family);
-
-    if full_width <= max_width {
-        return text.to_string();
-    }
-
-    let mut truncated = String::new();
-
-    for character in text.chars() {
-        let candidate = format!("{truncated}{character}{ELLIPSIS}");
-        let (candidate_width, _) = ctx.text.measure(&candidate, size, &family);
-
-        if candidate_width > max_width {
-            break;
-        }
-
-        truncated.push(character);
-    }
-
-    format!("{truncated}{ELLIPSIS}")
 }

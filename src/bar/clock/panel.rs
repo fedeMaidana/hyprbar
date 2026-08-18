@@ -5,7 +5,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::Fill;
 
-use crate::components::{DropdownFrame, RenderCtx};
+use crate::components::{DropdownFrame, Panel, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
@@ -45,19 +45,16 @@ impl ClockPanel {
             + tokens.clock_row_height * rows
             + tokens.clock_row_gap * (rows - 1.0)
     }
+}
 
-    pub fn bounds(surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
-        Self::frame(theme).bounds(surface, anchor, theme)
+impl Panel for ClockPanel {
+    fn frame(&self, theme: &Theme) -> DropdownFrame {
+        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
     }
 
-    pub fn draw(scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
+    fn draw_content(&self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let theme = ctx.theme;
         let tokens = theme.tokens;
-
-        let frame = Self::frame(theme);
-        let bounds = frame.bounds(surface, anchor, theme);
-
-        frame.draw_background(scene, bounds, theme);
 
         let now_local = Local::now();
         let now_utc = now_local.with_timezone(&Utc);
@@ -81,10 +78,6 @@ impl ClockPanel {
             let row_y = y + index as f32 * (tokens.clock_row_height + tokens.clock_row_gap);
             draw_zone_row(scene, inner_x, row_y, inner_width, row, ctx);
         }
-    }
-
-    fn frame(theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
     }
 }
 

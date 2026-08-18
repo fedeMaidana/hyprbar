@@ -4,32 +4,21 @@ use crate::components::{ComponentAction, ComponentTag, Interaction};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
-const TAG: ComponentTag = ComponentTag::new("command");
+const TAG: ComponentTag = ComponentTag::new("notifications");
 
 // ─── < Enums > ────────────────────────────────────────────────────
 
+/// Acciones del panel de notificaciones.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CommandAction {
-    VolumeSlider,
-    ToggleSinkMute,
-    ToggleMicMute,
-    ToggleWifi,
-    ToggleTheme,
+pub enum NotificationAction {
+    ClearHistory,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
-impl CommandAction {
-    pub fn is_slider(self) -> bool {
-        matches!(self, Self::VolumeSlider)
-    }
-
+impl NotificationAction {
     pub fn interaction(self) -> Interaction {
-        let action = ComponentAction::new(TAG, self.code());
-
-        let action = if self.is_slider() { action.draggable() } else { action };
-
-        Interaction::Action(action)
+        Interaction::Action(ComponentAction::new(TAG, self.code()))
     }
 
     pub fn from_interaction(interaction: Interaction) -> Option<Self> {
@@ -46,21 +35,13 @@ impl CommandAction {
 
     fn code(self) -> u16 {
         match self {
-            Self::VolumeSlider => 0,
-            Self::ToggleSinkMute => 1,
-            Self::ToggleMicMute => 2,
-            Self::ToggleWifi => 3,
-            Self::ToggleTheme => 4,
+            Self::ClearHistory => 0,
         }
     }
 
     fn from_code(code: u16) -> Option<Self> {
         match code {
-            0 => Some(Self::VolumeSlider),
-            1 => Some(Self::ToggleSinkMute),
-            2 => Some(Self::ToggleMicMute),
-            3 => Some(Self::ToggleWifi),
-            4 => Some(Self::ToggleTheme),
+            0 => Some(Self::ClearHistory),
             _ => None,
         }
     }

@@ -4,11 +4,15 @@ use chrono::Local;
 use vello::Scene;
 use vello::peniko::Color;
 
-use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, Panel, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
 use super::panel::ClockPanel;
+
+// ─── < Constants > ────────────────────────────────────────────────────
+
+pub(crate) const CLOCK_DROPDOWN: DropdownId = DropdownId::new("clock");
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -32,11 +36,11 @@ impl ClockPill {
     }
 
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
-        ctx.open_dropdown == Some(DropdownId::CLOCK)
+        ctx.open_dropdown == Some(CLOCK_DROPDOWN)
     }
 
     fn background_color(&self, ctx: &RenderCtx<'_>) -> Color {
-        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DropdownId::CLOCK));
+        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(CLOCK_DROPDOWN));
 
         Pill::background_for(self.is_active(ctx), hovered, ctx.theme)
     }
@@ -89,18 +93,22 @@ impl Component for ClockPill {
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
-        Some(Interaction::Dropdown(DropdownId::CLOCK))
+        Some(Interaction::Dropdown(CLOCK_DROPDOWN))
     }
 
     fn dropdown_id(&self) -> Option<DropdownId> {
-        Some(DropdownId::CLOCK)
+        Some(CLOCK_DROPDOWN)
+    }
+
+    fn dropdown_max_height(&self, theme: &Theme) -> f32 {
+        ClockPanel::height(theme)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        ClockPanel::draw(scene, surface, anchor, ctx);
+        ClockPanel.render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(ClockPanel::bounds(surface, anchor, theme))
+        Some(ClockPanel.bounds(surface, anchor, theme))
     }
 }

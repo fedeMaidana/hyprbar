@@ -32,10 +32,10 @@ pub(crate) struct WaylandState {
     pub(crate) seat_state: SeatState,
     pub(crate) shm_state: Shm,
 
-    compositor_state: CompositorState,
-    layer_shell: LayerShell,
-    viewporter: Option<WpViewporter>,
-    fractional_manager: Option<WpFractionalScaleManagerV1>,
+    pub(crate) compositor_state: CompositorState,
+    pub(crate) layer_shell: LayerShell,
+    pub(crate) viewporter: Option<WpViewporter>,
+    pub(crate) fractional_manager: Option<WpFractionalScaleManagerV1>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -51,29 +51,6 @@ impl InputRegionRect {
 }
 
 impl WaylandState {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
-        registry_state: RegistryState,
-        output_state: OutputState,
-        seat_state: SeatState,
-        shm_state: Shm,
-        compositor_state: CompositorState,
-        layer_shell: LayerShell,
-        viewporter: Option<WpViewporter>,
-        fractional_manager: Option<WpFractionalScaleManagerV1>,
-    ) -> Self {
-        Self {
-            registry_state,
-            output_state,
-            seat_state,
-            shm_state,
-            compositor_state,
-            layer_shell,
-            viewporter,
-            fractional_manager,
-        }
-    }
-
     /// Creates a fresh bar layer surface with the given config applied.
     pub(crate) fn create_bar_layer(&self, qh: &QueueHandle<AppState>, config: &LayerConfig) -> LayerSurface {
         let surface = self.compositor_state.create_surface(qh);
@@ -95,10 +72,9 @@ impl WaylandState {
         qh: &QueueHandle<AppState>,
     ) -> (Option<WpFractionalScaleV1>, Option<WpViewport>) {
         match (&self.fractional_manager, &self.viewporter) {
-            (Some(manager), Some(viewporter)) => (
-                Some(manager.get_fractional_scale(surface, qh, ())),
-                Some(viewporter.get_viewport(surface, qh, ())),
-            ),
+            (Some(manager), Some(viewporter)) => {
+                (Some(manager.get_fractional_scale(surface, qh, ())), Some(viewporter.get_viewport(surface, qh, ())))
+            }
             _ => (None, None),
         }
     }

@@ -4,7 +4,7 @@ use chrono::Local;
 use vello::Scene;
 use vello::peniko::Color;
 
-use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
@@ -12,6 +12,8 @@ use super::action::CalendarAction;
 use super::panel::DatePanel;
 
 // ─── < Constants > ────────────────────────────────────────────────────
+
+pub(crate) const DATE_DROPDOWN: DropdownId = DropdownId::new("date");
 
 const MAX_MONTH_OFFSET: i32 = 1200;
 
@@ -32,6 +34,12 @@ impl DatePill {
         }
     }
 
+    fn panel(&self) -> DatePanel {
+        DatePanel {
+            month_offset: self.month_offset,
+        }
+    }
+
     fn current_text(&self) -> String {
         Local::now().format("%d/%m").to_string()
     }
@@ -41,11 +49,11 @@ impl DatePill {
     }
 
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
-        ctx.open_dropdown == Some(DropdownId::DATE)
+        ctx.open_dropdown == Some(DATE_DROPDOWN)
     }
 
     fn background_color(&self, ctx: &RenderCtx<'_>) -> Color {
-        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DropdownId::DATE));
+        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DATE_DROPDOWN));
 
         Pill::background_for(self.is_active(ctx), hovered, ctx.theme)
     }
@@ -102,47 +110,51 @@ impl Component for DatePill {
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
-        Some(Interaction::Dropdown(DropdownId::DATE))
+        Some(Interaction::Dropdown(DATE_DROPDOWN))
     }
 
     fn dropdown_id(&self) -> Option<DropdownId> {
-        Some(DropdownId::DATE)
+        Some(DATE_DROPDOWN)
+    }
+
+    fn dropdown_max_height(&self, theme: &Theme) -> f32 {
+        DatePanel::max_height(theme)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        DatePanel::draw(scene, surface, anchor, self.month_offset, ctx);
+        self.panel().render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(DatePanel::bounds(surface, anchor, self.month_offset, theme))
+        Some(self.panel().bounds(surface, anchor, theme))
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        DatePanel::hit_test(point, surface, anchor, self.month_offset, theme)
+        self.panel().hit_test(point, surface, anchor, theme)
     }
 
-    fn handle_interaction(&mut self, interaction: Interaction) -> bool {
-        let Interaction::Calendar(action) = interaction else {
-            return false;
-        };
+    fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
+        let action = CalendarAction::from_interaction(interaction)?;
 
-        match action {
+        let outcome = match action {
             CalendarAction::PrevMonth => {
                 self.month_offset = (self.month_offset - 1).max(-MAX_MONTH_OFFSET);
-                true
+                InteractionOutcome::redraw()
             }
             CalendarAction::NextMonth => {
                 self.month_offset = (self.month_offset + 1).min(MAX_MONTH_OFFSET);
-                true
+                InteractionOutcome::redraw()
             }
             CalendarAction::Today => {
                 if self.month_offset == 0 {
-                    return false;
+                    return Some(InteractionOutcome::quiet());
                 }
 
                 self.month_offset = 0;
-                true
+                InteractionOutcome::redraw()
             }
-        }
+        };
+
+        Some(outcome)
     }
 }

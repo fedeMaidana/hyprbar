@@ -5,7 +5,7 @@ pub mod command_center;
 pub mod date;
 pub mod factory;
 pub mod layout;
-pub mod notifications_pill;
+pub mod notifications;
 pub mod profile;
 pub mod system;
 pub mod weather;

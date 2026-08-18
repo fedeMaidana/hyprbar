@@ -123,6 +123,15 @@ pub struct Tokens {
     pub notification_dot_radius: f32,
     pub notification_dot_x_overlap_scale: f32,
     pub notification_dot_y_icon_scale: f32,
+
+    pub notification_panel_width: f32,
+    pub notification_header_height: f32,
+    pub notification_row_height: f32,
+    pub notification_empty_height: f32,
+    pub notification_clear_width: f32,
+    pub notification_clear_height: f32,
+    pub notification_row_dot_radius: f32,
+    pub notification_row_text_inset: f32,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -251,6 +260,15 @@ impl Default for Tokens {
             notification_dot_radius: 3.5,
             notification_dot_x_overlap_scale: 0.5,
             notification_dot_y_icon_scale: 0.35,
+
+            notification_panel_width: 340.0,
+            notification_header_height: 38.0,
+            notification_row_height: 46.0,
+            notification_empty_height: 42.0,
+            notification_clear_width: 66.0,
+            notification_clear_height: 22.0,
+            notification_row_dot_radius: 3.0,
+            notification_row_text_inset: 12.0,
         }
     }
 }

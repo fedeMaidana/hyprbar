@@ -55,21 +55,6 @@ impl EventStream {
     }
 }
 
-impl Iterator for EventStream {
-    type Item = Result<HyprEvent>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.next_event() {
-                Ok(EventStreamRead::Event(event)) => return Some(Ok(event)),
-                Ok(EventStreamRead::Timeout) => continue,
-                Ok(EventStreamRead::Closed) => return None,
-                Err(error) => return Some(Err(error)),
-            }
-        }
-    }
-}
-
 impl WorkspaceTarget {
     fn as_dispatch_value(&self) -> String {
         match self {

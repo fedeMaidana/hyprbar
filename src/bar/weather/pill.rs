@@ -4,7 +4,7 @@ use vello::Scene;
 use vello::peniko::Color;
 
 use crate::app::WorkerHandle;
-use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, Panel, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
@@ -13,6 +13,10 @@ use super::fetcher::spawn_fetcher;
 use super::icons::{UNKNOWN_WEATHER_ICON, weather_icon};
 use super::panel::WeatherPanel;
 use super::state::{WeatherSnapshot, WeatherStore};
+
+// ─── < Constants > ────────────────────────────────────────────────────
+
+pub(crate) const WEATHER_DROPDOWN: DropdownId = DropdownId::new("weather");
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -56,11 +60,11 @@ impl WeatherPill {
     }
 
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
-        ctx.open_dropdown == Some(DropdownId::WEATHER)
+        ctx.open_dropdown == Some(WEATHER_DROPDOWN)
     }
 
     fn background_color(&self, ctx: &RenderCtx<'_>) -> Color {
-        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DropdownId::WEATHER));
+        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(WEATHER_DROPDOWN));
 
         Pill::background_for(self.is_active(ctx), hovered, ctx.theme)
     }
@@ -103,21 +107,27 @@ impl Component for WeatherPill {
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
-        Some(Interaction::Dropdown(DropdownId::WEATHER))
+        Some(Interaction::Dropdown(WEATHER_DROPDOWN))
     }
 
     fn dropdown_id(&self) -> Option<DropdownId> {
-        Some(DropdownId::WEATHER)
+        Some(WEATHER_DROPDOWN)
+    }
+
+    fn dropdown_max_height(&self, theme: &Theme) -> f32 {
+        WeatherPanel::height(theme)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
         let data = self.store.data();
 
-        WeatherPanel::draw(scene, surface, anchor, &data, ctx);
+        WeatherPanel { data: &data }.render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(WeatherPanel::bounds(surface, anchor, theme))
+        let data = self.store.data();
+
+        Some(WeatherPanel { data: &data }.bounds(surface, anchor, theme))
     }
 }
 

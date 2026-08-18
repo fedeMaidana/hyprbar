@@ -5,15 +5,18 @@ use vello::Scene;
 use vello::peniko::Color;
 
 use crate::app::WorkerHandle;
-use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
+use super::action::SystemAction;
 use super::panel::SystemPanel;
 use super::state::SystemStore;
 use super::worker::spawn_sampler;
 
 // ─── < Constants > ────────────────────────────────────────────────────
+
+pub(crate) const ARCH_DROPDOWN: DropdownId = DropdownId::new("arch");
 
 const ARCH_GLYPH: &str = "\u{f08c7}";
 
@@ -35,11 +38,11 @@ impl ArchLogoPill {
     }
 
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
-        ctx.open_dropdown == Some(DropdownId::ARCH)
+        ctx.open_dropdown == Some(ARCH_DROPDOWN)
     }
 
     fn background_color(&self, ctx: &RenderCtx<'_>) -> Color {
-        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DropdownId::ARCH));
+        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(ARCH_DROPDOWN));
 
         Pill::background_for(self.is_active(ctx), hovered, ctx.theme)
     }
@@ -81,24 +84,43 @@ impl Component for ArchLogoPill {
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
-        Some(Interaction::Dropdown(DropdownId::ARCH))
+        Some(Interaction::Dropdown(ARCH_DROPDOWN))
     }
 
     fn dropdown_id(&self) -> Option<DropdownId> {
-        Some(DropdownId::ARCH)
+        Some(ARCH_DROPDOWN)
+    }
+
+    fn dropdown_max_height(&self, theme: &Theme) -> f32 {
+        SystemPanel::height(theme)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
         let data = self.store.snapshot();
 
-        SystemPanel::draw(scene, surface, anchor, &data, ctx);
+        SystemPanel { data: &data }.render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(SystemPanel::bounds(surface, anchor, theme))
+        let data = self.store.snapshot();
+
+        Some(SystemPanel { data: &data }.bounds(surface, anchor, theme))
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        SystemPanel::hit_test(point, surface, anchor, theme)
+        let data = self.store.snapshot();
+
+        SystemPanel { data: &data }.hit_test(point, surface, anchor, theme)
+    }
+
+    fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
+        let action = SystemAction::from_interaction(interaction)?;
+
+        match action.execute() {
+            Ok(()) => log::info!("system action {action:?} launched"),
+            Err(error) => log::warn!("system action {action:?} failed: {error}"),
+        }
+
+        Some(InteractionOutcome::close_dropdown())
     }
 }

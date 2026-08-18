@@ -22,7 +22,16 @@ pub struct SurfaceHandle {
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
+// SAFETY: both pointers are opaque handles that this crate never
+// dereferences; only wgpu consumes them, and it requires `Send + Sync`
+// on the handle type. The underlying `wl_display`/`wl_surface` outlive
+// the handle: `AppState::recreate_surface` drops the wgpu surface
+// *before* destroying the Wayland objects it points at (see the
+// ordering comment there), and `create_surface` is only called with a
+// live surface from `runner.rs` and `render.rs`.
 unsafe impl Send for SurfaceHandle {}
+// SAFETY: see the `Send` impl above; the pointers are never read
+// through by this crate, so sharing references across threads is sound.
 unsafe impl Sync for SurfaceHandle {}
 
 impl SurfaceHandle {
@@ -39,6 +48,9 @@ impl HasDisplayHandle for SurfaceHandle {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
         let handle = WaylandDisplayHandle::new(self.display_ptr);
 
+        // SAFETY: `borrow_raw` only asks that the handle stay valid for
+        // the returned lifetime, which is tied to `&self`; the display
+        // pointer lives as long as the Wayland `Connection` in `AppState`.
         Ok(unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Wayland(handle)) })
     }
 }
@@ -47,6 +59,9 @@ impl HasWindowHandle for SurfaceHandle {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
         let handle = WaylandWindowHandle::new(self.surface_ptr);
 
+        // SAFETY: same contract as `display_handle` — the wl_surface is
+        // kept alive by `AppState` for at least as long as this handle
+        // (the wgpu surface is dropped before the wl_surface it targets).
         Ok(unsafe { WindowHandle::borrow_raw(RawWindowHandle::Wayland(handle)) })
     }
 }

@@ -34,13 +34,11 @@ pub struct DropdownFrame {
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl DropdownId {
-    pub const ARCH: Self = Self("arch");
-    pub const DATE: Self = Self("date");
-    pub const CLOCK: Self = Self("clock");
-    pub const WEATHER: Self = Self("weather");
-    pub const COMMAND: Self = Self("command");
-    pub const PROFILE: Self = Self("profile");
-    pub const NOTIFICATIONS: Self = Self("notifications");
+    /// Each widget declares its own id (e.g. `DropdownId::new("clock")`),
+    /// so adding a component never touches this file.
+    pub const fn new(name: &'static str) -> Self {
+        Self(name)
+    }
 }
 
 impl<'a> DropdownItem<'a> {

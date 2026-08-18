@@ -62,6 +62,16 @@ impl TextEngine {
 
         draw_layout(scene, &layout, x, y, style.color);
     }
+
+    /// Draws text centered both ways inside `bounds`.
+    pub fn draw_centered(&mut self, scene: &mut Scene, text: &str, bounds: crate::render::Rect, style: TextStyle<'_>) {
+        let layout = self.layout(text, style.size, style.family);
+
+        let x = bounds.x + (bounds.width - layout.width()) / 2.0;
+        let y = bounds.y + (bounds.height - layout.height()) / 2.0;
+
+        draw_layout(scene, &layout, x, y, style.color);
+    }
 }
 
 impl Default for TextEngine {

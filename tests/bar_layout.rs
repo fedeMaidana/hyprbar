@@ -1,9 +1,10 @@
 use hyprbar::bar::Bar;
-use hyprbar::bar::workspaces::WorkspaceId;
-use hyprbar::components::{Component, Interaction, Point, RenderCtx};
+use hyprbar::components::{Component, ComponentAction, ComponentTag, Interaction, Point, RenderCtx};
 use hyprbar::render::{Rect, TextEngine};
 use hyprbar::theme::Theme;
 use vello::Scene;
+
+const TEST_TAG: ComponentTag = ComponentTag::new("test");
 
 struct FixedComponent {
     width: f32,
@@ -33,8 +34,12 @@ impl Component for FixedComponent {
     }
 }
 
-fn fixed_workspace(id: WorkspaceId, width: f32, height: f32) -> Box<dyn Component> {
-    Box::new(FixedComponent::new(width, height, Interaction::Workspace(id)))
+fn slot_interaction(id: i32) -> Interaction {
+    Interaction::Action(ComponentAction::new(TEST_TAG, 0).with_value(id))
+}
+
+fn fixed_slot(id: i32, width: f32, height: f32) -> Box<dyn Component> {
+    Box::new(FixedComponent::new(width, height, slot_interaction(id)))
 }
 
 fn render_bar(bar: &mut Bar, theme: &Theme, text_engine: &mut TextEngine, surface: Rect) {
@@ -54,7 +59,7 @@ fn render_bar(bar: &mut Bar, theme: &Theme, text_engine: &mut TextEngine, surfac
 fn hit_test_returns_none_before_first_render() {
     let theme = Theme::default();
 
-    let bar = Bar::new(vec![fixed_workspace(1, 20.0, 26.0)], vec![fixed_workspace(2, 40.0, 26.0)], vec![fixed_workspace(3, 20.0, 26.0)]);
+    let bar = Bar::new(vec![fixed_slot(1, 20.0, 26.0)], vec![fixed_slot(2, 40.0, 26.0)], vec![fixed_slot(3, 20.0, 26.0)]);
 
     assert_eq!(bar.hit_test(Point::new(15.0, 10.0), &theme, None), None);
 }
@@ -64,16 +69,15 @@ fn hit_test_detects_left_center_and_right_sections_after_render() {
     let theme = Theme::default();
     let mut text_engine = TextEngine::new();
 
-    let mut bar =
-        Bar::new(vec![fixed_workspace(1, 20.0, 26.0)], vec![fixed_workspace(2, 40.0, 26.0)], vec![fixed_workspace(3, 20.0, 26.0)]);
+    let mut bar = Bar::new(vec![fixed_slot(1, 20.0, 26.0)], vec![fixed_slot(2, 40.0, 26.0)], vec![fixed_slot(3, 20.0, 26.0)]);
 
     render_bar(&mut bar, &theme, &mut text_engine, Rect::new(0.0, 0.0, 300.0, 36.0));
 
-    assert_eq!(bar.hit_test(Point::new(15.0, 10.0), &theme, None), Some(Interaction::Workspace(1)));
+    assert_eq!(bar.hit_test(Point::new(15.0, 10.0), &theme, None), Some(slot_interaction(1)));
 
-    assert_eq!(bar.hit_test(Point::new(150.0, 10.0), &theme, None), Some(Interaction::Workspace(2)));
+    assert_eq!(bar.hit_test(Point::new(150.0, 10.0), &theme, None), Some(slot_interaction(2)));
 
-    assert_eq!(bar.hit_test(Point::new(275.0, 10.0), &theme, None), Some(Interaction::Workspace(3)));
+    assert_eq!(bar.hit_test(Point::new(275.0, 10.0), &theme, None), Some(slot_interaction(3)));
 
     assert_eq!(bar.hit_test(Point::new(100.0, 10.0), &theme, None), None);
 }
@@ -83,13 +87,13 @@ fn hit_test_preserves_right_section_visual_order() {
     let theme = Theme::default();
     let mut text_engine = TextEngine::new();
 
-    let mut bar = Bar::new(vec![], vec![], vec![fixed_workspace(1, 20.0, 26.0), fixed_workspace(2, 30.0, 26.0)]);
+    let mut bar = Bar::new(vec![], vec![], vec![fixed_slot(1, 20.0, 26.0), fixed_slot(2, 30.0, 26.0)]);
 
     render_bar(&mut bar, &theme, &mut text_engine, Rect::new(0.0, 0.0, 300.0, 36.0));
 
-    assert_eq!(bar.hit_test(Point::new(240.0, 10.0), &theme, None), Some(Interaction::Workspace(1)));
+    assert_eq!(bar.hit_test(Point::new(240.0, 10.0), &theme, None), Some(slot_interaction(1)));
 
-    assert_eq!(bar.hit_test(Point::new(265.0, 10.0), &theme, None), Some(Interaction::Workspace(2)));
+    assert_eq!(bar.hit_test(Point::new(265.0, 10.0), &theme, None), Some(slot_interaction(2)));
 }
 
 #[test]
@@ -97,14 +101,13 @@ fn hides_center_section_when_it_would_overlap_left_and_right_sections() {
     let theme = Theme::default();
     let mut text_engine = TextEngine::new();
 
-    let mut bar =
-        Bar::new(vec![fixed_workspace(1, 120.0, 26.0)], vec![fixed_workspace(2, 120.0, 26.0)], vec![fixed_workspace(3, 120.0, 26.0)]);
+    let mut bar = Bar::new(vec![fixed_slot(1, 120.0, 26.0)], vec![fixed_slot(2, 120.0, 26.0)], vec![fixed_slot(3, 120.0, 26.0)]);
 
     render_bar(&mut bar, &theme, &mut text_engine, Rect::new(0.0, 0.0, 300.0, 36.0));
 
-    assert_eq!(bar.hit_test(Point::new(20.0, 10.0), &theme, None), Some(Interaction::Workspace(1)));
+    assert_eq!(bar.hit_test(Point::new(20.0, 10.0), &theme, None), Some(slot_interaction(1)));
 
-    assert_eq!(bar.hit_test(Point::new(180.0, 10.0), &theme, None), Some(Interaction::Workspace(3)));
+    assert_eq!(bar.hit_test(Point::new(180.0, 10.0), &theme, None), Some(slot_interaction(3)));
 
     assert_eq!(bar.hit_test(Point::new(150.0, 10.0), &theme, None), None);
 }

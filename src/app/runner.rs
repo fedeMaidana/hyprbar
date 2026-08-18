@@ -5,13 +5,7 @@ use calloop::{EventLoop, channel::channel};
 use smithay_client_toolkit::shell::WaylandSurface;
 use wayland_client::{Connection, EventQueue};
 
-use crate::bar::clock::ClockPanel;
-use crate::bar::command_center::CommandPanel;
-use crate::bar::date::DatePanel;
-use crate::bar::default_bar;
-use crate::bar::profile::ProfilePanel;
-use crate::bar::system::SystemPanel;
-use crate::bar::weather::WeatherPanel;
+use crate::bar::{Bar, default_bar};
 
 use crate::theme::Theme;
 
@@ -30,7 +24,13 @@ pub struct App;
 impl App {
     pub fn run() -> Result<()> {
         let theme = Theme::preferred();
-        let surface_height = top_bar_surface_height(&theme);
+
+        // The bar is built first so every component can report its
+        // tallest dropdown before the surface is sized.
+        let (redraw_sender, redraw_channel) = channel::<()>();
+        let bar = default_bar(redraw_sender);
+
+        let surface_height = top_bar_surface_height(&theme, &bar);
         let exclusive_zone = top_bar_exclusive_zone(&theme);
 
         let conn = Connection::connect_to_env().context("no se pudo conectar a Wayland")?;
@@ -38,13 +38,10 @@ impl App {
         let layer_config = LayerConfig::top_bar(surface_height, exclusive_zone);
         let (wl_init, mut event_queue) = wayland::init(&conn, layer_config)?;
 
-        let mut event_loop: EventLoop<AppState> = EventLoop::try_new().context("calloop EventLoop::try_new")?;
-
-        let (redraw_sender, redraw_channel) = channel::<()>();
-        let bar = default_bar(redraw_sender);
+        let mut event_loop: EventLoop<'static, AppState> = EventLoop::try_new().context("calloop EventLoop::try_new")?;
 
         let qh = event_queue.handle();
-        let mut app = AppState::new(wl_init, conn.clone(), qh, layer_config, theme, bar);
+        let mut app = AppState::new(wl_init, conn.clone(), qh, layer_config, theme, bar, event_loop.handle());
 
         wait_until_configured(&mut event_queue, &mut app)?;
 
@@ -110,16 +107,8 @@ fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Resu
     Ok(())
 }
 
-fn top_bar_surface_height(theme: &Theme) -> u32 {
-    let dropdown_height = theme
-        .tokens
-        .dropdown_height
-        .max(SystemPanel::height(theme))
-        .max(DatePanel::max_height(theme))
-        .max(ClockPanel::height(theme))
-        .max(WeatherPanel::height(theme))
-        .max(CommandPanel::height(theme))
-        .max(ProfilePanel::height(theme));
+fn top_bar_surface_height(theme: &Theme, bar: &Bar) -> u32 {
+    let dropdown_height = theme.tokens.dropdown_height.max(bar.max_dropdown_height(theme));
 
     let height = theme.tokens.bar_margin_top
         + theme.tokens.pill_height

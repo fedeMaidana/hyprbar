@@ -7,17 +7,19 @@ use vello::Scene;
 use vello::peniko::Color;
 
 use crate::app::WorkerHandle;
-use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
 use super::action::CommandAction;
 use super::control;
-use super::panel::{CommandPanel, PanelAvailability};
+use super::panel::CommandPanel;
 use super::state::CommandStore;
 use super::worker::spawn_poller;
 
 // ─── < Constants > ────────────────────────────────────────────────────
+
+pub(crate) const COMMAND_DROPDOWN: DropdownId = DropdownId::new("command");
 
 const TOGGLE_GLYPH: &str = "\u{f1542}";
 const DRAG_WRITE_INTERVAL: Duration = Duration::from_millis(80);
@@ -47,11 +49,11 @@ impl CommandCenterPill {
     }
 
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
-        ctx.open_dropdown == Some(DropdownId::COMMAND)
+        ctx.open_dropdown == Some(COMMAND_DROPDOWN)
     }
 
     fn background_color(&self, ctx: &RenderCtx<'_>) -> Color {
-        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DropdownId::COMMAND));
+        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(COMMAND_DROPDOWN));
 
         Pill::background_for(self.is_active(ctx), hovered, ctx.theme)
     }
@@ -111,7 +113,6 @@ impl CommandCenterPill {
                 let enabled = self.store.data().wifi.map(|wifi| wifi.enabled).unwrap_or(false);
                 control::set_wifi_enabled(!enabled)
             }
-            // Theme toggling is handled at the app level, where the theme lives.
             CommandAction::VolumeSlider | CommandAction::ToggleTheme => return false,
         };
 
@@ -182,43 +183,71 @@ impl Component for CommandCenterPill {
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
-        Some(Interaction::Dropdown(DropdownId::COMMAND))
+        Some(Interaction::Dropdown(COMMAND_DROPDOWN))
     }
 
     fn dropdown_id(&self) -> Option<DropdownId> {
-        Some(DropdownId::COMMAND)
+        Some(COMMAND_DROPDOWN)
+    }
+
+    fn dropdown_max_height(&self, theme: &Theme) -> f32 {
+        CommandPanel::height(theme)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
         let data = self.store.data();
 
-        CommandPanel::draw(scene, surface, anchor, &data, self.drag, ctx);
+        let panel = CommandPanel {
+            data: &data,
+            drag: self.drag,
+        };
+
+        panel.render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(CommandPanel::bounds(surface, anchor, theme))
+        let data = self.store.data();
+
+        Some(
+            CommandPanel {
+                data: &data,
+                drag: self.drag,
+            }
+            .bounds(surface, anchor, theme),
+        )
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        let availability = PanelAvailability::from_data(&self.store.data());
+        let data = self.store.data();
 
-        CommandPanel::hit_test(point, surface, anchor, theme, availability)
+        CommandPanel {
+            data: &data,
+            drag: self.drag,
+        }
+        .hit_test(point, surface, anchor, theme)
     }
 
-    fn handle_interaction(&mut self, interaction: Interaction) -> bool {
-        let Interaction::Command(action) = interaction else {
-            return false;
-        };
+    fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
+        let action = CommandAction::from_interaction(interaction)?;
 
-        if action.is_slider() {
-            return false;
+        // The theme lives at the app level; ask the app to flip it.
+        if action == CommandAction::ToggleTheme {
+            return Some(InteractionOutcome::toggle_theme());
         }
 
-        self.run_click_action(action)
+        if action.is_slider() {
+            return Some(InteractionOutcome::quiet());
+        }
+
+        if self.run_click_action(action) {
+            Some(InteractionOutcome::redraw())
+        } else {
+            Some(InteractionOutcome::quiet())
+        }
     }
 
     fn handle_drag(&mut self, interaction: Interaction, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> bool {
-        let Interaction::Command(action) = interaction else {
+        let Some(action) = CommandAction::from_interaction(interaction) else {
             return false;
         };
 
@@ -237,7 +266,7 @@ impl Component for CommandCenterPill {
     }
 
     fn end_drag(&mut self, interaction: Interaction) {
-        let Interaction::Command(action) = interaction else {
+        let Some(action) = CommandAction::from_interaction(interaction) else {
             return;
         };
 

@@ -4,11 +4,7 @@ use smithay_client_toolkit::seat::pointer::CursorIcon;
 use wayland_client::Connection;
 
 use super::state::AppState;
-use crate::bar::command_center::CommandAction;
-use crate::bar::profile::SessionAction;
-use crate::bar::system::PowerAction;
-use crate::components::{Interaction, Point};
-use crate::hyprland_ipc;
+use crate::components::{Interaction, InteractionOutcome, Point};
 use crate::theme::mode as theme_mode;
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -72,47 +68,22 @@ impl AppState {
         };
 
         match interaction {
-            Interaction::Workspace(workspace_id) => {
-                self.close_dropdown();
-                activate_workspace(workspace_id);
-            }
             Interaction::Dropdown(dropdown_id) => {
                 self.toggle_dropdown(dropdown_id);
             }
-            Interaction::Power(action) => {
-                self.close_dropdown();
-                run_power_action(action);
-            }
-            Interaction::Updates => {
-                self.close_dropdown();
-                run_update_launch();
-            }
-            Interaction::Session(action) => {
-                self.close_dropdown();
-                run_session_action(action);
-            }
-            Interaction::Calendar(_) => {
-                if self.bar.handle_interaction(interaction) {
-                    self.needs_redraw = true;
-                }
-            }
-            Interaction::Notifications(_) => {
-                if self.bar.handle_interaction(interaction) {
-                    self.needs_redraw = true;
-                }
-            }
-            Interaction::Command(CommandAction::ToggleTheme) => {
-                self.toggle_theme();
-            }
-            Interaction::Command(action) => {
-                if action.is_slider() {
-                    self.pointer.dragging = Some(interaction);
+            // Draggable actions (sliders) start a drag instead of a click.
+            Interaction::Action(_) if interaction.is_draggable() => {
+                self.pointer.dragging = Some(interaction);
 
-                    if self.bar.handle_drag(interaction, point, &self.theme, self.open_dropdown) {
-                        self.needs_redraw = true;
-                    }
-                } else if self.bar.handle_interaction(interaction) {
+                if self.bar.handle_drag(interaction, point, &self.theme, self.open_dropdown) {
                     self.needs_redraw = true;
+                }
+            }
+            // Every other action belongs to its component; the outcome
+            // tells the app what is left to do at this level.
+            Interaction::Action(_) => {
+                if let Some(outcome) = self.bar.handle_interaction(interaction) {
+                    self.apply_outcome(outcome);
                 }
             }
         }
@@ -135,6 +106,20 @@ impl AppState {
         }
 
         if self.bar.handle_scroll(point, delta) {
+            self.needs_redraw = true;
+        }
+    }
+
+    fn apply_outcome(&mut self, outcome: InteractionOutcome) {
+        if outcome.close_dropdown {
+            self.close_dropdown();
+        }
+
+        if outcome.toggle_theme {
+            self.toggle_theme();
+        }
+
+        if outcome.redraw {
             self.needs_redraw = true;
         }
     }
@@ -163,51 +148,5 @@ impl AppState {
         }
 
         self.pointer.icon = icon;
-    }
-}
-
-// ─── < Private Functions > ────────────────────────────────────────────────────
-
-fn activate_workspace(workspace_id: crate::bar::workspaces::WorkspaceId) {
-    match hyprland_ipc::dispatch_workspace(workspace_id) {
-        Ok(()) => {
-            log::info!("workspace {workspace_id} dispatch sent");
-        }
-        Err(error) => {
-            log::warn!("workspace dispatch failed for {workspace_id}: {error}");
-        }
-    }
-}
-
-fn run_power_action(action: PowerAction) {
-    match action.execute() {
-        Ok(()) => {
-            log::info!("power action {action:?} launched");
-        }
-        Err(error) => {
-            log::warn!("power action {action:?} failed: {error}");
-        }
-    }
-}
-
-fn run_update_launch() {
-    match crate::bar::system::launch_update() {
-        Ok(()) => {
-            log::info!("update launcher opened");
-        }
-        Err(error) => {
-            log::warn!("update launcher failed: {error}");
-        }
-    }
-}
-
-fn run_session_action(action: SessionAction) {
-    match action.execute() {
-        Ok(()) => {
-            log::info!("session action {action:?} launched");
-        }
-        Err(error) => {
-            log::warn!("session action {action:?} failed: {error}");
-        }
     }
 }

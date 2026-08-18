@@ -6,7 +6,7 @@ use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::{Color, Fill};
 
 use crate::app::WorkerHandle;
-use crate::components::{Component, Interaction, Pill, Point, RenderCtx};
+use crate::components::{Component, ComponentAction, ComponentTag, Interaction, InteractionOutcome, Pill, Point, RenderCtx};
 use crate::hyprland_ipc::{self, WorkspaceTarget};
 use crate::render::{Rect, TextStyle};
 
@@ -15,6 +15,8 @@ use super::listener::spawn_listener;
 use super::state::{WorkspaceData, WorkspaceId, WorkspaceStore};
 
 // ─── < Constants > ────────────────────────────────────────────────────
+
+const TAG: ComponentTag = ComponentTag::new("workspaces");
 
 const SCROLL_THRESHOLD: f64 = 10.0;
 
@@ -62,6 +64,23 @@ impl WorkspacesPill {
     }
 }
 
+/// The click action for a workspace slot, with the id as payload.
+fn workspace_interaction(workspace_id: WorkspaceId) -> Interaction {
+    Interaction::Action(ComponentAction::new(TAG, 0).with_value(workspace_id as i32))
+}
+
+fn workspace_from_interaction(interaction: Interaction) -> Option<WorkspaceId> {
+    let Interaction::Action(action) = interaction else {
+        return None;
+    };
+
+    if action.owner() != TAG {
+        return None;
+    }
+
+    WorkspaceId::try_from(action.value()).ok()
+}
+
 impl Component for WorkspacesPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
         let geometry = SlotGeometry::from_theme(ctx.theme);
@@ -98,13 +117,28 @@ impl Component for WorkspacesPill {
             let slot_bounds = Rect::new(x, slot_y, slot.width, slot.height);
 
             if slot_bounds.contains_point(point.x, point.y) {
-                return Some(Interaction::Workspace(slot_id));
+                return Some(workspace_interaction(slot_id));
             }
 
             x += slot.width + geometry.gap;
         }
 
         None
+    }
+
+    fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
+        let workspace_id = workspace_from_interaction(interaction)?;
+
+        match hyprland_ipc::dispatch_workspace(workspace_id) {
+            Ok(()) => {
+                log::info!("workspace {workspace_id} dispatch sent");
+            }
+            Err(error) => {
+                log::warn!("workspace dispatch failed for {workspace_id}: {error}");
+            }
+        }
+
+        Some(InteractionOutcome::close_dropdown())
     }
 
     fn handle_scroll(&mut self, delta: f64) -> bool {
@@ -145,7 +179,7 @@ impl SlotVisual {
     fn from_workspace(slot_id: WorkspaceId, data: &WorkspaceData, geometry: &SlotGeometry, ctx: &RenderCtx<'_>) -> Self {
         let exists = data.existing.contains(&slot_id);
         let is_active = slot_id == data.active_id;
-        let is_hovered = ctx.hovered_interaction == Some(Interaction::Workspace(slot_id));
+        let is_hovered = ctx.hovered_interaction == Some(workspace_interaction(slot_id));
 
         if is_active {
             return Self {

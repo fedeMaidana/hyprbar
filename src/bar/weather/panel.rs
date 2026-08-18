@@ -5,7 +5,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::Fill;
 
-use crate::components::{DropdownFrame, RenderCtx};
+use crate::components::{DropdownFrame, Panel, PanelHeader, RenderCtx};
 use crate::locale::weekday_abbrev;
 use crate::render::{Rect, TextStyle};
 use crate::theme::{Palette, Theme};
@@ -31,7 +31,9 @@ const FORECAST_ICON_SCALE: f32 = 1.3;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
-pub struct WeatherPanel;
+pub struct WeatherPanel<'a> {
+    pub data: &'a WeatherData,
+}
 
 struct DetailItem {
     glyph: &'static str,
@@ -50,7 +52,7 @@ struct ForecastColumn {
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
-impl WeatherPanel {
+impl WeatherPanel<'_> {
     pub fn height(theme: &Theme) -> f32 {
         let tokens = theme.tokens;
 
@@ -61,19 +63,17 @@ impl WeatherPanel {
             + tokens.dropdown_section_gap
             + forecast_height(theme)
     }
+}
 
-    pub fn bounds(surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
-        Self::frame(theme).bounds(surface, anchor, theme)
+impl Panel for WeatherPanel<'_> {
+    fn frame(&self, theme: &Theme) -> DropdownFrame {
+        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
     }
 
-    pub fn draw(scene: &mut Scene, surface: Rect, anchor: Rect, data: &WeatherData, ctx: &mut RenderCtx<'_>) {
+    fn draw_content(&self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let theme = ctx.theme;
         let tokens = theme.tokens;
-
-        let frame = Self::frame(theme);
-        let bounds = frame.bounds(surface, anchor, theme);
-
-        frame.draw_background(scene, bounds, theme);
+        let data = self.data;
 
         let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
         let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
@@ -98,10 +98,6 @@ impl WeatherPanel {
 
         draw_forecast(scene, inner_x, y, inner_width, daily, today, ctx);
     }
-
-    fn frame(theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
-    }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
@@ -120,9 +116,6 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData
     let base = ctx.theme.typography.size_base;
     let header_height = tokens.dropdown_header_height;
 
-    let title_size = base * tokens.dropdown_title_scale;
-    let subtitle_size = base * tokens.dropdown_subtitle_scale;
-
     let snapshot = data.snapshot.as_ref();
 
     let title = data.location_label.as_deref().map(city_name).unwrap_or(FALLBACK_TITLE);
@@ -130,23 +123,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData
         .map(|snapshot| weather_description(snapshot.weather_code))
         .unwrap_or(VALUE_PLACEHOLDER);
 
-    ctx.text.draw_centered_v(
-        scene,
-        title,
-        x,
-        y,
-        header_height * 0.55,
-        TextStyle::new(title_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
-    );
-
-    ctx.text.draw_centered_v(
-        scene,
-        subtitle,
-        x,
-        y + header_height * 0.55,
-        header_height * 0.45,
-        TextStyle::new(subtitle_size, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-    );
+    PanelHeader { title, subtitle }.draw(scene, x, y, ctx);
 
     let temp_size = base * tokens.weather_temp_scale;
     let st_size = base * tokens.dropdown_subtitle_scale;
@@ -382,82 +359,39 @@ fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &
         ctx.theme.palette.text_secondary
     };
 
-    draw_centered_text(
+    ctx.text.draw_centered(
         scene,
         column.day,
-        x,
-        cell_y,
-        width,
-        tokens.weather_forecast_day_height,
-        base * FORECAST_DAY_SCALE,
-        &ctx.theme.typography.font_family.clone(),
-        day_color,
-        ctx,
+        Rect::new(x, cell_y, width, tokens.weather_forecast_day_height),
+        TextStyle::new(base * FORECAST_DAY_SCALE, &ctx.theme.typography.font_family, day_color),
     );
 
     cell_y += tokens.weather_forecast_day_height;
 
-    draw_centered_text(
+    ctx.text.draw_centered(
         scene,
         column.icon,
-        x,
-        cell_y,
-        width,
-        tokens.weather_forecast_icon_height,
-        base * FORECAST_ICON_SCALE,
-        &ctx.theme.typography.icon_font_family.clone(),
-        column.icon_color,
-        ctx,
+        Rect::new(x, cell_y, width, tokens.weather_forecast_icon_height),
+        TextStyle::new(base * FORECAST_ICON_SCALE, &ctx.theme.typography.icon_font_family, column.icon_color),
     );
 
     cell_y += tokens.weather_forecast_icon_height;
 
-    draw_centered_text(
+    ctx.text.draw_centered(
         scene,
         &column.max,
-        x,
-        cell_y,
-        width,
-        tokens.weather_forecast_max_height,
-        base * tokens.dropdown_body_scale,
-        &ctx.theme.typography.font_family.clone(),
-        ctx.theme.palette.text_primary,
-        ctx,
+        Rect::new(x, cell_y, width, tokens.weather_forecast_max_height),
+        TextStyle::new(base * tokens.dropdown_body_scale, &ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
     cell_y += tokens.weather_forecast_max_height;
 
-    draw_centered_text(
+    ctx.text.draw_centered(
         scene,
         &column.min,
-        x,
-        cell_y,
-        width,
-        tokens.weather_forecast_min_height,
-        base * tokens.dropdown_subtitle_scale,
-        &ctx.theme.typography.font_family.clone(),
-        ctx.theme.palette.text_secondary,
-        ctx,
+        Rect::new(x, cell_y, width, tokens.weather_forecast_min_height),
+        TextStyle::new(base * tokens.dropdown_subtitle_scale, &ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
-}
-
-#[allow(clippy::too_many_arguments)]
-fn draw_centered_text(
-    scene: &mut Scene,
-    text: &str,
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    size: f32,
-    family: &str,
-    color: vello::peniko::Color,
-    ctx: &mut RenderCtx<'_>,
-) {
-    let (text_width, _) = ctx.text.measure(text, size, family);
-
-    ctx.text
-        .draw_centered_v(scene, text, x + (width - text_width) / 2.0, y, height, TextStyle::new(size, family, color));
 }
 
 fn city_name(label: &str) -> &str {

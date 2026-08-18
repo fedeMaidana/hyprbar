@@ -5,7 +5,7 @@ use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::{Fill, ImageData};
 
-use crate::components::{DropdownFrame, Interaction, Point, RenderCtx};
+use crate::components::{DropdownFrame, Interaction, Panel, Point, RenderCtx, evenly_spaced_rects};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
@@ -20,56 +20,37 @@ const BUTTON_LABEL_SCALE: f32 = 0.85;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
-pub struct ProfilePanel;
+pub struct ProfilePanel<'a> {
+    pub avatar: Option<&'a ImageData>,
+    pub user: &'a str,
+    pub host: &'a str,
+}
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
-impl ProfilePanel {
+impl ProfilePanel<'_> {
     pub fn height(theme: &Theme) -> f32 {
         let tokens = theme.tokens;
 
         tokens.profile_panel_padding_y * 2.0 + tokens.profile_avatar_size + tokens.profile_section_gap + tokens.profile_button_height
     }
+}
 
-    pub fn bounds(surface: Rect, anchor: Rect, theme: &Theme) -> Rect {
-        Self::frame(theme).bounds(surface, anchor, theme)
+impl Panel for ProfilePanel<'_> {
+    fn frame(&self, theme: &Theme) -> DropdownFrame {
+        DropdownFrame::new(theme.tokens.profile_panel_width, Self::height(theme))
     }
 
-    pub fn hit_test(point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        let bounds = Self::bounds(surface, anchor, theme);
-
-        for (action, rect) in button_rects(bounds, theme) {
-            if rect.contains_point(point.x, point.y) {
-                return Some(Interaction::Session(action));
-            }
-        }
-
-        None
-    }
-
-    pub fn draw(
-        scene: &mut Scene,
-        surface: Rect,
-        anchor: Rect,
-        avatar: Option<&ImageData>,
-        user: &str,
-        host: &str,
-        ctx: &mut RenderCtx<'_>,
-    ) {
+    fn draw_content(&self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         let theme = ctx.theme;
         let tokens = theme.tokens;
-
-        let frame = Self::frame(theme);
-        let bounds = frame.bounds(surface, anchor, theme);
-
-        frame.draw_background(scene, bounds, theme);
 
         let inner_x = bounds.x + tokens.profile_panel_padding_x;
         let y = bounds.y + tokens.profile_panel_padding_y;
 
-        let title = format!("{}, {}", greeting(Local::now().hour()), user);
+        let title = format!("{}, {}", greeting(Local::now().hour()), self.user);
 
-        draw_header(scene, inner_x, y, avatar, &title, host, ctx);
+        draw_header(scene, inner_x, y, self.avatar, &title, self.host, ctx);
 
         let inner_width = bounds.width - tokens.profile_panel_padding_x * 2.0;
         let buttons_y = bounds.y + bounds.height - tokens.profile_panel_padding_y - tokens.profile_button_height;
@@ -79,8 +60,14 @@ impl ProfilePanel {
         draw_buttons(scene, bounds, ctx);
     }
 
-    fn frame(theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(theme.tokens.profile_panel_width, Self::height(theme))
+    fn hit_test_content(&self, point: Point, bounds: Rect, theme: &Theme) -> Option<Interaction> {
+        for (action, rect) in button_rects(bounds, theme) {
+            if rect.contains_point(point.x, point.y) {
+                return Some(action.interaction());
+            }
+        }
+
+        None
     }
 }
 
@@ -126,17 +113,9 @@ fn button_rects(bounds: Rect, theme: &Theme) -> [(SessionAction, Rect); 2] {
     let inner_width = bounds.width - tokens.profile_panel_padding_x * 2.0;
     let y = bounds.y + bounds.height - tokens.profile_panel_padding_y - tokens.profile_button_height;
 
-    let gap = tokens.profile_button_gap;
-    let button_width = (inner_width - gap) / 2.0;
+    let rects: [Rect; 2] = evenly_spaced_rects(inner_x, y, inner_width, tokens.profile_button_height, tokens.profile_button_gap);
 
-    let mut rects = [(SessionAction::Lock, Rect::new(0.0, 0.0, 0.0, 0.0)); 2];
-
-    for (index, action) in SessionAction::ALL.into_iter().enumerate() {
-        let x = inner_x + index as f32 * (button_width + gap);
-        rects[index] = (action, Rect::new(x, y, button_width, tokens.profile_button_height));
-    }
-
-    rects
+    std::array::from_fn(|index| (SessionAction::ALL[index], rects[index]))
 }
 
 fn draw_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
@@ -145,7 +124,7 @@ fn draw_buttons(scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
     let label_size = ctx.theme.typography.size_base * BUTTON_LABEL_SCALE;
 
     for (action, rect) in button_rects(bounds, ctx.theme) {
-        let is_hovered = ctx.hovered_interaction == Some(Interaction::Session(action));
+        let is_hovered = ctx.hovered_interaction == Some(action.interaction());
 
         let background = if is_hovered {
             ctx.theme.palette.control_hover_bg

@@ -6,15 +6,18 @@ use vello::Scene;
 use vello::kurbo::{Affine, Circle, Stroke};
 use vello::peniko::ImageData;
 
-use crate::components::{Component, DropdownId, Interaction, Pill, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
 use crate::render::Rect;
 use crate::theme::Theme;
 
+use super::action::SessionAction;
 use super::avatar::{AvatarCircle, draw_avatar_circle, load_avatar};
 use super::panel::ProfilePanel;
 use super::session;
 
 // ─── < Constants > ────────────────────────────────────────────────────
+
+pub(crate) const PROFILE_DROPDOWN: DropdownId = DropdownId::new("profile");
 
 const ACTIVE_RING_WIDTH: f32 = 2.0;
 
@@ -50,8 +53,16 @@ impl ProfilePill {
         }
     }
 
+    fn panel(&self) -> ProfilePanel<'_> {
+        ProfilePanel {
+            avatar: self.avatar.as_ref(),
+            user: &self.user,
+            host: &self.host,
+        }
+    }
+
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
-        ctx.open_dropdown == Some(DropdownId::PROFILE)
+        ctx.open_dropdown == Some(PROFILE_DROPDOWN)
     }
 }
 
@@ -66,7 +77,7 @@ impl Component for ProfilePill {
         let tokens = ctx.theme.tokens;
 
         // Same glass treatment as every other pill; the avatar sits inset.
-        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(DropdownId::PROFILE));
+        let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(PROFILE_DROPDOWN));
 
         Pill::draw_circular(scene, bounds, ctx.theme, Pill::background_for(false, hovered, ctx.theme));
 
@@ -89,22 +100,43 @@ impl Component for ProfilePill {
     }
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
-        Some(Interaction::Dropdown(DropdownId::PROFILE))
+        Some(Interaction::Dropdown(PROFILE_DROPDOWN))
     }
 
     fn dropdown_id(&self) -> Option<DropdownId> {
-        Some(DropdownId::PROFILE)
+        Some(PROFILE_DROPDOWN)
+    }
+
+    fn dropdown_max_height(&self, theme: &Theme) -> f32 {
+        ProfilePanel::height(theme)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        ProfilePanel::draw(scene, surface, anchor, self.avatar.as_ref(), &self.user, &self.host, ctx);
+        let panel = ProfilePanel {
+            avatar: self.avatar.as_ref(),
+            user: &self.user,
+            host: &self.host,
+        };
+
+        panel.render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(ProfilePanel::bounds(surface, anchor, theme))
+        Some(self.panel().bounds(surface, anchor, theme))
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        ProfilePanel::hit_test(point, surface, anchor, theme)
+        self.panel().hit_test(point, surface, anchor, theme)
+    }
+
+    fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
+        let action = SessionAction::from_interaction(interaction)?;
+
+        match action.execute() {
+            Ok(()) => log::info!("session action {action:?} launched"),
+            Err(error) => log::warn!("session action {action:?} failed: {error}"),
+        }
+
+        Some(InteractionOutcome::close_dropdown())
     }
 }

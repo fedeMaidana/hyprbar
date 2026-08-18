@@ -9,6 +9,8 @@ mod zones;
 pub use panel::ClockPanel;
 pub use pill::ClockPill;
 
+pub(crate) use pill::CLOCK_DROPDOWN;
+
 // ─── < Tests > ────────────────────────────────────────────────────
 
 #[doc(hidden)]

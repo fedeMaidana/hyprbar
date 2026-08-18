@@ -11,7 +11,7 @@ use calloop::{
 use calloop_wayland_source::WaylandSource;
 use wayland_client::{Connection, EventQueue};
 
-use crate::components::DropdownId;
+use crate::bar::clock::CLOCK_DROPDOWN;
 
 use super::state::AppState;
 
@@ -35,9 +35,31 @@ pub(crate) fn insert_sources(
     insert_wayland_source(loop_handle.clone(), conn, event_queue)?;
     insert_redraw_source(loop_handle.clone(), redraw_channel)?;
     insert_clock_tick_source(loop_handle.clone())?;
-    insert_panel_seconds_tick_source(loop_handle.clone())?;
     insert_palette_watch_source(loop_handle.clone())?;
     insert_surface_watch_source(loop_handle)?;
+
+    Ok(())
+}
+
+/// Per-second repaint for the open clock panel. Armed on demand when the
+/// dropdown opens and drops itself when it closes, so an idle bar never
+/// wakes up once a second for nothing.
+pub(crate) fn insert_panel_seconds_tick_source(loop_handle: &calloop::LoopHandle<'static, AppState>) -> Result<()> {
+    let timer = Timer::from_duration(duration_until_next_second());
+
+    loop_handle
+        .insert_source(timer, |_event, _meta, app| {
+            if app.open_dropdown == Some(CLOCK_DROPDOWN) {
+                app.needs_redraw = true;
+
+                return TimeoutAction::ToDuration(duration_until_next_second());
+            }
+
+            app.seconds_timer_armed = false;
+
+            TimeoutAction::Drop
+        })
+        .map_err(|e| anyhow!("panel seconds timer insert failed: {e:?}"))?;
 
     Ok(())
 }
@@ -120,22 +142,6 @@ fn insert_clock_tick_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> R
             TimeoutAction::ToDuration(duration_until_next_minute())
         })
         .map_err(|e| anyhow!("clock tick timer insert failed: {e:?}"))?;
-
-    Ok(())
-}
-
-fn insert_panel_seconds_tick_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> Result<()> {
-    let timer = Timer::from_duration(duration_until_next_second());
-
-    loop_handle
-        .insert_source(timer, |_event, _meta, app| {
-            if app.open_dropdown == Some(DropdownId::CLOCK) {
-                app.needs_redraw = true;
-            }
-
-            TimeoutAction::ToDuration(duration_until_next_second())
-        })
-        .map_err(|e| anyhow!("panel seconds timer insert failed: {e:?}"))?;
 
     Ok(())
 }
