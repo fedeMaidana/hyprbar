@@ -91,7 +91,7 @@ impl CommandCenterPill {
         };
 
         if let Err(error) = result {
-            log::warn!("slider write failed for {action:?}: {error}");
+            log::warn!("falló la escritura del slider {action:?}: {error}");
         }
     }
 
@@ -117,7 +117,7 @@ impl CommandCenterPill {
         };
 
         if let Err(error) = result {
-            log::warn!("command action {action:?} failed: {error}");
+            log::warn!("falló la acción {action:?}: {error}");
             return false;
         }
 

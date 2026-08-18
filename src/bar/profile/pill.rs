@@ -133,8 +133,8 @@ impl Component for ProfilePill {
         let action = SessionAction::from_interaction(interaction)?;
 
         match action.execute() {
-            Ok(()) => log::info!("session action {action:?} launched"),
-            Err(error) => log::warn!("session action {action:?} failed: {error}"),
+            Ok(()) => log::info!("acción de sesión {action:?} lanzada"),
+            Err(error) => log::warn!("falló la acción de sesión {action:?}: {error}"),
         }
 
         Some(InteractionOutcome::close_dropdown())

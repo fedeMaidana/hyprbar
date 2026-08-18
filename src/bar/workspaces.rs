@@ -1,5 +1,6 @@
 // ─── < Modules > ────────────────────────────────────────────────────
 
+mod dispatcher;
 mod geometry;
 mod listener;
 mod mapper;

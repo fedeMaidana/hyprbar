@@ -36,20 +36,14 @@ pub fn modified_time() -> Option<std::time::SystemTime> {
     fs::metadata(colors_json_path()?).ok()?.modified().ok()
 }
 
-// ─── < Private Functions > ────────────────────────────────────────────────────
-
-fn colors_json_path() -> Option<PathBuf> {
-    if let Some(cache_home) = env::var_os("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(cache_home).join("hyprcolors/colors.json"));
-    }
-
-    env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache").join("hyprcolors").join("colors.json"))
-}
-
-fn parse_hex_color(value: &str) -> Option<Color> {
+/// Parsea "#rrggbb". La longitud se mide en bytes, así que un char
+/// multibyte adentro no es un color válido y además rompería los
+/// slices: el chequeo `is_ascii` corta antes de que eso pase.
+#[doc(hidden)]
+pub fn parse_hex_color(value: &str) -> Option<Color> {
     let value = value.strip_prefix('#')?;
 
-    if value.len() != 6 {
+    if value.len() != 6 || !value.is_ascii() {
         return None;
     }
 
@@ -58,4 +52,14 @@ fn parse_hex_color(value: &str) -> Option<Color> {
     let b = u8::from_str_radix(&value[4..6], 16).ok()?;
 
     Some(Color::from_rgba8(r, g, b, 0xff))
+}
+
+// ─── < Private Functions > ────────────────────────────────────────────────────
+
+fn colors_json_path() -> Option<PathBuf> {
+    if let Some(cache_home) = env::var_os("XDG_CACHE_HOME") {
+        return Some(PathBuf::from(cache_home).join("hyprcolors/colors.json"));
+    }
+
+    env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache").join("hyprcolors").join("colors.json"))
 }

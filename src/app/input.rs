@@ -143,7 +143,7 @@ impl AppState {
         };
 
         if let Err(error) = pointer.set_cursor(conn, icon) {
-            log::warn!("set cursor failed: {error}");
+            log::warn!("no se pudo aplicar el cursor: {error}");
             return;
         }
 

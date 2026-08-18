@@ -117,8 +117,8 @@ impl Component for ArchLogoPill {
         let action = SystemAction::from_interaction(interaction)?;
 
         match action.execute() {
-            Ok(()) => log::info!("system action {action:?} launched"),
-            Err(error) => log::warn!("system action {action:?} failed: {error}"),
+            Ok(()) => log::info!("acción de sistema {action:?} lanzada"),
+            Err(error) => log::warn!("falló la acción de sistema {action:?}: {error}"),
         }
 
         Some(InteractionOutcome::close_dropdown())

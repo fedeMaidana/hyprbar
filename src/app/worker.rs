@@ -13,11 +13,11 @@ const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(250);
 // ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
-pub(crate) struct ShutdownToken {
+pub struct ShutdownToken {
     should_stop: Arc<AtomicBool>,
 }
 
-pub(crate) struct WorkerHandle {
+pub struct WorkerHandle {
     name: &'static str,
     shutdown: ShutdownToken,
     handle: Option<JoinHandle<()>>,
@@ -32,15 +32,17 @@ impl ShutdownToken {
         }
     }
 
-    pub(crate) fn request_shutdown(&self) {
+    pub fn request_shutdown(&self) {
         self.should_stop.store(true, Ordering::Release);
     }
 
-    pub(crate) fn should_stop(&self) -> bool {
+    pub fn should_stop(&self) -> bool {
         self.should_stop.load(Ordering::Acquire)
     }
 
-    pub(crate) fn sleep(&self, duration: Duration) -> bool {
+    /// Duerme como mucho `duration`, despertándose seguido para mirar el
+    /// flag. Devuelve `true` si el sueño se cortó por un apagado pedido.
+    pub fn sleep(&self, duration: Duration) -> bool {
         let started_at = Instant::now();
 
         while !self.should_stop() {
@@ -59,7 +61,7 @@ impl ShutdownToken {
 }
 
 impl WorkerHandle {
-    pub(crate) fn spawn<F>(name: &'static str, run: F) -> Result<Self>
+    pub fn spawn<F>(name: &'static str, run: F) -> Result<Self>
     where
         F: FnOnce(ShutdownToken) + Send + 'static,
     {

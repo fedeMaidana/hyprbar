@@ -11,7 +11,7 @@ use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
 use super::action::NotificationAction;
-use super::state::{MAX_VISIBLE_ROWS, NoteUrgency, NotificationsState, age, unix_now};
+use super::state::{MAX_VISIBLE_ROWS, NoteUrgency, NotificationsData, age, unix_now};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -21,7 +21,9 @@ const ROW_TEXT_SCALE: f32 = 0.9;
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub(crate) struct NotificationsPanel<'a> {
-    pub(crate) state: &'a NotificationsState,
+    pub(crate) data: &'a NotificationsData,
+    /// Scroll discreto, en filas.
+    pub(crate) scroll: usize,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -50,10 +52,10 @@ impl Panel for NotificationsPanel<'_> {
     fn frame(&self, theme: &Theme) -> DropdownFrame {
         let tokens = theme.tokens;
 
-        let content = if self.state.notes.is_empty() {
+        let content = if self.data.notes.is_empty() {
             tokens.notification_empty_height
         } else {
-            self.state.visible_rows() as f32 * tokens.notification_row_height
+            self.data.visible_rows() as f32 * tokens.notification_row_height
         };
 
         let height = tokens.dropdown_padding_y * 2.0 + tokens.notification_header_height + content;
@@ -68,7 +70,7 @@ impl Panel for NotificationsPanel<'_> {
         let row_height = tokens.notification_row_height;
         let header_y = bounds.y + tokens.dropdown_padding_y;
 
-        let notes = &self.state.notes;
+        let notes = &self.data.notes;
 
         // Header: título + contador
         let title = format!("Notificaciones · {}", notes.len());
@@ -132,7 +134,7 @@ impl Panel for NotificationsPanel<'_> {
         let summary_size = ctx.theme.typography.size_base * ROW_TEXT_SCALE;
         let meta_size = ctx.theme.typography.size_base * SMALL_TEXT_SCALE;
 
-        for (slot, note) in notes.iter().skip(self.state.scroll).take(MAX_VISIBLE_ROWS).enumerate() {
+        for (slot, note) in notes.iter().skip(self.scroll).take(MAX_VISIBLE_ROWS).enumerate() {
             let row_y = divider_y + slot as f32 * row_height;
 
             if note.urgency == NoteUrgency::Critical {
@@ -176,7 +178,7 @@ impl Panel for NotificationsPanel<'_> {
     }
 
     fn hit_test_content(&self, point: Point, bounds: Rect, theme: &Theme) -> Option<Interaction> {
-        if self.state.notes.is_empty() {
+        if self.data.notes.is_empty() {
             return None;
         }
 

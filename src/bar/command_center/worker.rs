@@ -21,7 +21,7 @@ pub fn spawn_poller(store: CommandStore, redraw_signal: Sender<()>) -> Option<Wo
     match WorkerHandle::spawn("command-center-poller", move |shutdown| poll_loop(store, redraw_signal, shutdown)) {
         Ok(worker) => Some(worker),
         Err(error) => {
-            log::error!("command center poller spawn failed: {error}");
+            log::error!("no se pudo iniciar el poller del command center: {error}");
             None
         }
     }
@@ -43,7 +43,7 @@ fn poll_loop(store: CommandStore, redraw: Sender<()>, shutdown: ShutdownToken) {
         sleep_poll_interval(&store, &shutdown);
     }
 
-    log::info!("command center poller stopped");
+    log::info!("poller del command center detenido");
 }
 
 fn read_data() -> CommandData {
@@ -70,7 +70,7 @@ fn log_failure<T>(what: &str, result: anyhow::Result<T>) -> Option<T> {
     match result {
         Ok(value) => Some(value),
         Err(error) => {
-            log::debug!("command center: {what} read failed: {error}");
+            log::debug!("command center: falló la lectura de {what}: {error}");
             None
         }
     }

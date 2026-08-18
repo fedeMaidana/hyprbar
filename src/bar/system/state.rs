@@ -63,7 +63,7 @@ impl SystemStore {
         match self.inner.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                log::warn!("system store mutex was poisoned; recovering latest value");
+                log::warn!("el mutex del store de sistema estaba envenenado; se recupera el último valor");
                 poisoned.into_inner()
             }
         }

@@ -85,7 +85,7 @@ impl WaylandState {
 
     pub(crate) fn apply_input_region(&self, surface: &wl_surface::WlSurface, rects: &[InputRegionRect]) {
         let Ok(region) = Region::new(&self.compositor_state) else {
-            log::warn!("failed to create Wayland input region");
+            log::warn!("no se pudo crear la región de input de Wayland");
             return;
         };
 

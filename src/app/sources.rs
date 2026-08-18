@@ -29,11 +29,13 @@ pub(crate) fn insert_sources(
     conn: Connection,
     event_queue: EventQueue<AppState>,
     redraw_channel: Channel<()>,
+    shutdown_channel: Channel<()>,
 ) -> Result<()> {
     let loop_handle = event_loop.handle();
 
     insert_wayland_source(loop_handle.clone(), conn, event_queue)?;
     insert_redraw_source(loop_handle.clone(), redraw_channel)?;
+    insert_shutdown_source(loop_handle.clone(), shutdown_channel)?;
     insert_clock_tick_source(loop_handle.clone())?;
     insert_palette_watch_source(loop_handle.clone())?;
     insert_surface_watch_source(loop_handle)?;
@@ -85,7 +87,21 @@ fn insert_redraw_source(loop_handle: calloop::LoopHandle<'_, AppState>, redraw_c
                 app.needs_redraw = true;
             }
         })
-        .map_err(|e| anyhow!("redraw channel insert failed: {e:?}"))?;
+        .map_err(|e| anyhow!("no se pudo insertar el canal de redraw: {e:?}"))?;
+
+    Ok(())
+}
+
+/// El hilo de señales avisa por acá; `should_close` corta el loop
+/// principal después del dispatch en curso.
+fn insert_shutdown_source(loop_handle: calloop::LoopHandle<'_, AppState>, shutdown_channel: Channel<()>) -> Result<()> {
+    loop_handle
+        .insert_source(shutdown_channel, |event, _meta, app| {
+            if let ChannelEvent::Msg(()) = event {
+                app.should_close = true;
+            }
+        })
+        .map_err(|e| anyhow!("no se pudo insertar el canal de cierre: {e:?}"))?;
 
     Ok(())
 }
@@ -93,6 +109,8 @@ fn insert_redraw_source(loop_handle: calloop::LoopHandle<'_, AppState>, redraw_c
 /// Watches the hyprcolor palette file and repaints the bar as soon as it
 /// changes, so accent-tinted elements (active workspace, rings, meters)
 /// follow every wallpaper or mode switch without waiting for other events.
+/// This is the only place that re-reads the palette: the render path
+/// never touches the filesystem.
 fn insert_palette_watch_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> Result<()> {
     let mut last_modified = crate::theme::hyprcolor::modified_time();
 
@@ -104,12 +122,13 @@ fn insert_palette_watch_source(loop_handle: calloop::LoopHandle<'_, AppState>) -
 
             if modified != last_modified {
                 last_modified = modified;
+                app.theme.refresh_dynamic_colors();
                 app.needs_redraw = true;
             }
 
             TimeoutAction::ToDuration(Duration::from_secs(PALETTE_POLL_SECONDS))
         })
-        .map_err(|e| anyhow!("palette watch timer insert failed: {e:?}"))?;
+        .map_err(|e| anyhow!("no se pudo insertar el timer de la paleta: {e:?}"))?;
 
     Ok(())
 }

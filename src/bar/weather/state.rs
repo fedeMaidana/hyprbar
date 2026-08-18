@@ -76,7 +76,7 @@ impl WeatherStore {
         match self.inner.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                log::warn!("weather store mutex was poisoned; recovering latest value");
+                log::warn!("el mutex del store del clima estaba envenenado; se recupera el último valor");
                 poisoned.into_inner()
             }
         }

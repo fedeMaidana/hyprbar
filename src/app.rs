@@ -16,4 +16,5 @@ mod worker;
 pub use runner::App;
 pub use state::AppState;
 
-pub(crate) use worker::{ShutdownToken, WorkerHandle};
+#[doc(hidden)]
+pub use worker::{ShutdownToken, WorkerHandle};

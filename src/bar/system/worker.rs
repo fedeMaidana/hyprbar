@@ -26,7 +26,7 @@ pub fn spawn_sampler(store: SystemStore, redraw_signal: Sender<()>) -> Option<Wo
     match WorkerHandle::spawn("system-sampler", move |shutdown| sampler_loop(store, redraw_signal, shutdown)) {
         Ok(worker) => Some(worker),
         Err(error) => {
-            log::error!("system sampler spawn failed: {error}");
+            log::error!("no se pudo iniciar el sampler de sistema: {error}");
             None
         }
     }
@@ -37,7 +37,7 @@ pub fn spawn_sampler(store: SystemStore, redraw_signal: Sender<()>) -> Option<Wo
 fn sampler_loop(store: SystemStore, redraw: Sender<()>, shutdown: ShutdownToken) {
     match sampler::read_kernel_version() {
         Ok(kernel) => store.replace_kernel(kernel),
-        Err(error) => log::warn!("kernel version read failed: {error}"),
+        Err(error) => log::warn!("no se pudo leer la versión del kernel: {error}"),
     }
 
     let mut previous_cpu: Option<CpuTimes> = None;
@@ -61,7 +61,7 @@ fn sampler_loop(store: SystemStore, redraw: Sender<()>, shutdown: ShutdownToken)
 
             match updates::check_pending_updates() {
                 Ok(count) => {
-                    log::info!("pending updates: {count}");
+                    log::info!("updates pendientes: {count}");
                     store.replace_pending_updates(count);
 
                     if store.panel_open() {
@@ -69,7 +69,7 @@ fn sampler_loop(store: SystemStore, redraw: Sender<()>, shutdown: ShutdownToken)
                     }
                 }
                 Err(error) => {
-                    log::warn!("updates check failed: {error}");
+                    log::warn!("falló el chequeo de updates: {error}");
                 }
             }
         }
@@ -79,7 +79,7 @@ fn sampler_loop(store: SystemStore, redraw: Sender<()>, shutdown: ShutdownToken)
         }
     }
 
-    log::info!("system sampler stopped");
+    log::info!("sampler de sistema detenido");
 }
 
 fn read_metrics(previous_cpu: &mut Option<CpuTimes>) -> MetricsSnapshot {
@@ -145,7 +145,7 @@ fn log_failure<T>(what: &str, result: anyhow::Result<T>) -> Option<T> {
     match result {
         Ok(value) => Some(value),
         Err(error) => {
-            log::debug!("system sampler: {what} read failed: {error}");
+            log::debug!("sampler de sistema: falló la lectura de {what}: {error}");
             None
         }
     }

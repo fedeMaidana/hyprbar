@@ -1,5 +1,5 @@
 use hyprbar::bar::Bar;
-use hyprbar::components::{Component, ComponentAction, ComponentTag, Interaction, Point, RenderCtx};
+use hyprbar::components::{Component, ComponentAction, ComponentTag, Interaction, InteractionOutcome, Point, RenderCtx};
 use hyprbar::render::{Rect, TextEngine};
 use hyprbar::theme::Theme;
 use vello::Scene;
@@ -31,6 +31,10 @@ impl Component for FixedComponent {
 
     fn hit_test(&self, _point: Point, _bounds: Rect, _theme: &Theme) -> Option<Interaction> {
         Some(self.interaction)
+    }
+
+    fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
+        (interaction == self.interaction).then(InteractionOutcome::redraw)
     }
 }
 
@@ -94,6 +98,18 @@ fn hit_test_preserves_right_section_visual_order() {
     assert_eq!(bar.hit_test(Point::new(240.0, 10.0), &theme, None), Some(slot_interaction(1)));
 
     assert_eq!(bar.hit_test(Point::new(265.0, 10.0), &theme, None), Some(slot_interaction(2)));
+}
+
+#[test]
+fn handle_interaction_routes_to_the_owning_component() {
+    let mut bar = Bar::new(vec![fixed_slot(1, 20.0, 26.0)], vec![fixed_slot(2, 40.0, 26.0)], vec![fixed_slot(3, 20.0, 26.0)]);
+
+    // La primera respuesta Some corta la búsqueda; los demás no opinan.
+    assert_eq!(bar.handle_interaction(slot_interaction(2)), Some(InteractionOutcome::redraw()));
+
+    let foreign = Interaction::Action(ComponentAction::new(ComponentTag::new("nadie"), 9));
+
+    assert_eq!(bar.handle_interaction(foreign), None);
 }
 
 #[test]

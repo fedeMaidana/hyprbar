@@ -1,9 +1,18 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+
 use parley::{FontContext, Layout, LayoutContext, StyleProperty, style::FontFamily};
 use vello::Scene;
 use vello::kurbo::Affine;
 use vello::peniko::{Brush, Color, Fill};
+
+// ─── < Constants > ────────────────────────────────────────────────────
+
+/// Cuando la caché llega acá, se vacía entera: simple y suficiente para
+/// una barra cuyos textos vivos por frame son unas pocas decenas.
+const MAX_CACHED_LAYOUTS: usize = 512;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -14,9 +23,19 @@ pub struct TextStyle<'a> {
     pub color: Color,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct LayoutKey {
+    text: String,
+    family: String,
+    size_bits: u32,
+}
+
 pub struct TextEngine {
     font_cx: FontContext,
     layout_cx: LayoutContext<Brush>,
+    /// Shaping cacheado por (texto, tamaño, familia). El color no participa:
+    /// se aplica recién al dibujar, así un cambio de theme no invalida nada.
+    cache: HashMap<LayoutKey, Layout<Brush>>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -32,45 +51,52 @@ impl TextEngine {
         Self {
             font_cx: FontContext::new(),
             layout_cx: LayoutContext::new(),
+            cache: HashMap::new(),
         }
     }
 
-    pub fn layout(&mut self, text: &str, size: f32, family: &str) -> Layout<Brush> {
-        let mut builder = self.layout_cx.ranged_builder(&mut self.font_cx, text, 1.0, true);
-
-        builder.push_default(StyleProperty::FontSize(size));
-
-        let family = FontFamily::named(family);
-        builder.push_default(StyleProperty::FontFamily(family));
-
-        let mut layout = builder.build(text);
-        layout.break_all_lines(None);
-        layout.align(parley::Alignment::Start, parley::AlignmentOptions::default());
-
-        layout
-    }
-
     pub fn measure(&mut self, text: &str, size: f32, family: &str) -> (f32, f32) {
-        let layout = self.layout(text, size, family);
+        let layout = self.cached_layout(text, size, family);
 
         (layout.width(), layout.height())
     }
 
     pub fn draw_centered_v(&mut self, scene: &mut Scene, text: &str, x: f32, box_y: f32, box_height: f32, style: TextStyle<'_>) {
-        let layout = self.layout(text, style.size, style.family);
+        let color = style.color;
+        let layout = self.cached_layout(text, style.size, style.family);
         let y = box_y + (box_height - layout.height()) / 2.0;
 
-        draw_layout(scene, &layout, x, y, style.color);
+        draw_layout(scene, layout, x, y, color);
     }
 
     /// Draws text centered both ways inside `bounds`.
     pub fn draw_centered(&mut self, scene: &mut Scene, text: &str, bounds: crate::render::Rect, style: TextStyle<'_>) {
-        let layout = self.layout(text, style.size, style.family);
+        let color = style.color;
+        let layout = self.cached_layout(text, style.size, style.family);
 
         let x = bounds.x + (bounds.width - layout.width()) / 2.0;
         let y = bounds.y + (bounds.height - layout.height()) / 2.0;
 
-        draw_layout(scene, &layout, x, y, style.color);
+        draw_layout(scene, layout, x, y, color);
+    }
+
+    fn cached_layout(&mut self, text: &str, size: f32, family: &str) -> &Layout<Brush> {
+        let Self { font_cx, layout_cx, cache } = self;
+
+        let key = LayoutKey {
+            text: text.to_owned(),
+            family: family.to_owned(),
+            size_bits: size.to_bits(),
+        };
+
+        if cache.len() >= MAX_CACHED_LAYOUTS && !cache.contains_key(&key) {
+            cache.clear();
+        }
+
+        match cache.entry(key) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => entry.insert(build_layout(font_cx, layout_cx, text, size, family)),
+        }
     }
 }
 
@@ -81,6 +107,21 @@ impl Default for TextEngine {
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
+
+fn build_layout(font_cx: &mut FontContext, layout_cx: &mut LayoutContext<Brush>, text: &str, size: f32, family: &str) -> Layout<Brush> {
+    let mut builder = layout_cx.ranged_builder(font_cx, text, 1.0, true);
+
+    builder.push_default(StyleProperty::FontSize(size));
+
+    let family = FontFamily::named(family);
+    builder.push_default(StyleProperty::FontFamily(family));
+
+    let mut layout = builder.build(text);
+    layout.break_all_lines(None);
+    layout.align(parley::Alignment::Start, parley::AlignmentOptions::default());
+
+    layout
+}
 
 fn draw_layout(scene: &mut Scene, layout: &Layout<Brush>, x: f32, y: f32, color: Color) {
     let brush = Brush::Solid(color);

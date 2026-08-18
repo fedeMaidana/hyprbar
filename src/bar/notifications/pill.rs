@@ -1,11 +1,13 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use calloop::channel::Sender;
 use vello::{
     Scene,
     kurbo::{Affine, Circle},
     peniko::Fill,
 };
 
+use crate::app::WorkerHandle;
 use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
 use crate::proc::spawn_detached;
 use crate::render::{Rect, TextStyle};
@@ -13,7 +15,8 @@ use crate::theme::Theme;
 
 use super::action::NotificationAction;
 use super::panel::NotificationsPanel;
-use super::state::{MAX_VISIBLE_ROWS, NotificationsState};
+use super::state::{MAX_VISIBLE_ROWS, NotificationsStore};
+use super::worker::spawn_poller;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -25,26 +28,28 @@ const BELL_OFF_GLYPH: &str = "\u{f009b}";
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct NotificationsPill {
-    state: NotificationsState,
+    store: NotificationsStore,
+    _poller: Option<WorkerHandle>,
+    /// Scroll discreto, en filas.
+    scroll: usize,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl NotificationsPill {
-    pub fn new() -> Self {
+    pub fn new(redraw_signal: Sender<()>) -> Self {
+        let store = NotificationsStore::new();
+        let poller = spawn_poller(store.clone(), redraw_signal);
+
         Self {
-            state: NotificationsState::new(),
+            store,
+            _poller: poller,
+            scroll: 0,
         }
     }
 
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
         ctx.open_dropdown == Some(NOTIFICATIONS_DROPDOWN)
-    }
-}
-
-impl Default for NotificationsPill {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -57,15 +62,13 @@ impl Component for NotificationsPill {
     }
 
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
-        self.state.refresh_state();
-
         let active = self.is_active(ctx);
 
-        if active {
-            self.state.refresh_notes();
-        } else if self.state.scroll != 0 {
-            self.state.scroll = 0;
+        if !active && self.scroll != 0 {
+            self.scroll = 0;
         }
+
+        let state = self.store.state();
 
         let hovered = ctx.hovered_interaction == Some(Interaction::Dropdown(NOTIFICATIONS_DROPDOWN));
         Pill::draw_with_background(scene, bounds, ctx.theme, Pill::background_for(active, hovered, ctx.theme));
@@ -74,7 +77,7 @@ impl Component for NotificationsPill {
         let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
 
         // Con DND la campana se apaga; activa usa el color de slot activo
-        let (glyph, color) = match (self.state.state.dnd, active) {
+        let (glyph, color) = match (state.dnd, active) {
             (_, true) => (BELL_GLYPH, ctx.theme.palette.slot_active_text),
             (true, false) => (BELL_OFF_GLYPH, ctx.theme.palette.text_secondary),
             (false, false) => (BELL_GLYPH, ctx.theme.palette.text_primary),
@@ -89,7 +92,7 @@ impl Component for NotificationsPill {
             TextStyle::new(icon_size, &ctx.theme.typography.icon_font_family, color),
         );
 
-        if self.state.state.history_count > 0 && !active {
+        if state.history_count > 0 && !active {
             let (iw, _) = ctx.text.measure(glyph, icon_size, &ctx.theme.typography.icon_font_family);
 
             let dot_radius = ctx.theme.tokens.notification_dot_radius;
@@ -114,15 +117,38 @@ impl Component for NotificationsPill {
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        NotificationsPanel { state: &self.state }.render(scene, surface, anchor, ctx);
+        let data = self.store.data();
+
+        // El worker puede achicar el historial entre frames.
+        self.scroll = self.scroll.min(data.max_scroll());
+
+        NotificationsPanel {
+            data: &data,
+            scroll: self.scroll,
+        }
+        .render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(NotificationsPanel { state: &self.state }.bounds(surface, anchor, theme))
+        let data = self.store.data();
+
+        Some(
+            NotificationsPanel {
+                data: &data,
+                scroll: self.scroll,
+            }
+            .bounds(surface, anchor, theme),
+        )
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
-        NotificationsPanel { state: &self.state }.hit_test(point, surface, anchor, theme)
+        let data = self.store.data();
+
+        NotificationsPanel {
+            data: &data,
+            scroll: self.scroll,
+        }
+        .hit_test(point, surface, anchor, theme)
     }
 
     fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
@@ -134,31 +160,36 @@ impl Component for NotificationsPill {
         }
 
         // Optimista: el daemon reescribe los contratos enseguida
-        self.state.clear();
+        self.store.clear_history();
+        self.scroll = 0;
 
         Some(InteractionOutcome::redraw())
     }
 
     fn handle_scroll(&mut self, delta: f64) -> bool {
-        if self.state.notes.len() <= MAX_VISIBLE_ROWS {
+        let notes_len = self.store.notes_len();
+
+        if notes_len <= MAX_VISIBLE_ROWS {
             return false;
         }
+
+        let max_scroll = notes_len.saturating_sub(MAX_VISIBLE_ROWS);
 
         let target = if delta > 0.0 {
-            (self.state.scroll + 1).min(self.state.max_scroll())
+            (self.scroll + 1).min(max_scroll)
         } else {
-            self.state.scroll.saturating_sub(1)
+            self.scroll.saturating_sub(1)
         };
 
-        if target == self.state.scroll {
+        if target == self.scroll {
             return false;
         }
 
-        self.state.scroll = target;
+        self.scroll = target;
         true
     }
 
     fn reset_scroll(&mut self) {
-        self.state.scroll = 0;
+        self.scroll = 0;
     }
 }

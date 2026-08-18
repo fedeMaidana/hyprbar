@@ -4,6 +4,7 @@ mod action;
 mod panel;
 mod pill;
 mod state;
+mod worker;
 
 // ─── < Public API > ────────────────────────────────────────────────────
 

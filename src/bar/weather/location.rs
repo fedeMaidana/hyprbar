@@ -1,11 +1,16 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use std::time::Duration;
+
 use anyhow::{Result, anyhow};
 use serde::Deserialize;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
 const LOCATION_API_URL: &str = "https://ipapi.co/json/";
+
+/// Techo duro por request, para que el worker siempre pueda apagarse.
+const HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -40,7 +45,9 @@ impl Coordinates {
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub fn detect_location() -> Result<DetectedLocation> {
-    let mut response = ureq::get(LOCATION_API_URL).call()?;
+    let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(HTTP_TIMEOUT)).build().into();
+
+    let mut response = agent.get(LOCATION_API_URL).call()?;
     let body = response.body_mut().read_to_string()?;
 
     parse_detected_location(&body)

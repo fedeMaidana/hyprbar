@@ -42,8 +42,6 @@ impl AppState {
         self.apply_current_input_region();
         self.apply_buffer_scale();
 
-        self.theme.refresh_dynamic_colors();
-
         let surface_rect = Rect::new(0.0, 0.0, self.surface.width as f32, self.surface.height as f32);
 
         let mut ctx = RenderCtx {

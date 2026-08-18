@@ -7,9 +7,10 @@ use vello::peniko::{Color, Fill};
 
 use crate::app::WorkerHandle;
 use crate::components::{Component, ComponentAction, ComponentTag, Interaction, InteractionOutcome, Pill, Point, RenderCtx};
-use crate::hyprland_ipc::{self, WorkspaceTarget};
+use crate::hyprland_ipc::WorkspaceTarget;
 use crate::render::{Rect, TextStyle};
 
+use super::dispatcher::spawn_dispatcher;
 use super::geometry::SlotGeometry;
 use super::listener::spawn_listener;
 use super::state::{WorkspaceData, WorkspaceId, WorkspaceStore};
@@ -25,6 +26,8 @@ const SCROLL_THRESHOLD: f64 = 10.0;
 pub struct WorkspacesPill {
     store: WorkspaceStore,
     _listener: Option<WorkerHandle>,
+    _dispatcher: Option<WorkerHandle>,
+    dispatch: std::sync::mpsc::Sender<WorkspaceTarget>,
     measured_data: Option<WorkspaceData>,
     rendered_data: Option<WorkspaceData>,
     scroll_accumulator: f64,
@@ -49,10 +52,13 @@ impl WorkspacesPill {
     pub fn new(redraw_signal: Sender<()>) -> Self {
         let store = WorkspaceStore::new();
         let listener = spawn_listener(store.clone(), redraw_signal);
+        let (dispatcher, dispatch) = spawn_dispatcher();
 
         Self {
             store,
             _listener: listener,
+            _dispatcher: dispatcher,
+            dispatch,
             measured_data: None,
             rendered_data: None,
             scroll_accumulator: 0.0,
@@ -61,6 +67,13 @@ impl WorkspacesPill {
 
     fn snapshot(&self) -> WorkspaceData {
         self.store.snapshot()
+    }
+
+    /// Encola el dispatch; el worker hace la parte bloqueante.
+    fn send_dispatch(&self, target: WorkspaceTarget) {
+        if self.dispatch.send(target).is_err() {
+            log::warn!("el dispatcher de workspaces no está corriendo; se pierde {target:?}");
+        }
     }
 }
 
@@ -129,14 +142,7 @@ impl Component for WorkspacesPill {
     fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
         let workspace_id = workspace_from_interaction(interaction)?;
 
-        match hyprland_ipc::dispatch_workspace(workspace_id) {
-            Ok(()) => {
-                log::info!("workspace {workspace_id} dispatch sent");
-            }
-            Err(error) => {
-                log::warn!("workspace dispatch failed for {workspace_id}: {error}");
-            }
-        }
+        self.send_dispatch(WorkspaceTarget::Id(workspace_id));
 
         Some(InteractionOutcome::close_dropdown())
     }
@@ -157,17 +163,9 @@ impl Component for WorkspacesPill {
         };
 
         self.scroll_accumulator = 0.0;
+        self.send_dispatch(target);
 
-        match hyprland_ipc::dispatch_workspace_target(target) {
-            Ok(()) => {
-                log::info!("workspace scroll dispatch sent: {target:?}");
-                true
-            }
-            Err(error) => {
-                log::warn!("workspace scroll dispatch failed: {error}");
-                false
-            }
-        }
+        true
     }
 
     fn reset_scroll(&mut self) {

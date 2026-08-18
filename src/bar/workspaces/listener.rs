@@ -12,8 +12,24 @@ use super::state::WorkspaceStore;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
-const MAX_INITIAL_FETCH_RETRIES: u8 = 5;
-const INITIAL_FETCH_RETRY_DELAY: Duration = Duration::from_millis(500);
+/// Backoff entre reintentos de conexión: rápido primero, hasta un techo.
+const RECONNECT_DELAYS: [Duration; 4] = [
+    Duration::from_secs(1),
+    Duration::from_secs(2),
+    Duration::from_secs(5),
+    Duration::from_secs(10),
+];
+
+// ─── < Enums > ────────────────────────────────────────────────────
+
+enum SessionEnd {
+    /// El worker debe terminar.
+    Shutdown,
+    /// Nunca llegó a conectar (Hyprland todavía no está listo).
+    NeverConnected,
+    /// Estuvo conectado y el socket se cerró (restart de Hyprland).
+    Lost,
+}
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
@@ -21,7 +37,7 @@ pub fn spawn_listener(store: WorkspaceStore, redraw_signal: Sender<()>) -> Optio
     match WorkerHandle::spawn("hyprland-workspaces-listener", move |shutdown| listener_loop(store, redraw_signal, shutdown)) {
         Ok(worker) => Some(worker),
         Err(error) => {
-            log::error!("hyprland listener spawn failed: {error}");
+            log::error!("no se pudo iniciar el listener de hyprland: {error}");
             None
         }
     }
@@ -29,73 +45,79 @@ pub fn spawn_listener(store: WorkspaceStore, redraw_signal: Sender<()>) -> Optio
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
+/// Reconecta para siempre: un restart de Hyprland o una carrera en el
+/// arranque solo cuestan un reintento, nunca un worker muerto.
 fn listener_loop(store: WorkspaceStore, redraw: Sender<()>, shutdown: ShutdownToken) {
-    if !wait_for_initial_refresh(&store, &redraw, &shutdown) {
-        return;
+    let mut failed_attempts: usize = 0;
+
+    while !shutdown.should_stop() {
+        let delay_index = match run_session(&store, &redraw, &shutdown) {
+            SessionEnd::Shutdown => break,
+            SessionEnd::Lost => {
+                // Estuvo andando: reintento rápido.
+                failed_attempts = 0;
+                0
+            }
+            SessionEnd::NeverConnected => {
+                let index = failed_attempts.min(RECONNECT_DELAYS.len() - 1);
+                failed_attempts += 1;
+                index
+            }
+        };
+
+        let delay = RECONNECT_DELAYS[delay_index];
+
+        log::warn!("workspaces: reintento de conexión a hyprland en {delay:?}");
+
+        if shutdown.sleep(delay) {
+            break;
+        }
     }
 
+    log::info!("listener de workspaces detenido");
+}
+
+/// Conecta el stream, hace el fetch inicial y procesa eventos hasta que
+/// el socket se cierre o pidan apagar.
+fn run_session(store: &WorkspaceStore, redraw: &Sender<()>, shutdown: &ShutdownToken) -> SessionEnd {
+    // El stream se abre antes del fetch inicial para no perder eventos
+    // que lleguen entre uno y otro.
     let mut stream = match hyprland_ipc::event_stream() {
         Ok(stream) => stream,
         Err(error) => {
-            log::error!("hyprland event_stream: {error}");
-            return;
+            log::warn!("no se pudo abrir el event stream de hyprland: {error}");
+            return SessionEnd::NeverConnected;
         }
     };
 
+    if let Err(error) = refresh(store) {
+        log::warn!("falló el fetch inicial de workspaces: {error}");
+        return SessionEnd::NeverConnected;
+    }
+
+    let _ = redraw.send(());
+    log::info!("workspaces: conectado a hyprland");
+
     loop {
         if shutdown.should_stop() {
-            break;
+            return SessionEnd::Shutdown;
         }
 
         match stream.next_event() {
             Ok(EventStreamRead::Event(event)) => {
-                log::debug!("hyprland event: {}>>{}", event.name, event.data);
+                log::debug!("evento de hyprland: {}>>{}", event.name, event.data);
 
                 if should_refresh_after_event(&event.name) {
-                    refresh_or_log(&store, &redraw, &event.name);
+                    refresh_or_log(store, redraw, &event.name);
                 }
             }
             Ok(EventStreamRead::Timeout) => {}
             Ok(EventStreamRead::Closed) => {
-                log::warn!("hyprland event stream terminó (socket cerrado)");
-                break;
+                log::warn!("el event stream de hyprland se cerró (¿restart del compositor?)");
+                return SessionEnd::Lost;
             }
             Err(error) => {
-                log::warn!("event parse: {error}");
-            }
-        }
-    }
-
-    log::info!("hyprland workspaces listener stopped");
-}
-
-fn wait_for_initial_refresh(store: &WorkspaceStore, redraw: &Sender<()>, shutdown: &ShutdownToken) -> bool {
-    let mut retries = 0;
-
-    loop {
-        if shutdown.should_stop() {
-            return false;
-        }
-
-        match refresh(store) {
-            Ok(()) => {
-                let _ = redraw.send(());
-                log::info!("hyprland workspaces: fetch inicial OK");
-                return true;
-            }
-            Err(error) => {
-                retries += 1;
-
-                if retries > MAX_INITIAL_FETCH_RETRIES {
-                    log::error!("hyprland fetch falló {MAX_INITIAL_FETCH_RETRIES} veces: {error}");
-                    return false;
-                }
-
-                log::warn!("hyprland fetch (retry {retries}/{MAX_INITIAL_FETCH_RETRIES}): {error}");
-
-                if shutdown.sleep(INITIAL_FETCH_RETRY_DELAY) {
-                    return false;
-                }
+                log::warn!("evento malformado: {error}");
             }
         }
     }
@@ -103,7 +125,7 @@ fn wait_for_initial_refresh(store: &WorkspaceStore, redraw: &Sender<()>, shutdow
 
 fn refresh_or_log(store: &WorkspaceStore, redraw: &Sender<()>, event_name: &str) {
     if let Err(error) = refresh(store) {
-        log::warn!("refresh tras evento {event_name}: {error}");
+        log::warn!("falló el refresh tras el evento {event_name}: {error}");
         return;
     }
 

@@ -144,10 +144,10 @@ impl SeatHandler for AppState {
             {
                 Ok(pointer) => {
                     self.pointer.themed_pointer = Some(pointer);
-                    log::info!("pointer capability enabled");
+                    log::info!("capacidad de puntero habilitada");
                 }
                 Err(error) => {
-                    log::warn!("failed to create themed pointer: {error}");
+                    log::warn!("no se pudo crear el puntero con theme: {error}");
                 }
             }
         }
@@ -162,7 +162,7 @@ impl SeatHandler for AppState {
             self.pointer.position = None;
             self.pointer.icon = CursorIcon::Default;
 
-            log::info!("pointer capability removed");
+            log::info!("capacidad de puntero removida");
         }
     }
 

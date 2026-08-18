@@ -1,5 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use calloop::channel::Sender;
 use vello::Scene;
 use vello::peniko::Color;
 
@@ -34,9 +35,9 @@ struct WeatherParts {
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl WeatherPill {
-    pub fn new(config: WeatherConfig) -> Self {
+    pub fn new(config: WeatherConfig, redraw_signal: Sender<()>) -> Self {
         let store = WeatherStore::new();
-        let fetcher = spawn_fetcher(config, store.clone());
+        let fetcher = spawn_fetcher(config, store.clone(), redraw_signal);
 
         Self {
             store,

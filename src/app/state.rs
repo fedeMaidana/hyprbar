@@ -159,7 +159,7 @@ impl AppState {
 
         match sources::insert_panel_seconds_tick_source(&self.loop_handle) {
             Ok(()) => self.seconds_timer_armed = true,
-            Err(error) => log::warn!("panel seconds timer failed to arm: {error}"),
+            Err(error) => log::warn!("no se pudo armar el timer de segundos: {error}"),
         }
     }
 

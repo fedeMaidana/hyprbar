@@ -85,10 +85,6 @@ pub fn query(command: &str) -> Result<String> {
     Ok(response)
 }
 
-pub fn dispatch_workspace(workspace_id: crate::bar::workspaces::WorkspaceId) -> Result<()> {
-    dispatch_workspace_target(WorkspaceTarget::Id(workspace_id))
-}
-
 pub fn dispatch_workspace_target(target: WorkspaceTarget) -> Result<()> {
     let value = target.as_dispatch_value();
     let command = format!(r#"/dispatch hl.dsp.focus({{ workspace = "{value}" }})"#);

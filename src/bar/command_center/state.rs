@@ -61,7 +61,7 @@ impl CommandStore {
         match self.inner.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                log::warn!("command store mutex was poisoned; recovering latest value");
+                log::warn!("el mutex del store del command center estaba envenenado; se recupera el último valor");
                 poisoned.into_inner()
             }
         }

@@ -25,12 +25,12 @@ pub fn default_bar(redraw_signal: Sender<()>) -> Bar {
             component(ArchLogoPill::new(redraw_signal.clone())),
             component(DatePill::new()),
             component(ClockPill::new()),
-            component(WeatherPill::new(WeatherConfig::auto_detect())),
+            component(WeatherPill::new(WeatherConfig::auto_detect(), redraw_signal.clone())),
         ],
         vec![
             component(CommandCenterPill::new(redraw_signal.clone())),
-            component(WorkspacesPill::new(redraw_signal)),
-            component(NotificationsPill::new()),
+            component(WorkspacesPill::new(redraw_signal.clone())),
+            component(NotificationsPill::new(redraw_signal)),
         ],
         vec![component(ProfilePill::from_path(PROFILE_IMAGE_PATH))],
     )

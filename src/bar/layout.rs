@@ -317,7 +317,7 @@ fn render_center_section(
     let available_width = safe_right - safe_left;
 
     if center_width > available_width {
-        log::warn!("center section hidden: required_width={} available_width={}", center_width, available_width);
+        log::warn!("sección central oculta: ancho_requerido={} ancho_disponible={}", center_width, available_width);
 
         return;
     }

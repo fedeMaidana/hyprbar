@@ -134,24 +134,51 @@ impl RenderContext {
         let blitter = self.blitter.as_ref().context("blitter no inicializado")?;
         let device_handle = &self.vello_ctx.devices[surface.dev_id];
 
-        let frame = surface.surface.get_current_texture().context("get_current_texture failed")?;
+        // Una superficie perdida o desactualizada se reconfigura acá mismo;
+        // si no, un vsync que llegó tarde solo saltea este cuadro.
+        let frame = match surface.surface.get_current_texture() {
+            Ok(frame) => frame,
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                log::warn!("superficie wgpu perdida/desactualizada; se reconfigura");
+
+                surface.surface.configure(&device_handle.device, &surface.config);
+
+                surface
+                    .surface
+                    .get_current_texture()
+                    .context("get_current_texture tras reconfigurar la superficie")?
+            }
+            Err(wgpu::SurfaceError::Timeout) => {
+                log::warn!("timeout esperando el frame; se saltea este cuadro");
+                self.scene.reset();
+
+                return Ok(());
+            }
+            Err(error) => {
+                self.scene.reset();
+
+                return Err(anyhow!("get_current_texture: {error}"));
+            }
+        };
 
         let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        renderer
-            .render_to_texture(
-                &device_handle.device,
-                &device_handle.queue,
-                &self.scene,
-                &intermediate.view,
-                &vello::RenderParams {
-                    base_color: vello::peniko::Color::TRANSPARENT,
-                    width: surface.config.width,
-                    height: surface.config.height,
-                    antialiasing_method: AaConfig::Msaa16,
-                },
-            )
-            .map_err(|error| anyhow!("render_to_texture failed: {error:?}"))?;
+        if let Err(error) = renderer.render_to_texture(
+            &device_handle.device,
+            &device_handle.queue,
+            &self.scene,
+            &intermediate.view,
+            &vello::RenderParams {
+                base_color: vello::peniko::Color::TRANSPARENT,
+                width: surface.config.width,
+                height: surface.config.height,
+                antialiasing_method: AaConfig::Msaa8,
+            },
+        ) {
+            self.scene.reset();
+
+            return Err(anyhow!("falló render_to_texture: {error:?}"));
+        }
 
         let mut encoder = device_handle
             .device

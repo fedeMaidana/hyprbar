@@ -65,12 +65,12 @@ pub fn persist(mode: ThemeMode) {
     if let Some(parent) = path.parent()
         && let Err(error) = fs::create_dir_all(parent)
     {
-        log::warn!("theme state dir creation failed: {error}");
+        log::warn!("no se pudo crear el directorio de estado del theme: {error}");
         return;
     }
 
     if let Err(error) = fs::write(&path, mode.as_str()) {
-        log::warn!("theme state write failed: {error}");
+        log::warn!("no se pudo guardar el modo del theme: {error}");
     }
 }
 
@@ -89,7 +89,7 @@ pub fn run_hook(mode: ThemeMode) {
     };
 
     if let Err(error) = spawn_detached(program, &[mode.as_str()]) {
-        log::warn!("theme hook failed: {error}");
+        log::warn!("falló el hook del theme: {error}");
     }
 }
 

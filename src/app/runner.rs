@@ -1,7 +1,14 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use std::thread;
+
 use anyhow::{Context, Result};
-use calloop::{EventLoop, channel::channel};
+use calloop::{
+    EventLoop,
+    channel::{Sender, channel},
+};
+use signal_hook::consts::{SIGINT, SIGTERM};
+use signal_hook::iterator::Signals;
 use smithay_client_toolkit::shell::WaylandSurface;
 use wayland_client::{Connection, EventQueue};
 
@@ -45,11 +52,14 @@ impl App {
 
         wait_until_configured(&mut event_queue, &mut app)?;
 
-        log::info!("configured: {}x{}", app.surface.width, app.surface.height);
+        log::info!("superficie configurada: {}x{}", app.surface.width, app.surface.height);
 
         create_render_surface(&conn, &mut app)?;
 
-        sources::insert_sources(&mut event_loop, conn, event_queue, redraw_channel)?;
+        let (shutdown_sender, shutdown_channel) = channel::<()>();
+        spawn_signal_listener(shutdown_sender);
+
+        sources::insert_sources(&mut event_loop, conn, event_queue, redraw_channel, shutdown_channel)?;
 
         run_main_loop(event_loop, app)
     }
@@ -86,18 +96,45 @@ fn create_render_surface(conn: &Connection, app: &mut AppState) -> Result<()> {
     Ok(())
 }
 
+/// Registra SIGINT/SIGTERM y despierta el loop por canal: el flag
+/// `should_close` corta el loop y, al dropear `AppState`, cada
+/// `WorkerHandle` pide el apagado y se joinea.
+fn spawn_signal_listener(sender: Sender<()>) {
+    let mut signals = match Signals::new([SIGINT, SIGTERM]) {
+        Ok(signals) => signals,
+        Err(error) => {
+            log::warn!("no se pudieron registrar las señales de cierre: {error}");
+            return;
+        }
+    };
+
+    let spawned = thread::Builder::new().name("signal-listener".to_string()).spawn(move || {
+        for signal in signals.forever() {
+            log::info!("señal {signal} recibida; se pide el cierre");
+
+            if sender.send(()).is_err() {
+                break;
+            }
+        }
+    });
+
+    if let Err(error) = spawned {
+        log::warn!("no se pudo iniciar el hilo de señales: {error}");
+    }
+}
+
 fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Result<()> {
     loop {
         event_loop.dispatch(None, &mut app).context("event_loop dispatch")?;
 
         if app.should_close {
-            log::info!("close requested");
+            log::info!("cierre pedido; se apagan los workers");
             break;
         }
 
         if app.needs_redraw && app.surface.configured && !app.surface.lost {
             if let Err(e) = app.render() {
-                log::error!("render error: {e:?}");
+                log::error!("error de render: {e:?}");
             }
 
             app.needs_redraw = false;
