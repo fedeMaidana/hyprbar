@@ -100,9 +100,13 @@ impl OutputHandler for AppState {
 
 impl LayerShellHandler for AppState {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        log::warn!("superficie cerrada por el compositor (¿output apagado?); se recreará");
+        log::warn!("superficie cerrada por el compositor (¿output apagado?); se recrea");
         self.surface.lost = true;
         self.surface.configured = false;
+
+        // Evento en vez de polling: se recrea acá mismo y el timer de
+        // vigilancia queda solo como reintento de respaldo.
+        self.recreate_surface();
     }
 
     fn configure(

@@ -13,7 +13,7 @@ use super::config::WeatherConfig;
 use super::fetcher::spawn_fetcher;
 use super::icons::{UNKNOWN_WEATHER_ICON, weather_icon};
 use super::panel::WeatherPanel;
-use super::state::{WeatherSnapshot, WeatherStore};
+use super::state::{WeatherData, WeatherSnapshot, WeatherStore};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -24,6 +24,11 @@ pub(crate) const WEATHER_DROPDOWN: DropdownId = DropdownId::new("weather");
 pub struct WeatherPill {
     store: WeatherStore,
     _fetcher: Option<WorkerHandle>,
+    /// Copia local del store, refrescada solo cuando la generación
+    /// cambió: `measure` corre en cada frame y clonar el pronóstico
+    /// entero cada vez era puro desperdicio.
+    data: WeatherData,
+    seen_generation: u64,
     frame_parts: Option<WeatherParts>,
 }
 
@@ -42,13 +47,24 @@ impl WeatherPill {
         Self {
             store,
             _fetcher: fetcher,
+            data: WeatherData::default(),
+            seen_generation: 0,
             frame_parts: None,
         }
     }
 
+    fn sync_data(&mut self) {
+        let generation = self.store.generation();
+
+        if generation != self.seen_generation {
+            self.data = self.store.data();
+            self.seen_generation = generation;
+        }
+    }
+
     fn current_parts(&self) -> WeatherParts {
-        match self.store.snapshot() {
-            Some(snapshot) => weather_parts(&snapshot),
+        match &self.data.snapshot {
+            Some(snapshot) => weather_parts(snapshot),
             None => WeatherParts {
                 icon: UNKNOWN_WEATHER_ICON,
                 text: "—".to_string(),
@@ -81,6 +97,8 @@ impl WeatherPill {
 
 impl Component for WeatherPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
+        self.sync_data();
+
         let parts = self.current_parts();
 
         let icon_size = icon_size(ctx);
@@ -120,15 +138,11 @@ impl Component for WeatherPill {
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        let data = self.store.data();
-
-        WeatherPanel { data: &data }.render(scene, surface, anchor, ctx);
+        WeatherPanel { data: &self.data }.render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        let data = self.store.data();
-
-        Some(WeatherPanel { data: &data }.bounds(surface, anchor, theme))
+        Some(WeatherPanel { data: &self.data }.bounds(surface, anchor, theme))
     }
 }
 

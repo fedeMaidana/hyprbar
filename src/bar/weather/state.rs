@@ -1,6 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use chrono::NaiveDate;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 // ─── < Structs > ────────────────────────────────────────────────────
@@ -33,6 +34,8 @@ pub struct WeatherData {
 #[derive(Debug, Clone, Default)]
 pub struct WeatherStore {
     inner: Arc<Mutex<WeatherData>>,
+    /// Sube con cada escritura; los lectores clonan solo cuando cambió.
+    generation: Arc<AtomicU64>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -60,16 +63,20 @@ impl WeatherStore {
         self.lock().clone()
     }
 
-    pub fn snapshot(&self) -> Option<WeatherSnapshot> {
-        self.lock().snapshot.clone()
+    /// Número de escrituras acumuladas: si no cambió desde la última
+    /// lectura, no hace falta volver a clonar los datos.
+    pub fn generation(&self) -> u64 {
+        self.generation.load(Ordering::Acquire)
     }
 
     pub fn replace_snapshot(&self, snapshot: WeatherSnapshot) {
         self.lock().snapshot = Some(snapshot);
+        self.generation.fetch_add(1, Ordering::Release);
     }
 
     pub fn replace_location_label(&self, label: String) {
         self.lock().location_label = Some(label);
+        self.generation.fetch_add(1, Ordering::Release);
     }
 
     fn lock(&self) -> MutexGuard<'_, WeatherData> {

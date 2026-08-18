@@ -28,8 +28,10 @@ pub struct WorkspacesPill {
     _listener: Option<WorkerHandle>,
     _dispatcher: Option<WorkerHandle>,
     dispatch: std::sync::mpsc::Sender<WorkspaceTarget>,
-    measured_data: Option<WorkspaceData>,
-    rendered_data: Option<WorkspaceData>,
+    /// Copia local del store, refrescada solo cuando la generación
+    /// cambió; measure, render y hit_test la comparten sin clonar.
+    data: WorkspaceData,
+    seen_generation: u64,
     scroll_accumulator: f64,
 }
 
@@ -59,14 +61,19 @@ impl WorkspacesPill {
             _listener: listener,
             _dispatcher: dispatcher,
             dispatch,
-            measured_data: None,
-            rendered_data: None,
+            data: WorkspaceData::default(),
+            seen_generation: 0,
             scroll_accumulator: 0.0,
         }
     }
 
-    fn snapshot(&self) -> WorkspaceData {
-        self.store.snapshot()
+    fn sync_data(&mut self) {
+        let generation = self.store.generation();
+
+        if generation != self.seen_generation {
+            self.data = self.store.snapshot();
+            self.seen_generation = generation;
+        }
     }
 
     /// Encola el dispatch; el worker hace la parte bloqueante.
@@ -96,12 +103,10 @@ fn workspace_from_interaction(interaction: Interaction) -> Option<WorkspaceId> {
 
 impl Component for WorkspacesPill {
     fn measure(&mut self, ctx: &mut RenderCtx<'_>) -> (f32, f32) {
+        self.sync_data();
+
         let geometry = SlotGeometry::from_theme(ctx.theme);
-        let data = self.snapshot();
-
-        let width = geometry.pill_width(&data);
-
-        self.measured_data = Some(data);
+        let width = geometry.pill_width(&self.data);
 
         (width, ctx.theme.tokens.pill_height)
     }
@@ -109,23 +114,19 @@ impl Component for WorkspacesPill {
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
         Pill::draw(scene, bounds, ctx.theme);
 
-        let data = self.measured_data.take().unwrap_or_else(|| self.snapshot());
         let geometry = SlotGeometry::from_theme(ctx.theme);
 
-        self.rendered_data = Some(data.clone());
-
-        render_workspace_slots(scene, bounds, ctx, &data, &geometry);
+        render_workspace_slots(scene, bounds, ctx, &self.data, &geometry);
     }
 
     fn hit_test(&self, point: Point, bounds: Rect, theme: &crate::theme::Theme) -> Option<Interaction> {
-        let data = self.rendered_data.as_ref().cloned().unwrap_or_else(|| self.snapshot());
         let geometry = SlotGeometry::from_theme(theme);
 
         let mut x = bounds.x + geometry.h_padding;
         let box_y = bounds.y + (bounds.height - geometry.slot_box_height) / 2.0;
 
-        for slot_id in 1..=data.visible_count() {
-            let slot = SlotHitBox::from_workspace(slot_id, &data, &geometry);
+        for slot_id in 1..=self.data.visible_count() {
+            let slot = SlotHitBox::from_workspace(slot_id, &self.data, &geometry);
             let slot_y = box_y + (geometry.slot_box_height - slot.height) / 2.0;
             let slot_bounds = Rect::new(x, slot_y, slot.width, slot.height);
 

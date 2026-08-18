@@ -1,5 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 // ─── < Types > ────────────────────────────────────────────────────
@@ -21,6 +22,8 @@ pub struct WorkspaceData {
 #[derive(Debug, Clone, Default)]
 pub struct WorkspaceStore {
     inner: Arc<Mutex<WorkspaceData>>,
+    /// Sube con cada escritura; los lectores clonan solo cuando cambió.
+    generation: Arc<AtomicU64>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -42,10 +45,16 @@ impl WorkspaceStore {
         self.lock().clone()
     }
 
-    pub fn replace(&self, data: WorkspaceData) {
-        let mut guard = self.lock();
+    /// Número de escrituras acumuladas: si no cambió desde la última
+    /// lectura, no hace falta volver a clonar los datos.
+    pub fn generation(&self) -> u64 {
+        self.generation.load(Ordering::Acquire)
+    }
 
-        *guard = data;
+    pub fn replace(&self, data: WorkspaceData) {
+        *self.lock() = data;
+
+        self.generation.fetch_add(1, Ordering::Release);
     }
 
     fn lock(&self) -> MutexGuard<'_, WorkspaceData> {

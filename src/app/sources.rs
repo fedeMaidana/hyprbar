@@ -17,7 +17,7 @@ use super::state::AppState;
 
 const CLOCK_TICK_SECONDS: u64 = 60;
 const PALETTE_POLL_SECONDS: u64 = 1;
-const SURFACE_RETRY_SECONDS: u64 = 1;
+const SURFACE_RETRY_SECONDS: u64 = 5;
 
 // ─── < Public Funtions > ────────────────────────────────────────────────────
 
@@ -133,8 +133,9 @@ fn insert_palette_watch_source(loop_handle: calloop::LoopHandle<'_, AppState>) -
     Ok(())
 }
 
-/// Rebuilds the bar surface after the compositor closes it (output
-/// unplugged or TV powered off), retrying until a configure arrives.
+/// Red de seguridad: la recreación normal de la superficie pasa en el
+/// handler `closed()` (dirigida por evento); este timer solo reintenta
+/// si aquella quedó a medio camino.
 fn insert_surface_watch_source(loop_handle: calloop::LoopHandle<'_, AppState>) -> Result<()> {
     let timer = Timer::from_duration(Duration::from_secs(SURFACE_RETRY_SECONDS));
 

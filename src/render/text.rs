@@ -1,8 +1,8 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
+use std::hash::{Hash, Hasher};
 
+use hashbrown::{Equivalent, HashMap};
 use parley::{FontContext, Layout, LayoutContext, StyleProperty, style::FontFamily};
 use vello::Scene;
 use vello::kurbo::Affine;
@@ -30,6 +30,14 @@ struct LayoutKey {
     size_bits: u32,
 }
 
+/// Versión prestada de `LayoutKey`: alcanza para buscar en la caché sin
+/// alocar; la clave dueña recién se construye si hay que insertar.
+struct LayoutKeyRef<'a> {
+    text: &'a str,
+    family: &'a str,
+    size_bits: u32,
+}
+
 pub struct TextEngine {
     font_cx: FontContext,
     layout_cx: LayoutContext<Brush>,
@@ -39,6 +47,22 @@ pub struct TextEngine {
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
+
+impl Hash for LayoutKeyRef<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Mismos campos y mismo orden que el derive de `LayoutKey`, para
+        // que ambas formas de la clave caigan en el mismo bucket.
+        self.text.hash(state);
+        self.family.hash(state);
+        self.size_bits.hash(state);
+    }
+}
+
+impl Equivalent<LayoutKey> for LayoutKeyRef<'_> {
+    fn equivalent(&self, key: &LayoutKey) -> bool {
+        self.size_bits == key.size_bits && self.text == key.text && self.family == key.family
+    }
+}
 
 impl<'a> TextStyle<'a> {
     pub fn new(size: f32, family: &'a str, color: Color) -> Self {
@@ -83,20 +107,30 @@ impl TextEngine {
     fn cached_layout(&mut self, text: &str, size: f32, family: &str) -> &Layout<Brush> {
         let Self { font_cx, layout_cx, cache } = self;
 
-        let key = LayoutKey {
-            text: text.to_owned(),
-            family: family.to_owned(),
+        let key = LayoutKeyRef {
+            text,
+            family,
             size_bits: size.to_bits(),
         };
 
-        if cache.len() >= MAX_CACHED_LAYOUTS && !cache.contains_key(&key) {
-            cache.clear();
+        if !cache.contains_key(&key) {
+            if cache.len() >= MAX_CACHED_LAYOUTS {
+                cache.clear();
+            }
+
+            let layout = build_layout(font_cx, layout_cx, text, size, family);
+
+            cache.insert(
+                LayoutKey {
+                    text: text.to_owned(),
+                    family: family.to_owned(),
+                    size_bits: size.to_bits(),
+                },
+                layout,
+            );
         }
 
-        match cache.entry(key) {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(build_layout(font_cx, layout_cx, text, size, family)),
-        }
+        cache.get(&key).expect("la clave se insertó recién arriba")
     }
 }
 
