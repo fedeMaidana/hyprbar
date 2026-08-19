@@ -1,7 +1,5 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use std::time::Instant;
-
 use anyhow::Result;
 use smithay_client_toolkit::shell::WaylandSurface;
 use vello::Scene;
@@ -13,14 +11,6 @@ use crate::render::Rect;
 
 use super::state::AppState;
 use super::surface_handle::SurfaceHandle;
-
-// ─── < Constants > ────────────────────────────────────────────────────
-
-/// dt máximo que ven las animaciones (evita saltos tras una pausa larga).
-const MAX_FRAME_DT: f32 = 0.05;
-
-/// dt asumido para el primer frame.
-const FALLBACK_FRAME_DT: f32 = 1.0 / 60.0;
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
@@ -54,20 +44,11 @@ impl AppState {
 
         let surface_rect = Rect::new(0.0, 0.0, self.surface.width as f32, self.surface.height as f32);
 
-        let now = Instant::now();
-        let dt = self
-            .last_render
-            .map(|previous| now.duration_since(previous).as_secs_f32().min(MAX_FRAME_DT))
-            .unwrap_or(FALLBACK_FRAME_DT);
-        self.last_render = Some(now);
-
         let mut ctx = RenderCtx {
             theme: &self.theme,
             text: &mut self.text_engine,
             hovered_interaction: self.pointer.hovered_interaction,
             open_dropdown: self.open_dropdown,
-            dt,
-            animating: false,
         };
 
         let scale = self.surface.effective_scale();
@@ -81,8 +62,6 @@ impl AppState {
 
             self.render_ctx.scene.append(&logical_scene, Some(Affine::scale(scale)));
         }
-
-        self.animating = ctx.animating;
 
         if let Some(viewport) = &self.surface.viewport {
             viewport.set_destination(self.surface.width.max(1) as i32, self.surface.height.max(1) as i32);

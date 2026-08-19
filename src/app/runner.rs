@@ -1,7 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use std::thread;
-use std::time::Duration;
 
 use anyhow::{Context, Result};
 use calloop::{
@@ -27,9 +26,6 @@ use super::surface_handle::SurfaceHandle;
 
 /// Errores de render seguidos antes de reconstruir la superficie gpu.
 const MAX_RENDER_FAILURES: u32 = 3;
-
-/// Presupuesto de frame mientras hay animaciones vivas (~60 fps).
-const ANIMATION_FRAME_BUDGET: Duration = Duration::from_millis(16);
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -136,19 +132,11 @@ fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Resu
     let mut render_failures: u32 = 0;
 
     loop {
-        // Idle: el loop duerme hasta el próximo evento. Con animaciones
-        // vivas, despierta cada ~16 ms para el siguiente frame.
-        let timeout = if app.animating { Some(ANIMATION_FRAME_BUDGET) } else { None };
-
-        event_loop.dispatch(timeout, &mut app).context("dispatch del event loop")?;
+        event_loop.dispatch(None, &mut app).context("dispatch del event loop")?;
 
         if app.should_close {
             log::info!("cierre pedido; se apagan los workers");
             break;
-        }
-
-        if app.animating {
-            app.needs_redraw = true;
         }
 
         if app.needs_redraw && app.surface.configured && !app.surface.lost {

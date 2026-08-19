@@ -11,8 +11,6 @@ pub struct Palette {
     pub pill_bg: Color,
     pub pill_hover_bg: Color,
     pub pill_border: Color,
-    /// Brillo de 1px en el borde superior del vidrio.
-    pub glass_highlight: Color,
     pub text_primary: Color,
     pub text_secondary: Color,
     pub accent: Color,
@@ -21,8 +19,6 @@ pub struct Palette {
     pub panel_border: Color,
     pub panel_divider: Color,
     pub panel_raised: Color,
-    /// Sombra difusa que eleva los panels sobre el fondo.
-    pub panel_shadow: Color,
 
     pub control_bg: Color,
     pub control_hover_bg: Color,
@@ -48,21 +44,17 @@ pub struct Palette {
 impl Palette {
     pub fn dark() -> Self {
         Self {
-            // Alphas pensados para blur del compositor detrás
-            // (layerrule blur): vidrio esmerilado, no transparencia sucia.
-            pill_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x5c),
-            pill_hover_bg: Color::from_rgba8(0x2e, 0x2e, 0x36, 0x8f),
+            pill_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x80),
+            pill_hover_bg: Color::from_rgba8(0x2e, 0x2e, 0x36, 0xa8),
             pill_border: Color::from_rgba8(0xff, 0xff, 0xff, 0x0f),
-            glass_highlight: Color::from_rgba8(0xff, 0xff, 0xff, 0x26),
             text_primary: Color::from_rgba8(0xf5, 0xf5, 0xf7, 0xff),
             text_secondary: Color::from_rgba8(0xa0, 0xa0, 0xa8, 0xff),
             accent: Color::from_rgba8(0x9a, 0x8c, 0xff, 0xff),
 
-            panel_bg: Color::from_rgba8(0x15, 0x15, 0x1b, 0xd6),
+            panel_bg: Color::from_rgba8(0x15, 0x15, 0x1b, 0xf0),
             panel_border: Color::from_rgba8(0xff, 0xff, 0xff, 0x17),
             panel_divider: Color::from_rgba8(0xff, 0xff, 0xff, 0x0e),
             panel_raised: Color::from_rgba8(0xff, 0xff, 0xff, 0x12),
-            panel_shadow: Color::from_rgba8(0x00, 0x00, 0x00, 0x66),
 
             control_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0x14),
             control_hover_bg: Color::from_rgba8(0x9a, 0x8c, 0xff, 0x38),
@@ -86,20 +78,17 @@ impl Palette {
 
     pub fn light() -> Self {
         Self {
-            // Alphas pensados para blur del compositor detrás.
-            pill_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0x9e),
-            pill_hover_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0xcc),
+            pill_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0xb8),
+            pill_hover_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0xe0),
             pill_border: Color::from_rgba8(0x00, 0x00, 0x00, 0x14),
-            glass_highlight: Color::from_rgba8(0xff, 0xff, 0xff, 0x8c),
             text_primary: Color::from_rgba8(0x1c, 0x1c, 0x22, 0xff),
             text_secondary: Color::from_rgba8(0x55, 0x55, 0x5f, 0xff),
             accent: Color::from_rgba8(0x6a, 0x5a, 0xe0, 0xff),
 
-            panel_bg: Color::from_rgba8(0xf7, 0xf7, 0xfa, 0xe0),
+            panel_bg: Color::from_rgba8(0xf7, 0xf7, 0xfa, 0xf7),
             panel_border: Color::from_rgba8(0x00, 0x00, 0x00, 0x1a),
             panel_divider: Color::from_rgba8(0x00, 0x00, 0x00, 0x12),
             panel_raised: Color::from_rgba8(0x00, 0x00, 0x00, 0x0d),
-            panel_shadow: Color::from_rgba8(0x00, 0x00, 0x00, 0x40),
 
             control_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x0f),
             control_hover_bg: Color::from_rgba8(0x6a, 0x5a, 0xe0, 0x38),

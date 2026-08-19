@@ -3,10 +3,7 @@
 use std::hash::{Hash, Hasher};
 
 use hashbrown::{Equivalent, HashMap};
-use parley::{
-    FontContext, Layout, LayoutContext, StyleProperty,
-    style::{FontFamily, FontWeight},
-};
+use parley::{FontContext, Layout, LayoutContext, StyleProperty, style::FontFamily};
 use vello::Scene;
 use vello::kurbo::Affine;
 use vello::peniko::{Brush, Color, Fill};
@@ -17,9 +14,6 @@ use vello::peniko::{Brush, Color, Fill};
 /// una barra cuyos textos vivos por frame son unas pocas decenas.
 const MAX_CACHED_LAYOUTS: usize = 512;
 
-/// Peso tipográfico por defecto (regular).
-const DEFAULT_WEIGHT: f32 = 400.0;
-
 // ─── < Structs > ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy)]
@@ -27,7 +21,6 @@ pub struct TextStyle<'a> {
     pub size: f32,
     pub family: &'a str,
     pub color: Color,
-    pub weight: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -35,7 +28,6 @@ struct LayoutKey {
     text: String,
     family: String,
     size_bits: u32,
-    weight_bits: u32,
 }
 
 /// Versión prestada de `LayoutKey`: alcanza para buscar en la caché sin
@@ -44,7 +36,6 @@ struct LayoutKeyRef<'a> {
     text: &'a str,
     family: &'a str,
     size_bits: u32,
-    weight_bits: u32,
 }
 
 pub struct TextEngine {
@@ -64,30 +55,18 @@ impl Hash for LayoutKeyRef<'_> {
         self.text.hash(state);
         self.family.hash(state);
         self.size_bits.hash(state);
-        self.weight_bits.hash(state);
     }
 }
 
 impl Equivalent<LayoutKey> for LayoutKeyRef<'_> {
     fn equivalent(&self, key: &LayoutKey) -> bool {
-        self.size_bits == key.size_bits && self.weight_bits == key.weight_bits && self.text == key.text && self.family == key.family
+        self.size_bits == key.size_bits && self.text == key.text && self.family == key.family
     }
 }
 
 impl<'a> TextStyle<'a> {
     pub fn new(size: f32, family: &'a str, color: Color) -> Self {
-        Self {
-            size,
-            family,
-            color,
-            weight: DEFAULT_WEIGHT,
-        }
-    }
-
-    /// Mismo estilo con otro peso (400 normal, ~550 medium, 700 bold).
-    pub fn with_weight(mut self, weight: f32) -> Self {
-        self.weight = weight;
-        self
+        Self { size, family, color }
     }
 }
 
@@ -101,14 +80,14 @@ impl TextEngine {
     }
 
     pub fn measure(&mut self, text: &str, size: f32, family: &str) -> (f32, f32) {
-        let layout = self.cached_layout(text, size, family, DEFAULT_WEIGHT);
+        let layout = self.cached_layout(text, size, family);
 
         (layout.width(), layout.height())
     }
 
     pub fn draw_centered_v(&mut self, scene: &mut Scene, text: &str, x: f32, box_y: f32, box_height: f32, style: TextStyle<'_>) {
         let color = style.color;
-        let layout = self.cached_layout(text, style.size, style.family, style.weight);
+        let layout = self.cached_layout(text, style.size, style.family);
         let y = box_y + (box_height - layout.height()) / 2.0;
 
         draw_layout(scene, layout, x, y, color);
@@ -117,7 +96,7 @@ impl TextEngine {
     /// Draws text centered both ways inside `bounds`.
     pub fn draw_centered(&mut self, scene: &mut Scene, text: &str, bounds: crate::render::Rect, style: TextStyle<'_>) {
         let color = style.color;
-        let layout = self.cached_layout(text, style.size, style.family, style.weight);
+        let layout = self.cached_layout(text, style.size, style.family);
 
         let x = bounds.x + (bounds.width - layout.width()) / 2.0;
         let y = bounds.y + (bounds.height - layout.height()) / 2.0;
@@ -125,14 +104,13 @@ impl TextEngine {
         draw_layout(scene, layout, x, y, color);
     }
 
-    fn cached_layout(&mut self, text: &str, size: f32, family: &str, weight: f32) -> &Layout<Brush> {
+    fn cached_layout(&mut self, text: &str, size: f32, family: &str) -> &Layout<Brush> {
         let Self { font_cx, layout_cx, cache } = self;
 
         let key = LayoutKeyRef {
             text,
             family,
             size_bits: size.to_bits(),
-            weight_bits: weight.to_bits(),
         };
 
         if !cache.contains_key(&key) {
@@ -140,14 +118,13 @@ impl TextEngine {
                 cache.clear();
             }
 
-            let layout = build_layout(font_cx, layout_cx, text, size, family, weight);
+            let layout = build_layout(font_cx, layout_cx, text, size, family);
 
             cache.insert(
                 LayoutKey {
                     text: text.to_owned(),
                     family: family.to_owned(),
                     size_bits: size.to_bits(),
-                    weight_bits: weight.to_bits(),
                 },
                 layout,
             );
@@ -165,18 +142,10 @@ impl Default for TextEngine {
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn build_layout(
-    font_cx: &mut FontContext,
-    layout_cx: &mut LayoutContext<Brush>,
-    text: &str,
-    size: f32,
-    family: &str,
-    weight: f32,
-) -> Layout<Brush> {
+fn build_layout(font_cx: &mut FontContext, layout_cx: &mut LayoutContext<Brush>, text: &str, size: f32, family: &str) -> Layout<Brush> {
     let mut builder = layout_cx.ranged_builder(font_cx, text, 1.0, true);
 
     builder.push_default(StyleProperty::FontSize(size));
-    builder.push_default(StyleProperty::FontWeight(FontWeight::new(weight)));
 
     let family = FontFamily::named(family);
     builder.push_default(StyleProperty::FontFamily(family));

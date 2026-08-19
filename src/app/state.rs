@@ -41,12 +41,6 @@ pub struct AppState {
     /// Whether the open dropdown's periodic repaint timer is alive.
     pub(crate) dropdown_tick_armed: bool,
 
-    /// Hay transiciones vivas: el loop sigue pidiendo frames hasta
-    /// que todas se asienten.
-    pub(crate) animating: bool,
-    /// Momento del último render, para el dt de las animaciones.
-    pub(crate) last_render: Option<std::time::Instant>,
-
     pub needs_redraw: bool,
     pub should_close: bool,
 }
@@ -104,9 +98,6 @@ impl AppState {
 
             open_dropdown: None,
             dropdown_tick_armed: false,
-
-            animating: false,
-            last_render: None,
 
             needs_redraw: true,
             should_close: false,

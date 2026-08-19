@@ -54,8 +54,6 @@ fn render_bar(bar: &mut Bar, theme: &Theme, text_engine: &mut TextEngine, surfac
         text: text_engine,
         hovered_interaction: None,
         open_dropdown: None,
-        dt: 0.0,
-        animating: false,
     };
 
     bar.render(&mut scene, surface, theme, &mut ctx);

@@ -7,8 +7,6 @@ pub struct Typography {
     pub font_family: &'static str,
     pub icon_font_family: &'static str,
     pub size_base: f32,
-    /// Peso para títulos de panels (medium); el resto va en regular.
-    pub weight_title: f32,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -18,8 +16,7 @@ impl Default for Typography {
         Self {
             font_family: "Inter",
             icon_font_family: "Symbols Nerd Font",
-            size_base: 11.5,
-            weight_title: 550.0,
+            size_base: 11.0,
         }
     }
 }

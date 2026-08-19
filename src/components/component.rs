@@ -16,11 +16,6 @@ pub struct RenderCtx<'a> {
     pub text: &'a mut TextEngine,
     pub hovered_interaction: Option<Interaction>,
     pub open_dropdown: Option<DropdownId>,
-    /// Segundos desde el frame anterior, para avanzar transiciones.
-    pub dt: f32,
-    /// Los componentes lo prenden mientras tengan animaciones vivas;
-    /// la app sigue pidiendo frames hasta que se apague.
-    pub animating: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

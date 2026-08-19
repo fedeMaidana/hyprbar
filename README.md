@@ -288,21 +288,6 @@ Hyprbar currently renders a functional top bar with several pill-based widgets:
 
 The project is still early-stage, but the current structure is designed to keep the code maintainable while the bar grows component by component.
 
-## Blur (recommended)
-
-The glass look is designed for compositor blur behind the bar. Add this to
-your `hyprland.conf` so Hyprland blurs whatever sits behind the pills and
-panels (the `ignorealpha` rule keeps the fully transparent regions of the
-surface untouched):
-
-```conf
-layerrule = blur, hyprbar
-layerrule = ignorealpha 0.05, hyprbar
-```
-
-Without these rules the bar still works — it just falls back to plain
-translucency instead of frosted glass.
-
 ## Known Limitations
 
 - **No real blur yet.**

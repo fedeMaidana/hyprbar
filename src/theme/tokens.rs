@@ -23,9 +23,6 @@ pub struct Tokens {
     pub dropdown_radius: f32,
     pub dropdown_border_width: f32,
 
-    pub dropdown_shadow_offset_y: f32,
-    pub dropdown_shadow_std_dev: f32,
-
     pub dropdown_panel_width: f32,
     pub dropdown_panel_padding_x: f32,
     pub dropdown_panel_padding_y: f32,
@@ -146,9 +143,9 @@ impl Default for Tokens {
             bar_margin_top: 5.0,
             bar_margin_x: 12.0,
 
-            pill_height: 31.0,
-            pill_gap: 9.0,
-            pill_padding_x: 13.0,
+            pill_height: 29.0,
+            pill_gap: 7.0,
+            pill_padding_x: 11.0,
             pill_padding_y: 6.0,
             pill_radius: 13.0,
 
@@ -162,9 +159,6 @@ impl Default for Tokens {
             dropdown_item_gap: 4.0,
             dropdown_radius: 16.0,
             dropdown_border_width: 1.0,
-
-            dropdown_shadow_offset_y: 7.0,
-            dropdown_shadow_std_dev: 18.0,
 
             dropdown_panel_width: 222.0,
             dropdown_panel_padding_x: 14.0,

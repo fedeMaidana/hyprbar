@@ -1,20 +1,13 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use vello::Scene;
-use vello::kurbo::{Affine, Rect as KurboRect, Stroke};
+use vello::kurbo::{Affine, Rect as KurboRect, RoundedRect, Stroke};
 use vello::peniko::Fill;
 
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
 use super::component::RenderCtx;
-use super::pill::draw_top_highlight;
-use super::shape::{squircle, squircle_inset};
-
-// ─── < Constants > ────────────────────────────────────────────────────
-
-/// Profundidad del brillo superior en los panels (px).
-const PANEL_HIGHLIGHT_DEPTH: f32 = 30.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -75,33 +68,20 @@ impl DropdownFrame {
         let tokens = theme.tokens;
         let radius = tokens.dropdown_radius as f64;
 
-        // Sombra difusa debajo del panel: elevación real, sin hacks.
-        let shadow_rect = KurboRect::new(
-            bounds.x as f64,
-            (bounds.y + tokens.dropdown_shadow_offset_y) as f64,
-            (bounds.x + bounds.width) as f64,
-            (bounds.y + bounds.height + tokens.dropdown_shadow_offset_y) as f64,
-        );
+        let body_rect =
+            KurboRect::new(bounds.x as f64, bounds.y as f64, (bounds.x + bounds.width) as f64, (bounds.y + bounds.height) as f64);
 
-        scene.draw_blurred_rounded_rect(
-            Affine::IDENTITY,
-            shadow_rect,
-            theme.palette.panel_shadow,
-            radius,
-            tokens.dropdown_shadow_std_dev as f64,
-        );
-
-        let body = squircle(bounds, radius);
+        let body = RoundedRect::from_rect(body_rect, radius);
 
         scene.fill(Fill::NonZero, Affine::IDENTITY, theme.palette.panel_bg, None, &body);
 
         // Hairline border keeps the panel edge readable over any wallpaper.
         let border_width = tokens.dropdown_border_width as f64;
-        let border = squircle_inset(bounds, radius, (border_width / 2.0) as f32);
+        let inset = border_width / 2.0;
+        let border =
+            RoundedRect::new(body_rect.x0 + inset, body_rect.y0 + inset, body_rect.x1 - inset, body_rect.y1 - inset, radius - inset);
 
         scene.stroke(&Stroke::new(border_width), Affine::IDENTITY, theme.palette.panel_border, None, &border);
-
-        draw_top_highlight(scene, bounds, PANEL_HIGHLIGHT_DEPTH, theme, &border);
     }
 
     pub fn draw_divider(scene: &mut Scene, x: f32, y: f32, width: f32, theme: &Theme) {
