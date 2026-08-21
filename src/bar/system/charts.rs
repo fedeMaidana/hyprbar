@@ -1,8 +1,8 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use vello::Scene;
-use vello::kurbo::{Affine, RoundedRect};
-use vello::peniko::{Color, Fill};
+use vello::kurbo::{Affine, BezPath, Circle, Point, RoundedRect, RoundedRectRadii, Stroke};
+use vello::peniko::{Color, Fill, Gradient};
 
 use crate::components::RenderCtx;
 use crate::render::{Rect, TextStyle};
@@ -23,13 +23,24 @@ const BAR_FILL_RATIO: f32 = 0.62;
 /// Altura mínima visible de una barra/dash con valor > 0.
 const MIN_MARK_HEIGHT: f32 = 1.5;
 
-const DASH_HEIGHT: f32 = 2.5;
+const DASH_HEIGHT: f32 = 3.5;
 
 const CARD_RADIUS: f64 = 12.0;
 pub(crate) const CARD_ROW_HEIGHT: f32 = 32.0;
 const CARD_PADDING_X: f32 = 12.0;
 
-const AREA_FILL_ALPHA: f32 = 0.35;
+// Degradados y resaltados de los gráficos.
+const BAR_PEAK_ALPHA: f32 = 0.85;
+const BAR_BASE_ALPHA: f32 = 0.3;
+const BAR_NEWEST_BASE_ALPHA: f32 = 0.5;
+const AREA_TOP_ALPHA: f32 = 0.38;
+const AREA_BOTTOM_ALPHA: f32 = 0.05;
+const CAP_WIDTH: f64 = 1.5;
+const BASELINE_ALPHA: f32 = 0.16;
+const GUIDE_ALPHA: f32 = 0.12;
+const DASH_DIM_ALPHA: f32 = 0.72;
+const HALO_RADIUS: f64 = 5.5;
+const HALO_ALPHA: f32 = 0.28;
 
 // ─── < Public Functions: Texto > ────────────────────────────────────────────────────
 
@@ -121,56 +132,100 @@ pub(crate) fn draw_row_value(scene: &mut Scene, x: f32, y: f32, width: f32, heig
 
 // ─── < Public Functions: Gráficos > ────────────────────────────────────────────────────
 
-/// Histograma de barras (lo más nuevo a la derecha).
+/// Histograma de barras (lo más nuevo a la derecha), con degradado vertical
+/// y la última muestra resaltada.
 pub(crate) fn draw_bar_chart(scene: &mut Scene, rect: Rect, history: &History, max_hint: f32, color: Color) {
+    draw_baseline(scene, rect, color);
+
     let ceiling = history.max().unwrap_or(0.0).max(max_hint).max(0.001);
     let slot = rect.width / HISTORY_LEN as f32;
     let bar_width = (slot * BAR_FILL_RATIO).max(1.0);
+    let bottom = (rect.y + rect.height) as f64;
 
-    for_each_sample(rect, history, |x, value| {
+    for_each_sample(rect, history, |x, value, is_newest| {
         let height = ((value / ceiling) * rect.height).clamp(MIN_MARK_HEIGHT, rect.height);
-        let bar = RoundedRect::new(
-            x as f64,
-            (rect.y + rect.height - height) as f64,
-            (x + bar_width) as f64,
-            (rect.y + rect.height) as f64,
-            (bar_width / 2.0) as f64,
-        );
+        let top = (rect.y + rect.height - height) as f64;
+        let radius = (bar_width / 2.0) as f64;
 
-        scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &bar);
+        // Esquinas redondeadas solo arriba: la barra "sale" de la base.
+        let bar = RoundedRect::new(x as f64, top, (x + bar_width) as f64, bottom, RoundedRectRadii::new(radius, radius, 0.0, 0.0));
+
+        let (peak, base) = if is_newest {
+            (1.0, BAR_NEWEST_BASE_ALPHA)
+        } else {
+            (BAR_PEAK_ALPHA, BAR_BASE_ALPHA)
+        };
+
+        let gradient =
+            Gradient::new_linear((x as f64, top), (x as f64, bottom)).with_stops([color.with_alpha(peak), color.with_alpha(base)]);
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, &gradient, None, &bar);
     });
 }
 
-/// Área rellena con borde superior más brillante (memoria del mockup).
+/// Área continua con degradado vertical y borde superior brillante
+/// (memoria del mockup).
 pub(crate) fn draw_area_chart(scene: &mut Scene, rect: Rect, history: &History, max_hint: f32, color: Color) {
+    draw_baseline(scene, rect, color);
+
+    if history.is_empty() {
+        return;
+    }
+
     let ceiling = history.max().unwrap_or(0.0).max(max_hint).max(0.001);
     let slot = rect.width / HISTORY_LEN as f32;
-    let fill = color.with_alpha(AREA_FILL_ALPHA);
+    let bottom = (rect.y + rect.height) as f64;
 
-    for_each_sample(rect, history, |x, value| {
+    // Un punto por muestra (al centro de su slot): el borde superior como
+    // línea y el área cerrada contra el piso del gráfico.
+    let mut cap = BezPath::new();
+    let mut area = BezPath::new();
+    let mut last_x = rect.x as f64;
+
+    for_each_sample(rect, history, |x, value, _| {
         let height = ((value / ceiling) * rect.height).clamp(MIN_MARK_HEIGHT, rect.height);
-        let top = rect.y + rect.height - height;
+        let point = Point::new((x + slot * 0.5) as f64, (rect.y + rect.height - height) as f64);
 
-        let body = RoundedRect::new(x as f64, top as f64, (x + slot) as f64, (rect.y + rect.height) as f64, 0.0);
-        scene.fill(Fill::NonZero, Affine::IDENTITY, fill, None, &body);
+        if cap.elements().is_empty() {
+            cap.move_to(point);
+            area.move_to(Point::new(point.x, bottom));
+        } else {
+            cap.line_to(point);
+        }
 
-        let cap = RoundedRect::new(x as f64, top as f64, (x + slot) as f64, (top + 1.5) as f64, 0.0);
-        scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &cap);
+        area.line_to(point);
+        last_x = point.x;
     });
+
+    area.line_to(Point::new(last_x, bottom));
+    area.close_path();
+
+    let gradient = Gradient::new_linear((rect.x as f64, rect.y as f64), (rect.x as f64, bottom))
+        .with_stops([color.with_alpha(AREA_TOP_ALPHA), color.with_alpha(AREA_BOTTOM_ALPHA)]);
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, &gradient, None, &area);
+    scene.stroke(&Stroke::new(CAP_WIDTH), Affine::IDENTITY, color, None, &cap);
 }
 
 /// Línea punteada (temperatura/latencia): un guión por muestra, con la
-/// escala autoajustada al rango de la ventana.
+/// escala autoajustada al rango de la ventana y la última muestra resaltada
+/// con un halo.
 pub(crate) fn draw_dash_chart(scene: &mut Scene, rect: Rect, history: &History, color: Color) {
+    // Guía sutil al medio como referencia visual.
+    let guide_y = (rect.y + rect.height / 2.0) as f64;
+    let guide = vello::kurbo::Rect::new(rect.x as f64, guide_y - 0.5, (rect.x + rect.width) as f64, guide_y + 0.5);
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, color.with_alpha(GUIDE_ALPHA), None, &guide);
+
+    if history.is_empty() {
+        return;
+    }
+
     let (mut low, mut high) = (f32::MAX, f32::MIN);
 
     for value in history.iter() {
         low = low.min(value);
         high = high.max(value);
-    }
-
-    if history.is_empty() {
-        return;
     }
 
     // Margen para que una línea plana quede al medio y no pegada al piso.
@@ -181,9 +236,14 @@ pub(crate) fn draw_dash_chart(scene: &mut Scene, rect: Rect, history: &History, 
     let slot = rect.width / HISTORY_LEN as f32;
     let dash_width = (slot * BAR_FILL_RATIO).max(1.5);
 
-    for_each_sample(rect, history, |x, value| {
+    for_each_sample(rect, history, |x, value, is_newest| {
         let fraction = ((value - low) / range).clamp(0.0, 1.0);
         let center = rect.y + rect.height - fraction * rect.height;
+
+        if is_newest {
+            let halo = Circle::new(((x + dash_width / 2.0) as f64, center as f64), HALO_RADIUS);
+            scene.fill(Fill::NonZero, Affine::IDENTITY, color.with_alpha(HALO_ALPHA), None, &halo);
+        }
 
         let dash = RoundedRect::new(
             x as f64,
@@ -193,7 +253,9 @@ pub(crate) fn draw_dash_chart(scene: &mut Scene, rect: Rect, history: &History, 
             (DASH_HEIGHT / 2.0) as f64,
         );
 
-        scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &dash);
+        let dash_color = if is_newest { color } else { color.with_alpha(DASH_DIM_ALPHA) };
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, dash_color, None, &dash);
     });
 }
 
@@ -325,8 +387,9 @@ pub(crate) fn format_minutes(minutes: u32) -> String {
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-/// Recorre la historia dándole a cada muestra su x (lo nuevo a la derecha).
-fn for_each_sample(rect: Rect, history: &History, mut draw: impl FnMut(f32, f32)) {
+/// Recorre la historia dándole a cada muestra su x (lo nuevo a la derecha)
+/// y avisando cuál es la más reciente.
+fn for_each_sample(rect: Rect, history: &History, mut draw: impl FnMut(f32, f32, bool)) {
     let slot = rect.width / HISTORY_LEN as f32;
     let count = history.len();
 
@@ -334,6 +397,18 @@ fn for_each_sample(rect: Rect, history: &History, mut draw: impl FnMut(f32, f32)
         let position = HISTORY_LEN - count + index;
         let x = rect.x + position as f32 * slot;
 
-        draw(x, value);
+        draw(x, value, index + 1 == count);
     }
+}
+
+/// Línea de base tenue que ancla el gráfico.
+fn draw_baseline(scene: &mut Scene, rect: Rect, color: Color) {
+    let line = vello::kurbo::Rect::new(
+        rect.x as f64,
+        (rect.y + rect.height - 1.0) as f64,
+        (rect.x + rect.width) as f64,
+        (rect.y + rect.height) as f64,
+    );
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, color.with_alpha(BASELINE_ALPHA), None, &line);
 }

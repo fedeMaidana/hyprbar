@@ -19,6 +19,9 @@ pub struct Palette {
     pub panel_border: Color,
     pub panel_divider: Color,
     pub panel_raised: Color,
+    /// Fondo "hundido": contenedores que van más oscuros que el panel
+    /// (la barra de tabs del panel de sistema).
+    pub panel_inset: Color,
 
     pub control_bg: Color,
     pub control_hover_bg: Color,
@@ -57,6 +60,7 @@ impl Palette {
             panel_border: Color::from_rgba8(0xff, 0xff, 0xff, 0x17),
             panel_divider: Color::from_rgba8(0xff, 0xff, 0xff, 0x0e),
             panel_raised: Color::from_rgba8(0xff, 0xff, 0xff, 0x12),
+            panel_inset: Color::from_rgba8(0x00, 0x00, 0x00, 0x59),
 
             control_bg: Color::from_rgba8(0xff, 0xff, 0xff, 0x14),
             control_hover_bg: Color::from_rgba8(0x9a, 0x8c, 0xff, 0x38),
@@ -92,6 +96,7 @@ impl Palette {
             panel_border: Color::from_rgba8(0x00, 0x00, 0x00, 0x1a),
             panel_divider: Color::from_rgba8(0x00, 0x00, 0x00, 0x12),
             panel_raised: Color::from_rgba8(0x00, 0x00, 0x00, 0x0d),
+            panel_inset: Color::from_rgba8(0x00, 0x00, 0x00, 0x1a),
 
             control_bg: Color::from_rgba8(0x00, 0x00, 0x00, 0x0f),
             control_hover_bg: Color::from_rgba8(0x6a, 0x5a, 0xe0, 0x38),

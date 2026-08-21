@@ -69,8 +69,18 @@ impl SystemPanel<'_> {
         shell_overhead() + self.view_height(theme)
     }
 
+    /// La pestaña activa, con fallback a System si Power quedó oculta
+    /// (por ejemplo, porque no hay batería).
+    fn effective_tab(&self) -> SystemTab {
+        if self.active_tab == SystemTab::Power && self.data.battery.is_none() {
+            SystemTab::System
+        } else {
+            self.active_tab
+        }
+    }
+
     fn view_height(&self, theme: &Theme) -> f32 {
-        match self.active_tab {
+        match self.effective_tab() {
             SystemTab::System => view_system::height(self.data, theme),
             SystemTab::Network => view_network::height(self.data, theme),
             SystemTab::Power => view_power::height(self.data, theme),
@@ -100,11 +110,11 @@ impl Panel for SystemPanel<'_> {
         draw_header(scene, inner_x, bounds.y + PAD, inner_width, self.data, ctx);
 
         let tab_bar = Rect::new(inner_x, bounds.y + PAD + HEADER_H + HEADER_GAP, inner_width, TAB_H);
-        draw_tab_bar(scene, tab_bar, self.active_tab, self.data, ctx);
+        draw_tab_bar(scene, tab_bar, self.effective_tab(), self.data, ctx);
 
         let area = self.view_area(bounds, ctx.theme);
 
-        match self.active_tab {
+        match self.effective_tab() {
             SystemTab::System => view_system::draw(scene, area, self.data, ctx),
             SystemTab::Network => view_network::draw(scene, area, self.data, ctx),
             SystemTab::Power => view_power::draw(scene, area, self.data, ctx),
@@ -120,7 +130,7 @@ impl Panel for SystemPanel<'_> {
     fn hit_test_content(&self, point: Point, bounds: Rect, theme: &Theme) -> Option<Interaction> {
         let tab_bar = Rect::new(bounds.x + PAD, bounds.y + PAD + HEADER_H + HEADER_GAP, bounds.width - PAD * 2.0, TAB_H);
 
-        for (tab, rect) in tab_segment_rects(tab_bar) {
+        for (tab, rect) in tab_segment_rects(tab_bar, visible_tabs(self.data)) {
             if rect.contains_point(point.x, point.y) {
                 return Some(SystemAction::SelectTab(tab).interaction());
             }
@@ -134,7 +144,7 @@ impl Panel for SystemPanel<'_> {
 
         let area = self.view_area(bounds, theme);
 
-        match self.active_tab {
+        match self.effective_tab() {
             SystemTab::Network => view_network::hit_test(point, area, self.data, theme),
             SystemTab::Updates => view_updates::hit_test(point, area, self.data, theme),
             SystemTab::System | SystemTab::Power => None,
@@ -232,25 +242,32 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &SystemData,
     );
 }
 
-fn tab_segment_rects(bar: Rect) -> [(SystemTab, Rect); 4] {
+/// Sin batería no hay nada que mostrar en Power: la pestaña se oculta.
+/// Los botones de apagado del footer no dependen de esto.
+fn visible_tabs(data: &SystemData) -> &'static [SystemTab] {
+    if data.battery.is_some() {
+        &SystemTab::ALL
+    } else {
+        &[SystemTab::System, SystemTab::Network, SystemTab::Updates]
+    }
+}
+
+fn tab_segment_rects(bar: Rect, tabs: &[SystemTab]) -> impl Iterator<Item = (SystemTab, Rect)> + '_ {
     let inner = Rect::new(bar.x + TAB_INSET, bar.y + TAB_INSET, bar.width - TAB_INSET * 2.0, bar.height - TAB_INSET * 2.0);
-    let segment = inner.width / SystemTab::ALL.len() as f32;
+    let segment = inner.width / tabs.len() as f32;
 
-    std::array::from_fn(|index| {
-        let tab = SystemTab::ALL[index];
-        let rect = Rect::new(inner.x + index as f32 * segment, inner.y, segment, inner.height);
-
-        (tab, rect)
-    })
+    tabs.iter()
+        .enumerate()
+        .map(move |(index, &tab)| (tab, Rect::new(inner.x + index as f32 * segment, inner.y, segment, inner.height)))
 }
 
 fn draw_tab_bar(scene: &mut Scene, bar: Rect, active: SystemTab, data: &SystemData, ctx: &mut RenderCtx<'_>) {
     let container = RoundedRect::new(bar.x as f64, bar.y as f64, (bar.x + bar.width) as f64, (bar.y + bar.height) as f64, TAB_BAR_RADIUS);
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.control_bg, None, &container);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_inset, None, &container);
 
     let text_size = ctx.theme.typography.size_base * TAB_TEXT_SCALE;
 
-    for (tab, rect) in tab_segment_rects(bar) {
+    for (tab, rect) in tab_segment_rects(bar, visible_tabs(data)) {
         let is_active = tab == active;
         let hovered = ctx.hovered_interaction == Some(SystemAction::SelectTab(tab).interaction());
 

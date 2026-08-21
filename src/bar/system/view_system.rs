@@ -23,13 +23,14 @@ const CHART_H: f32 = 26.0;
 const INNER_GAP: f32 = 6.0;
 const SECTION_GAP: f32 = 18.0;
 
+/// Procesador y temperatura llevan gráficos más altos que el resto.
+const CPU_CHART_H: f32 = 40.0;
+const TEMP_CHART_H: f32 = 40.0;
+
 const DISK_ROW_H: f32 = 20.0;
 const DISK_BAR_H: f32 = 6.0;
 const DISK_LABEL_SLOT: f32 = 52.0;
 const DISK_VALUE_SLOT: f32 = 86.0;
-
-/// La barra de cpu arranca a la derecha del valor grande.
-const CPU_CHART_OFFSET: f32 = 112.0;
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
@@ -39,14 +40,14 @@ pub(crate) fn height(_data: &SystemData, _theme: &Theme) -> f32 {
 
 pub(crate) fn max_height(_theme: &Theme) -> f32 {
     // PROCESSOR + MEMORY + TEMPERATURE + DISK, con sus gaps.
-    processor_height() + SECTION_GAP + section_height() + SECTION_GAP + section_height() + SECTION_GAP + DISK_ROW_H
+    processor_height() + SECTION_GAP + memory_height() + SECTION_GAP + temperature_height() + SECTION_GAP + DISK_ROW_H
 }
 
 pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut RenderCtx<'_>) {
     let accent = ctx.theme.palette.accent;
     let mut y = area.y;
 
-    // PROCESSOR: valor grande + histograma al lado.
+    // PROCESSOR: valor grande y el histograma a todo el ancho debajo.
     draw_section_label(scene, area.x, y, LABEL_H, "PROCESSOR", ctx);
     y += LABEL_H + INNER_GAP;
 
@@ -57,11 +58,11 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
 
     draw_big_value(scene, area.x, y, MAIN_H, &cpu_text, "%", ctx);
-
-    let cpu_chart = Rect::new(area.x + CPU_CHART_OFFSET, y + MAIN_H - CHART_H, area.width - CPU_CHART_OFFSET, CHART_H);
-    draw_bar_chart(scene, cpu_chart, &data.cpu_history, 100.0, accent);
-
     y += MAIN_H + INNER_GAP;
+
+    let cpu_chart = Rect::new(area.x, y, area.width, CPU_CHART_H);
+    draw_bar_chart(scene, cpu_chart, &data.cpu_history, 100.0, accent);
+    y += CPU_CHART_H + INNER_GAP;
 
     let cores_load = format!(
         "{} cores · load {}",
@@ -116,9 +117,9 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     draw_row_value(scene, area.x, y, area.width, LABEL_H, &temperature_value, ctx);
     y += LABEL_H + INNER_GAP;
 
-    let temp_chart = Rect::new(area.x, y, area.width, CHART_H);
+    let temp_chart = Rect::new(area.x, y, area.width, TEMP_CHART_H);
     draw_dash_chart(scene, temp_chart, &data.temp_history, accent);
-    y += CHART_H + INNER_GAP;
+    y += TEMP_CHART_H + INNER_GAP;
 
     let fan = data.fan_rpm.map(|rpm| format!("fan {rpm} rpm")).unwrap_or_default();
     let max_temp = data.session_max_temp_c.map(|value| format!("max {value:.0}°C")).unwrap_or_default();
@@ -155,9 +156,13 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn processor_height() -> f32 {
-    LABEL_H + INNER_GAP + MAIN_H + INNER_GAP + SUB_H
+    LABEL_H + INNER_GAP + MAIN_H + INNER_GAP + CPU_CHART_H + INNER_GAP + SUB_H
 }
 
-fn section_height() -> f32 {
+fn memory_height() -> f32 {
     LABEL_H + INNER_GAP + CHART_H + INNER_GAP + SUB_H
+}
+
+fn temperature_height() -> f32 {
+    LABEL_H + INNER_GAP + TEMP_CHART_H + INNER_GAP + SUB_H
 }

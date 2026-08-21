@@ -11,7 +11,7 @@ use super::charts::{
     card_height, card_row_rects, draw_bar_chart, draw_big_value, draw_card_background, draw_dash_chart, draw_info_card, draw_row_value,
     draw_section_label, draw_sub_row, format_bytes, format_rate,
 };
-use super::state::SystemData;
+use super::state::{SystemData, WifiInfo};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -44,8 +44,8 @@ pub(crate) fn max_height(_theme: &Theme) -> f32 {
     rates_height() + SECTION_GAP + WIFI_CARD_H + SECTION_GAP + latency_height() + SECTION_GAP + card_height(INFO_ROWS)
 }
 
-pub(crate) fn height(_data: &SystemData, theme: &Theme) -> f32 {
-    max_height(theme)
+pub(crate) fn height(data: &SystemData, theme: &Theme) -> f32 {
+    max_height(theme) - wifi_block_height(data)
 }
 
 pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut RenderCtx<'_>) {
@@ -74,9 +74,11 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     draw_sub_row(scene, Rect::new(area.x, y, area.width, SUB_H), "last 60s", &session, ctx);
     y += SUB_H + SECTION_GAP;
 
-    // Tarjeta de wifi.
-    draw_wifi_card(scene, Rect::new(area.x, y, area.width, WIFI_CARD_H), data, ctx);
-    y += WIFI_CARD_H + SECTION_GAP;
+    // Tarjeta de wifi, solo con una conexión inalámbrica activa.
+    if let Some(wifi) = &data.network.wifi {
+        draw_wifi_card(scene, Rect::new(area.x, y, area.width, WIFI_CARD_H), wifi, ctx);
+        y += WIFI_CARD_H + SECTION_GAP;
+    }
 
     // LATENCY.
     let latency_value = network
@@ -112,8 +114,8 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
 }
 
 /// Las filas de la tarjeta copian su valor al portapapeles.
-pub(crate) fn hit_test(point: Point, area: Rect, _data: &SystemData, _theme: &Theme) -> Option<Interaction> {
-    let card_y = area.y + rates_height() + SECTION_GAP + WIFI_CARD_H + SECTION_GAP + latency_height() + SECTION_GAP;
+pub(crate) fn hit_test(point: Point, area: Rect, data: &SystemData, _theme: &Theme) -> Option<Interaction> {
+    let card_y = area.y + rates_height() + SECTION_GAP + wifi_block_height(data) + latency_height() + SECTION_GAP;
     let card = Rect::new(area.x, card_y, area.width, card_height(INFO_ROWS));
 
     let fields = [CopyField::Ipv4, CopyField::Gateway, CopyField::Dns];
@@ -131,6 +133,15 @@ pub(crate) fn hit_test(point: Point, area: Rect, _data: &SystemData, _theme: &Th
 
 fn rates_height() -> f32 {
     LABEL_H + INNER_GAP + MAIN_H + INNER_GAP + SUB_H
+}
+
+/// Lo que ocupa la tarjeta de wifi (con su gap) si corresponde mostrarla.
+fn wifi_block_height(data: &SystemData) -> f32 {
+    if data.network.wifi.is_some() {
+        WIFI_CARD_H + SECTION_GAP
+    } else {
+        0.0
+    }
 }
 
 fn latency_height() -> f32 {
@@ -153,23 +164,8 @@ fn info_rows(data: &SystemData) -> [(&'static str, String); INFO_ROWS] {
     ]
 }
 
-fn draw_wifi_card(scene: &mut Scene, card: Rect, data: &SystemData, ctx: &mut RenderCtx<'_>) {
+fn draw_wifi_card(scene: &mut Scene, card: Rect, wifi: &WifiInfo, ctx: &mut RenderCtx<'_>) {
     draw_card_background(scene, card, ctx.theme);
-
-    let Some(wifi) = &data.network.wifi else {
-        let size = ctx.theme.typography.size_base * 0.9;
-
-        ctx.text.draw_centered_v(
-            scene,
-            "sin wifi activa",
-            card.x + CARD_PADDING_X,
-            card.y,
-            card.height,
-            TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-        );
-
-        return;
-    };
 
     let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
 
