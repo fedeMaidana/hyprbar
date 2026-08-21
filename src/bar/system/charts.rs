@@ -423,15 +423,6 @@ pub(crate) fn format_disk(bytes: u64) -> String {
     format!("{:.0}", bytes as f64 / 1_000_000_000.0)
 }
 
-/// "2h ago" / "35m ago" para el sync de pacman.
-pub(crate) fn format_minutes_ago(minutes: u64) -> String {
-    if minutes >= 60 {
-        format!("{}h ago", minutes / 60)
-    } else {
-        format!("{minutes}m ago")
-    }
-}
-
 /// "3h 12m" para el tiempo restante de batería.
 pub(crate) fn format_minutes(minutes: u32) -> String {
     if minutes >= 60 {

@@ -2,14 +2,14 @@
 
 use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
-use vello::peniko::Fill;
+use vello::peniko::{Color, Fill};
 
 use crate::components::{Interaction, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
-use crate::theme::{Theme, contrast_text_for};
+use crate::theme::Theme;
 
 use super::action::SystemAction;
-use super::charts::{card_height, draw_big_value, draw_info_card, draw_section_label, draw_sub_row, format_minutes_ago};
+use super::charts::{card_height, draw_big_value, draw_info_card, draw_section_label};
 use super::state::SystemData;
 
 // ─── < Constants > ────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ pub(crate) fn max_height(_theme: &Theme) -> f32 {
 }
 
 pub(crate) fn height(data: &SystemData, _theme: &Theme) -> f32 {
-    header_height() + SECTION_GAP + list_height(data) + SECTION_GAP + META_H + SECTION_GAP + BUTTON_H
+    header_height() + SECTION_GAP + list_height(data) + SECTION_GAP + meta_height(data) + BUTTON_H
 }
 
 pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut RenderCtx<'_>) {
@@ -105,31 +105,34 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         y += card.height + SECTION_GAP;
     }
 
-    // Meta: cuántos más + estado del sync.
-    let more = match updates.pending {
-        Some(count) if count as usize > VISIBLE_PACKAGES => format!("+{} more", count as usize - VISIBLE_PACKAGES),
-        _ => String::new(),
-    };
+    // Meta: cuántos quedan fuera de la lista. Sin resto, no ocupa lugar.
+    let extra = updates
+        .pending
+        .map(|count| count as usize)
+        .filter(|count| *count > VISIBLE_PACKAGES);
 
-    let mut sync_parts: Vec<String> = Vec::new();
+    if let Some(count) = extra {
+        let more = format!("+{} more", count - VISIBLE_PACKAGES);
+        let size = ctx.theme.typography.size_base * 0.78;
 
-    if let Some(minutes) = updates.synced_minutes_ago {
-        sync_parts.push(format!("synced {}", format_minutes_ago(minutes)));
+        ctx.text.draw_centered_v(
+            scene,
+            &more,
+            area.x,
+            y,
+            META_H,
+            TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        );
+
+        y += META_H + SECTION_GAP;
     }
-
-    if let Some(mirror) = &updates.mirror {
-        sync_parts.push(mirror.clone());
-    }
-
-    draw_sub_row(scene, Rect::new(area.x, y, area.width, META_H), &more, &sync_parts.join(" · "), ctx);
-    y += META_H + SECTION_GAP;
 
     // Botón pacman -Syu.
     draw_update_button(scene, Rect::new(area.x, y, area.width, BUTTON_H), ctx);
 }
 
 pub(crate) fn hit_test(point: Point, area: Rect, data: &SystemData, _theme: &Theme) -> Option<Interaction> {
-    let button_y = area.y + header_height() + SECTION_GAP + list_height(data) + SECTION_GAP + META_H + SECTION_GAP;
+    let button_y = area.y + header_height() + SECTION_GAP + list_height(data) + SECTION_GAP + meta_height(data);
     let button = Rect::new(area.x, button_y, area.width, BUTTON_H);
 
     button
@@ -151,13 +154,20 @@ fn list_height(data: &SystemData) -> f32 {
     }
 }
 
+/// La fila "+N more" solo existe si la lista quedó corta.
+fn meta_height(data: &SystemData) -> f32 {
+    let pending = data.updates.pending.unwrap_or(0) as usize;
+
+    if pending > VISIBLE_PACKAGES { META_H + SECTION_GAP } else { 0.0 }
+}
+
 fn draw_update_button(scene: &mut Scene, rect: Rect, ctx: &mut RenderCtx<'_>) {
     let accent = ctx.theme.palette.accent;
     let hovered = ctx.hovered_interaction == Some(SystemAction::RunUpdate.interaction());
 
-    // Gris con texto accent; el hover lo invierte.
+    // Gris con texto accent; el hover lo invierte con texto blanco.
     let (background, foreground) = if hovered {
-        (accent, contrast_text_for(accent))
+        (accent, Color::WHITE)
     } else {
         (ctx.theme.palette.control_bg, accent)
     };
