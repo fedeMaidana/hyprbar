@@ -28,7 +28,9 @@ const INNER_GAP: f32 = 6.0;
 const SECTION_GAP: f32 = 16.0;
 
 const UP_COLUMN_X: f32 = 108.0;
-const RATE_CHART_OFFSET: f32 = 208.0;
+
+/// El histograma de bajada va a todo el ancho, gemelo del de cpu.
+const NET_CHART_H: f32 = 40.0;
 
 const WIFI_CARD_H: f32 = 54.0;
 const CARD_PADDING_X: f32 = 12.0;
@@ -53,7 +55,7 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     let network = &data.network;
     let mut y = area.y;
 
-    // DOWN / UP con histograma al costado.
+    // DOWN / UP con el histograma a todo el ancho debajo.
     draw_section_label(scene, area.x, y, LABEL_H, "DOWN", ctx);
     draw_section_label(scene, area.x + UP_COLUMN_X, y, LABEL_H, "UP", ctx);
     y += LABEL_H + INNER_GAP;
@@ -63,11 +65,11 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
 
     draw_big_value(scene, area.x, y, MAIN_H, &down_value, down_unit, ctx);
     draw_big_value(scene, area.x + UP_COLUMN_X, y, MAIN_H, &up_value, up_unit, ctx);
-
-    let chart = Rect::new(area.x + RATE_CHART_OFFSET, y + MAIN_H - CHART_H, area.width - RATE_CHART_OFFSET, CHART_H);
-    draw_bar_chart(scene, chart, &network.down_history, 1.0, accent);
-
     y += MAIN_H + INNER_GAP;
+
+    let chart = Rect::new(area.x, y, area.width, NET_CHART_H);
+    draw_bar_chart(scene, chart, &network.down_history, 1.0, accent);
+    y += NET_CHART_H + INNER_GAP;
 
     let session = format!("session {} ↓ · {} ↑", format_bytes(network.session_rx_bytes), format_bytes(network.session_tx_bytes),);
 
@@ -132,7 +134,7 @@ pub(crate) fn hit_test(point: Point, area: Rect, data: &SystemData, _theme: &The
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn rates_height() -> f32 {
-    LABEL_H + INNER_GAP + MAIN_H + INNER_GAP + SUB_H
+    LABEL_H + INNER_GAP + MAIN_H + INNER_GAP + NET_CHART_H + INNER_GAP + SUB_H
 }
 
 /// Lo que ocupa la tarjeta de wifi (con su gap) si corresponde mostrarla.

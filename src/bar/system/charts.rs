@@ -1,7 +1,7 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use vello::Scene;
-use vello::kurbo::{Affine, BezPath, Circle, Point, RoundedRect, RoundedRectRadii, Stroke};
+use vello::kurbo::{Affine, BezPath, Point, RoundedRect, RoundedRectRadii, Stroke};
 use vello::peniko::{Color, Fill, Gradient};
 
 use crate::components::RenderCtx;
@@ -25,6 +25,13 @@ const MIN_MARK_HEIGHT: f32 = 1.5;
 
 const DASH_HEIGHT: f32 = 3.5;
 
+// Guiones del dash chart: uno por cada 2 muestras (promediadas), anchos,
+// que se encienden a medida que se acercan al presente.
+const DASH_SAMPLE_STRIDE: usize = 2;
+const DASH_SLOTS: usize = HISTORY_LEN / DASH_SAMPLE_STRIDE;
+const DASH_FILL_RATIO: f32 = 0.7;
+const DASH_OLD_ALPHA: f32 = 0.35;
+
 const CARD_RADIUS: f64 = 12.0;
 pub(crate) const CARD_ROW_HEIGHT: f32 = 32.0;
 const CARD_PADDING_X: f32 = 12.0;
@@ -38,9 +45,6 @@ const AREA_BOTTOM_ALPHA: f32 = 0.05;
 const CAP_WIDTH: f64 = 1.5;
 const BASELINE_ALPHA: f32 = 0.16;
 const GUIDE_ALPHA: f32 = 0.12;
-const DASH_DIM_ALPHA: f32 = 0.72;
-const HALO_RADIUS: f64 = 5.5;
-const HALO_ALPHA: f32 = 0.28;
 
 // ─── < Public Functions: Texto > ────────────────────────────────────────────────────
 
@@ -207,9 +211,8 @@ pub(crate) fn draw_area_chart(scene: &mut Scene, rect: Rect, history: &History, 
     scene.stroke(&Stroke::new(CAP_WIDTH), Affine::IDENTITY, color, None, &cap);
 }
 
-/// Línea punteada (temperatura/latencia): un guión por muestra, con la
-/// escala autoajustada al rango de la ventana y la última muestra resaltada
-/// con un halo.
+/// Línea punteada (temperatura/latencia): guiones anchos que se apagan
+/// hacia el pasado, con la escala autoajustada al rango de la ventana.
 pub(crate) fn draw_dash_chart(scene: &mut Scene, rect: Rect, history: &History, color: Color) {
     // Guía sutil al medio como referencia visual.
     let guide_y = (rect.y + rect.height / 2.0) as f64;
@@ -221,9 +224,33 @@ pub(crate) fn draw_dash_chart(scene: &mut Scene, rect: Rect, history: &History, 
         return;
     }
 
-    let (mut low, mut high) = (f32::MAX, f32::MIN);
+    // Un guión por cada DASH_SAMPLE_STRIDE muestras, promediadas; si al
+    // final queda un resto (lo más nuevo), también dibuja el suyo.
+    let mut dashes = [0.0_f32; DASH_SLOTS];
+    let mut count = 0;
+    let mut sum = 0.0;
+    let mut in_chunk = 0;
 
     for value in history.iter() {
+        sum += value;
+        in_chunk += 1;
+
+        if in_chunk == DASH_SAMPLE_STRIDE {
+            dashes[count] = sum / DASH_SAMPLE_STRIDE as f32;
+            count += 1;
+            sum = 0.0;
+            in_chunk = 0;
+        }
+    }
+
+    if in_chunk > 0 {
+        dashes[count] = sum / in_chunk as f32;
+        count += 1;
+    }
+
+    let (mut low, mut high) = (f32::MAX, f32::MIN);
+
+    for &value in &dashes[..count] {
         low = low.min(value);
         high = high.max(value);
     }
@@ -233,17 +260,20 @@ pub(crate) fn draw_dash_chart(scene: &mut Scene, rect: Rect, history: &History, 
     let low = low - span * 0.25;
     let range = span * 1.5;
 
-    let slot = rect.width / HISTORY_LEN as f32;
-    let dash_width = (slot * BAR_FILL_RATIO).max(1.5);
+    let slot = rect.width / DASH_SLOTS as f32;
+    let dash_width = (slot * DASH_FILL_RATIO).max(1.5);
 
-    for_each_sample(rect, history, |x, value, is_newest| {
+    for (index, &value) in dashes[..count].iter().enumerate() {
+        // Lo más nuevo a la derecha.
+        let position = DASH_SLOTS - count + index;
+        let x = rect.x + position as f32 * slot;
+
         let fraction = ((value - low) / range).clamp(0.0, 1.0);
         let center = rect.y + rect.height - fraction * rect.height;
 
-        if is_newest {
-            let halo = Circle::new(((x + dash_width / 2.0) as f64, center as f64), HALO_RADIUS);
-            scene.fill(Fill::NonZero, Affine::IDENTITY, color.with_alpha(HALO_ALPHA), None, &halo);
-        }
+        // Se encienden a medida que se acercan al presente.
+        let age = (index + 1) as f32 / count as f32;
+        let alpha = DASH_OLD_ALPHA + (1.0 - DASH_OLD_ALPHA) * age;
 
         let dash = RoundedRect::new(
             x as f64,
@@ -253,10 +283,8 @@ pub(crate) fn draw_dash_chart(scene: &mut Scene, rect: Rect, history: &History, 
             (DASH_HEIGHT / 2.0) as f64,
         );
 
-        let dash_color = if is_newest { color } else { color.with_alpha(DASH_DIM_ALPHA) };
-
-        scene.fill(Fill::NonZero, Affine::IDENTITY, dash_color, None, &dash);
-    });
+        scene.fill(Fill::NonZero, Affine::IDENTITY, color.with_alpha(alpha), None, &dash);
+    }
 }
 
 /// Barra de progreso redondeada sobre pista sutil.
