@@ -6,13 +6,14 @@ use vello::peniko::Color;
 
 use crate::app::WorkerHandle;
 use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
+use crate::proc::spawn_detached;
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
-use super::action::SystemAction;
+use super::action::{CopyField, SystemAction, SystemTab};
 use super::panel::SystemPanel;
 use super::state::SystemStore;
-use super::worker::spawn_sampler;
+use super::worker::{spawn_net_probe, spawn_sampler};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -25,6 +26,8 @@ const ARCH_GLYPH: &str = "\u{f08c7}";
 pub struct ArchLogoPill {
     store: SystemStore,
     _sampler: Option<WorkerHandle>,
+    _net_probe: Option<WorkerHandle>,
+    active_tab: SystemTab,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
@@ -32,9 +35,15 @@ pub struct ArchLogoPill {
 impl ArchLogoPill {
     pub fn new(redraw_signal: Sender<()>) -> Self {
         let store = SystemStore::new();
-        let sampler = spawn_sampler(store.clone(), redraw_signal);
+        let sampler = spawn_sampler(store.clone(), redraw_signal.clone());
+        let net_probe = spawn_net_probe(store.clone(), redraw_signal);
 
-        Self { store, _sampler: sampler }
+        Self {
+            store,
+            _sampler: sampler,
+            _net_probe: net_probe,
+            active_tab: SystemTab::default(),
+        }
     }
 
     fn is_active(&self, ctx: &RenderCtx<'_>) -> bool {
@@ -52,6 +61,17 @@ impl ArchLogoPill {
             ctx.theme.palette.slot_active_text
         } else {
             ctx.theme.palette.text_primary
+        }
+    }
+
+    /// Valor a copiar según la fila clickeada en la pestaña Network.
+    fn copy_value(&self, field: CopyField) -> Option<String> {
+        let network = self.store.snapshot().network;
+
+        match field {
+            CopyField::Ipv4 => network.ipv4,
+            CopyField::Gateway => network.gateway,
+            CopyField::Dns => (!network.dns.is_empty()).then(|| network.dns.join(" ")),
         }
     }
 }
@@ -92,35 +112,70 @@ impl Component for ArchLogoPill {
     }
 
     fn dropdown_max_height(&self, theme: &Theme) -> f32 {
-        SystemPanel::height(theme)
+        SystemPanel::max_height(theme)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
         let data = self.store.snapshot();
 
-        SystemPanel { data: &data }.render(scene, surface, anchor, ctx);
+        SystemPanel {
+            data: &data,
+            active_tab: self.active_tab,
+        }
+        .render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
         let data = self.store.snapshot();
 
-        Some(SystemPanel { data: &data }.bounds(surface, anchor, theme))
+        Some(
+            SystemPanel {
+                data: &data,
+                active_tab: self.active_tab,
+            }
+            .bounds(surface, anchor, theme),
+        )
     }
 
     fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
         let data = self.store.snapshot();
 
-        SystemPanel { data: &data }.hit_test(point, surface, anchor, theme)
+        SystemPanel {
+            data: &data,
+            active_tab: self.active_tab,
+        }
+        .hit_test(point, surface, anchor, theme)
     }
 
     fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
         let action = SystemAction::from_interaction(interaction)?;
 
-        match action.execute() {
-            Ok(()) => log::info!("acción de sistema {action:?} lanzada"),
-            Err(error) => log::warn!("falló la acción de sistema {action:?}: {error}"),
-        }
+        match action {
+            SystemAction::SelectTab(tab) => {
+                self.active_tab = tab;
 
-        Some(InteractionOutcome::close_dropdown())
+                Some(InteractionOutcome::redraw())
+            }
+            SystemAction::Copy(field) => {
+                let Some(value) = self.copy_value(field) else {
+                    return Some(InteractionOutcome::quiet());
+                };
+
+                match spawn_detached("wl-copy", &[&value]) {
+                    Ok(()) => log::info!("copiado al portapapeles: {value}"),
+                    Err(error) => log::warn!("no se pudo copiar al portapapeles: {error}"),
+                }
+
+                Some(InteractionOutcome::quiet())
+            }
+            SystemAction::Power(_) | SystemAction::RunUpdate => {
+                match action.execute() {
+                    Ok(()) => log::info!("acción de sistema {action:?} lanzada"),
+                    Err(error) => log::warn!("falló la acción de sistema {action:?}: {error}"),
+                }
+
+                Some(InteractionOutcome::close_dropdown())
+            }
+        }
     }
 }

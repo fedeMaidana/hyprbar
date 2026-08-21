@@ -1,12 +1,15 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use std::env;
 use std::path::Path;
 use std::process::Command;
+use std::time::SystemTime;
+use std::{env, fs};
 
 use anyhow::{Context, Result, bail};
 
 use crate::proc::spawn_detached;
+
+use super::state::PendingPackage;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -24,20 +27,70 @@ const PACMAN_FALLBACK: &str = "sudo pacman -Syu";
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
-pub fn check_pending_updates() -> Result<u32> {
+pub fn check_pending_updates() -> Result<String> {
     let output = Command::new("checkupdates")
         .output()
         .context("ejecutando checkupdates — ¿está instalado pacman-contrib?")?;
 
     match output.status.code() {
-        Some(0) => Ok(count_update_lines(&String::from_utf8_lossy(&output.stdout))),
-        Some(2) => Ok(0),
+        Some(0) => Ok(String::from_utf8_lossy(&output.stdout).into_owned()),
+        Some(2) => Ok(String::new()),
         code => bail!("checkupdates terminó con código {code:?}: {}", String::from_utf8_lossy(&output.stderr).trim()),
     }
 }
 
 pub fn count_update_lines(stdout: &str) -> u32 {
     stdout.lines().filter(|line| !line.trim().is_empty()).count() as u32
+}
+
+/// Paquetes pendientes de "nombre viejo -> nuevo" (versión nueva).
+pub fn parse_pending_packages(stdout: &str) -> Vec<PendingPackage> {
+    stdout
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.split_whitespace();
+            let name = fields.next()?.to_owned();
+            let version = fields.nth(2)?.to_owned();
+
+            Some(PendingPackage { name, version })
+        })
+        .collect()
+}
+
+/// Minutos desde el último sync de la base de pacman (mtime más nuevo
+/// de /var/lib/pacman/sync).
+pub fn read_last_sync_minutes() -> Option<u64> {
+    let entries = fs::read_dir("/var/lib/pacman/sync").ok()?;
+
+    let newest = entries.flatten().filter_map(|entry| entry.metadata().ok()?.modified().ok()).max()?;
+
+    let elapsed = SystemTime::now().duration_since(newest).ok()?;
+
+    Some(elapsed.as_secs() / 60)
+}
+
+/// Host del primer mirror activo en la mirrorlist.
+pub fn read_mirror_host() -> Option<String> {
+    let content = fs::read_to_string("/etc/pacman.d/mirrorlist").ok()?;
+
+    parse_mirror_host(&content)
+}
+
+pub fn parse_mirror_host(mirrorlist: &str) -> Option<String> {
+    for line in mirrorlist.lines() {
+        let line = line.trim();
+
+        let Some(url) = line.strip_prefix("Server") else {
+            continue;
+        };
+
+        let url = url.trim_start_matches([' ', '=']).trim();
+        let without_scheme = url.split("://").nth(1).unwrap_or(url);
+
+        return without_scheme.split('/').next().map(str::to_owned);
+    }
+
+    None
 }
 
 /// Opens a terminal running the system update, keeping the window open at the end.

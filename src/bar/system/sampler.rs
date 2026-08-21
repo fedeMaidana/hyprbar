@@ -1,11 +1,16 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 
-use super::metrics::{CpuTimes, MemoryInfo, parse_cpu_times, parse_memory_info, parse_temperature_millidegrees, parse_uptime_seconds};
+use super::metrics::{
+    CpuTimes, MemoryInfo, parse_cpu_times, parse_df_bytes, parse_load_average, parse_memory_info, parse_swap_used_kb,
+    parse_temperature_millidegrees, parse_uptime_seconds,
+};
+use super::state::DiskUsage;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -41,6 +46,53 @@ pub fn read_kernel_version() -> Result<String> {
 
 pub fn read_cpu_temperature() -> Option<f32> {
     hwmon_cpu_temperature().or_else(thermal_zone_temperature)
+}
+
+pub fn read_load_average() -> Result<f32> {
+    let content = fs::read_to_string("/proc/loadavg").context("leyendo /proc/loadavg")?;
+
+    parse_load_average(&content)
+}
+
+pub fn read_swap_used_kb() -> Result<u64> {
+    let meminfo = fs::read_to_string("/proc/meminfo").context("leyendo /proc/meminfo")?;
+
+    parse_swap_used_kb(&meminfo)
+}
+
+/// Primer sensor de ventilador que aparezca en hwmon.
+pub fn find_fan_input() -> Option<PathBuf> {
+    let entries = fs::read_dir(HWMON_DIR).ok()?;
+
+    for entry in entries.flatten() {
+        let path = entry.path().join("fan1_input");
+
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    None
+}
+
+pub fn read_fan_rpm(path: &Path) -> Option<u32> {
+    fs::read_to_string(path).ok()?.trim().parse().ok()
+}
+
+/// Uso del filesystem raíz vía `df` (no hay statvfs en std).
+pub fn read_disk_usage() -> Result<DiskUsage> {
+    let output = Command::new("df")
+        .args(["-B1", "--output=used,size", "/"])
+        .output()
+        .context("ejecutando df")?;
+
+    if !output.status.success() {
+        return Err(anyhow!("df terminó con {:?}", output.status.code()));
+    }
+
+    let (used_bytes, total_bytes) = parse_df_bytes(&String::from_utf8_lossy(&output.stdout))?;
+
+    Ok(DiskUsage { used_bytes, total_bytes })
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────

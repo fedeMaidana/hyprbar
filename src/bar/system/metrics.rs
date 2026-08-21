@@ -100,6 +100,45 @@ pub fn short_kernel_version(release: &str) -> String {
     release.split('-').next().unwrap_or(release).to_string()
 }
 
+/// Load average a 1 minuto (primer campo de /proc/loadavg).
+pub fn parse_load_average(content: &str) -> Result<f32> {
+    content
+        .split_whitespace()
+        .next()
+        .ok_or_else(|| anyhow!("contenido de loadavg vacío"))?
+        .parse()
+        .context("valor de loadavg inválido")
+}
+
+/// Swap usado en kB (SwapTotal - SwapFree de /proc/meminfo).
+pub fn parse_swap_used_kb(meminfo: &str) -> Result<u64> {
+    let total = parse_meminfo_field(meminfo, "SwapTotal:")?;
+    let free = parse_meminfo_field(meminfo, "SwapFree:")?;
+
+    Ok(total.saturating_sub(free))
+}
+
+/// (usado, total) en bytes de la salida de `df -B1 --output=used,size <ruta>`.
+pub fn parse_df_bytes(output: &str) -> Result<(u64, u64)> {
+    let line = output.lines().nth(1).ok_or_else(|| anyhow!("salida de df sin datos"))?;
+
+    let mut fields = line.split_whitespace();
+
+    let used = fields
+        .next()
+        .ok_or_else(|| anyhow!("salida de df sin columna de uso"))?
+        .parse()
+        .context("columna de uso de df inválida")?;
+
+    let total = fields
+        .next()
+        .ok_or_else(|| anyhow!("salida de df sin columna de tamaño"))?
+        .parse()
+        .context("columna de tamaño de df inválida")?;
+
+    Ok((used, total))
+}
+
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn parse_meminfo_field(meminfo: &str, field: &str) -> Result<u64> {

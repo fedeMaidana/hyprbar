@@ -34,6 +34,8 @@ pub struct Palette {
 
     pub meter_warning: Color,
     pub meter_critical: Color,
+    /// Estados buenos: batería sana, uptime, "up to date".
+    pub positive: Color,
 
     pub clock_day: Color,
     pub clock_night: Color,
@@ -70,6 +72,7 @@ impl Palette {
 
             meter_warning: Color::from_rgba8(0xd8, 0xa2, 0x3a, 0xff),
             meter_critical: Color::from_rgba8(0xd8, 0x5a, 0x5a, 0xff),
+            positive: Color::from_rgba8(0x5d, 0xd3, 0x9e, 0xff),
 
             clock_day: Color::from_rgba8(0xef, 0xb3, 0x5a, 0xff),
             clock_night: Color::from_rgba8(0x7e, 0x90, 0xd1, 0xff),
@@ -104,6 +107,7 @@ impl Palette {
 
             meter_warning: Color::from_rgba8(0xb0, 0x7a, 0x18, 0xff),
             meter_critical: Color::from_rgba8(0xc2, 0x3a, 0x3a, 0xff),
+            positive: Color::from_rgba8(0x1f, 0x9d, 0x66, 0xff),
 
             clock_day: Color::from_rgba8(0xb5, 0x7a, 0x10, 0xff),
             clock_night: Color::from_rgba8(0x4a, 0x5e, 0xae, 0xff),

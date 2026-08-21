@@ -32,6 +32,7 @@ pub struct Tokens {
     pub dropdown_subtitle_scale: f32,
     pub dropdown_body_scale: f32,
 
+    pub system_panel_width: f32,
     pub system_metric_row_height: f32,
     pub system_metric_gap: f32,
     pub system_meter_height: f32,
@@ -169,6 +170,7 @@ impl Default for Tokens {
             dropdown_subtitle_scale: 0.78,
             dropdown_body_scale: 0.9,
 
+            system_panel_width: 340.0,
             system_metric_row_height: 30.0,
             system_metric_gap: 8.0,
             system_meter_height: 6.0,
