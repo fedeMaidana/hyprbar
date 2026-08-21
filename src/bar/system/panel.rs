@@ -34,6 +34,8 @@ const BADGE_TEXT_SCALE: f32 = 0.72;
 
 const TAB_H: f32 = 34.0;
 const TAB_INSET: f32 = 3.0;
+/// Aire entre los segmentos de la barra de tabs.
+const TAB_SEGMENT_GAP: f32 = 6.0;
 const TAB_BAR_RADIUS: f64 = 10.0;
 const TAB_RADIUS: f64 = 8.0;
 const TAB_TEXT_SCALE: f32 = 0.85;
@@ -254,11 +256,14 @@ fn visible_tabs(data: &SystemData) -> &'static [SystemTab] {
 
 fn tab_segment_rects(bar: Rect, tabs: &[SystemTab]) -> impl Iterator<Item = (SystemTab, Rect)> + '_ {
     let inner = Rect::new(bar.x + TAB_INSET, bar.y + TAB_INSET, bar.width - TAB_INSET * 2.0, bar.height - TAB_INSET * 2.0);
-    let segment = inner.width / tabs.len() as f32;
+    let count = tabs.len() as f32;
+    let segment = (inner.width - TAB_SEGMENT_GAP * (count - 1.0)) / count;
 
-    tabs.iter()
-        .enumerate()
-        .map(move |(index, &tab)| (tab, Rect::new(inner.x + index as f32 * segment, inner.y, segment, inner.height)))
+    tabs.iter().enumerate().map(move |(index, &tab)| {
+        let rect = Rect::new(inner.x + index as f32 * (segment + TAB_SEGMENT_GAP), inner.y, segment, inner.height);
+
+        (tab, rect)
+    })
 }
 
 fn draw_tab_bar(scene: &mut Scene, bar: Rect, active: SystemTab, data: &SystemData, ctx: &mut RenderCtx<'_>) {
