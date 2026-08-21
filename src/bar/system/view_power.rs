@@ -149,7 +149,7 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
 
     // Tarjeta de detalles.
     let rows = info_rows(battery);
-    draw_info_card(scene, Rect::new(area.x, y, area.width, card_height(INFO_ROWS)), &rows, ctx);
+    draw_info_card(scene, Rect::new(area.x, y, area.width, card_height(INFO_ROWS)), &rows, None, ctx);
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ const VALUE_PLACEHOLDER: &str = "—";
 
 const WIFI_GLYPH: &str = "\u{f05a9}";
 const STRENGTH_GLYPH: &str = "\u{f0928}";
+const COPY_GLYPH: &str = "\u{f018f}";
 
 const LABEL_H: f32 = 16.0;
 const MAIN_H: f32 = 34.0;
@@ -110,9 +111,9 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     draw_sub_row(scene, Rect::new(area.x, y, area.width, SUB_H), &quality, PING_TARGET_LABEL, ctx);
     y += SUB_H + SECTION_GAP;
 
-    // IPV4 / GATEWAY / DNS.
+    // IPV4 / GATEWAY / DNS, con el glifo de copiar en cada fila.
     let rows = info_rows(data);
-    draw_info_card(scene, Rect::new(area.x, y, area.width, card_height(INFO_ROWS)), &rows, ctx);
+    draw_info_card(scene, Rect::new(area.x, y, area.width, card_height(INFO_ROWS)), &rows, Some(COPY_GLYPH), ctx);
 }
 
 /// Las filas de la tarjeta copian su valor al portapapeles.

@@ -1,12 +1,12 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
 use vello::Scene;
-use vello::kurbo::{Affine, RoundedRect, Stroke};
+use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::Fill;
 
 use crate::components::{Interaction, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
-use crate::theme::Theme;
+use crate::theme::{Theme, contrast_text_for};
 
 use super::action::SystemAction;
 use super::charts::{card_height, draw_big_value, draw_info_card, draw_section_label, draw_sub_row, format_minutes_ago};
@@ -27,7 +27,6 @@ const SECTION_GAP: f32 = 12.0;
 
 const BUTTON_H: f32 = 42.0;
 const BUTTON_RADIUS: f64 = 12.0;
-const BUTTON_BG_ALPHA: f32 = 0.08;
 
 const EMPTY_LIST_H: f32 = 40.0;
 
@@ -101,7 +100,7 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
             .collect();
 
         let card = Rect::new(area.x, y, area.width, card_height(rows.len()));
-        draw_info_card(scene, card, &rows, ctx);
+        draw_info_card(scene, card, &rows, None, ctx);
 
         y += card.height + SECTION_GAP;
     }
@@ -156,12 +155,15 @@ fn draw_update_button(scene: &mut Scene, rect: Rect, ctx: &mut RenderCtx<'_>) {
     let accent = ctx.theme.palette.accent;
     let hovered = ctx.hovered_interaction == Some(SystemAction::RunUpdate.interaction());
 
+    // Gris con texto accent; el hover lo invierte.
+    let (background, foreground) = if hovered {
+        (accent, contrast_text_for(accent))
+    } else {
+        (ctx.theme.palette.control_bg, accent)
+    };
+
     let body = RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, BUTTON_RADIUS);
-
-    let background_alpha = if hovered { BUTTON_BG_ALPHA * 2.5 } else { BUTTON_BG_ALPHA };
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, accent.with_alpha(background_alpha), None, &body);
-    scene.stroke(&Stroke::new(1.0), Affine::IDENTITY, accent, None, &body);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &body);
 
     let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
     let label_size = ctx.theme.typography.size_base * 0.95;
@@ -178,7 +180,7 @@ fn draw_update_button(scene: &mut Scene, rect: Rect, ctx: &mut RenderCtx<'_>) {
         group_x,
         rect.y,
         rect.height,
-        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, accent),
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, foreground),
     );
 
     ctx.text.draw_centered_v(
@@ -187,6 +189,6 @@ fn draw_update_button(scene: &mut Scene, rect: Rect, ctx: &mut RenderCtx<'_>) {
         group_x + icon_width + 8.0,
         rect.y,
         rect.height,
-        TextStyle::new(label_size, ctx.theme.typography.font_family, accent),
+        TextStyle::new(label_size, ctx.theme.typography.font_family, foreground),
     );
 }

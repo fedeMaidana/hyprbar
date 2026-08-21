@@ -36,6 +36,10 @@ const CARD_RADIUS: f64 = 12.0;
 pub(crate) const CARD_ROW_HEIGHT: f32 = 32.0;
 const CARD_PADDING_X: f32 = 12.0;
 
+// Glifo opcional al final de cada fila de una tarjeta (p. ej. copiar).
+const TRAILING_ICON_SCALE: f32 = 0.8;
+const TRAILING_ICON_GAP: f32 = 8.0;
+
 // Degradados y resaltados de los gráficos.
 const BAR_PEAK_ALPHA: f32 = 0.85;
 const BAR_BASE_ALPHA: f32 = 0.3;
@@ -318,12 +322,25 @@ pub(crate) fn card_row_rects(rect: Rect, rows: usize) -> Vec<Rect> {
         .collect()
 }
 
-/// Tarjeta de pares etiqueta/valor con divisores entre filas.
-pub(crate) fn draw_info_card(scene: &mut Scene, rect: Rect, rows: &[(&str, String)], ctx: &mut RenderCtx<'_>) {
+/// Tarjeta de pares etiqueta/valor con divisores entre filas. Si viene
+/// `trailing_glyph`, cada fila lo lleva al final (p. ej. el de copiar).
+pub(crate) fn draw_info_card(
+    scene: &mut Scene,
+    rect: Rect,
+    rows: &[(&str, String)],
+    trailing_glyph: Option<&str>,
+    ctx: &mut RenderCtx<'_>,
+) {
     draw_card_background(scene, rect, ctx.theme);
 
     let label_size = ctx.theme.typography.size_base * LABEL_TEXT_SCALE;
     let value_size = ctx.theme.typography.size_base * 0.9;
+
+    let icon_size = ctx.theme.typography.size_base * TRAILING_ICON_SCALE;
+
+    let icon_slot = trailing_glyph
+        .map(|glyph| ctx.text.measure(glyph, icon_size, ctx.theme.typography.icon_font_family).0 + TRAILING_ICON_GAP)
+        .unwrap_or(0.0);
 
     for (index, (label, value)) in rows.iter().enumerate() {
         let row_y = rect.y + index as f32 * CARD_ROW_HEIGHT;
@@ -353,11 +370,22 @@ pub(crate) fn draw_info_card(scene: &mut Scene, rect: Rect, rows: &[(&str, Strin
         ctx.text.draw_centered_v(
             scene,
             value,
-            rect.x + rect.width - CARD_PADDING_X - value_width,
+            rect.x + rect.width - CARD_PADDING_X - icon_slot - value_width,
             row_y,
             CARD_ROW_HEIGHT,
             TextStyle::new(value_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
         );
+
+        if let Some(glyph) = trailing_glyph {
+            ctx.text.draw_centered_v(
+                scene,
+                glyph,
+                rect.x + rect.width - CARD_PADDING_X - icon_slot + TRAILING_ICON_GAP,
+                row_y,
+                CARD_ROW_HEIGHT,
+                TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.text_secondary),
+            );
+        }
     }
 }
 
