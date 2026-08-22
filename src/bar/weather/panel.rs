@@ -1,399 +1,383 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use chrono::{Datelike, Local, NaiveDate};
+use std::time::Instant;
+
 use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::Fill;
 
-use crate::components::{DropdownFrame, Panel, PanelHeader, RenderCtx};
-use crate::locale::weekday_abbrev;
+use crate::components::{DropdownFrame, Interaction, Panel, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
-use crate::theme::{Palette, Theme};
+use crate::theme::Theme;
 
-use super::icons::{UNKNOWN_WEATHER_ICON, weather_description, weather_icon, weather_icon_color};
-use super::state::{DailyForecast, WeatherData, WeatherSnapshot};
+use super::action::{WeatherAction, WeatherTab};
+use super::icons::{weather_description, weather_icon, weather_icon_color};
+use super::state::WeatherData;
+use super::{view_air, view_forecast, view_sea};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
-const FORECAST_COLUMNS: usize = 5;
-const VALUE_PLACEHOLDER: &str = "—";
-const FALLBACK_TITLE: &str = "Clima";
-const TODAY_LABEL: &str = "hoy";
-const PRECIP_EMPHASIS_MIN: u8 = 50;
+const PAD: f32 = 16.0;
+
+const HEADER_H: f32 = 84.0;
+const HEADER_TITLE_H: f32 = 26.0;
+const HEADER_DESC_H: f32 = 18.0;
+const HEADER_UPDATED_H: f32 = 16.0;
+const HEADER_UPDATED_GAP: f32 = 6.0;
+const UPDATED_DOT_RADIUS: f32 = 2.5;
+const HEADER_ICON_SCALE: f32 = 2.2;
+const HEADER_TEMP_SCALE: f32 = 2.6;
+const HEADER_ICON_GAP: f32 = 10.0;
+
+const STATS_H: f32 = 52.0;
+const STATS_LABEL_H: f32 = 18.0;
+const STAT_ICON_GAP: f32 = 6.0;
 
 const HUMIDITY_GLYPH: &str = "\u{f058e}";
 const WIND_GLYPH: &str = "\u{f059d}";
-const PRECIPITATION_GLYPH: &str = "\u{f0576}";
+const RAIN_GLYPH: &str = "\u{f0597}";
 
-const DETAIL_ICON_SCALE: f32 = 0.9;
-const FORECAST_DAY_SCALE: f32 = 0.7;
-const FORECAST_ICON_SCALE: f32 = 1.3;
+const TAB_H: f32 = 34.0;
+const TAB_INSET: f32 = 3.0;
+const TAB_SEGMENT_GAP: f32 = 6.0;
+const TAB_BAR_RADIUS: f64 = 12.0;
+const TAB_RADIUS: f64 = 10.0;
+const TAB_TEXT_SCALE: f32 = 0.82;
+
+const SECTION_GAP: f32 = 14.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct WeatherPanel<'a> {
     pub data: &'a WeatherData,
-}
-
-struct DetailItem {
-    glyph: &'static str,
-    text: String,
-    emphasis: bool,
-}
-
-struct ForecastColumn {
-    day: &'static str,
-    icon: &'static str,
-    icon_color: vello::peniko::Color,
-    max: String,
-    min: String,
-    is_today: bool,
+    pub active_tab: WeatherTab,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl WeatherPanel<'_> {
-    pub fn height(theme: &Theme) -> f32 {
-        let tokens = theme.tokens;
+    pub fn max_height(theme: &Theme) -> f32 {
+        let tallest = view_forecast::height(theme)
+            .max(view_air::height(theme))
+            .max(view_sea::max_height(theme));
 
-        tokens.dropdown_panel_padding_y * 2.0
-            + tokens.dropdown_header_height
-            + tokens.dropdown_section_gap
-            + tokens.weather_details_row_height
-            + tokens.dropdown_section_gap
-            + forecast_height(theme)
+        shell_overhead() + tallest
+    }
+
+    fn height(&self, theme: &Theme) -> f32 {
+        shell_overhead() + self.view_height(theme)
+    }
+
+    fn view_height(&self, theme: &Theme) -> f32 {
+        match self.active_tab {
+            WeatherTab::Forecast => view_forecast::height(theme),
+            WeatherTab::AirUv => view_air::height(theme),
+            WeatherTab::Sea => view_sea::height(self.data.sea.as_ref(), theme),
+        }
+    }
+
+    fn view_area(&self, bounds: Rect, theme: &Theme) -> Rect {
+        Rect::new(
+            bounds.x + PAD,
+            bounds.y + PAD + HEADER_H + STATS_H + SECTION_GAP + TAB_H + SECTION_GAP,
+            bounds.width - PAD * 2.0,
+            self.view_height(theme),
+        )
     }
 }
 
 impl Panel for WeatherPanel<'_> {
     fn frame(&self, theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
+        DropdownFrame::new(theme.tokens.weather_panel_width, self.height(theme))
     }
 
     fn draw_content(&self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
-        let theme = ctx.theme;
-        let tokens = theme.tokens;
-        let data = self.data;
+        let inner_x = bounds.x + PAD;
+        let inner_width = bounds.width - PAD * 2.0;
+        let mut y = bounds.y + PAD;
 
-        let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
-        let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
-        let mut y = bounds.y + tokens.dropdown_panel_padding_y;
+        draw_header(scene, inner_x, y, inner_width, self.data, ctx);
+        y += HEADER_H;
 
-        draw_header(scene, inner_x, y, inner_width, data, ctx);
+        draw_stats(scene, inner_x, y, inner_width, self.data, ctx);
+        y += STATS_H + SECTION_GAP;
 
-        y += tokens.dropdown_header_height + tokens.dropdown_section_gap;
+        draw_tab_bar(scene, Rect::new(inner_x, y, inner_width, TAB_H), self.active_tab, ctx);
 
-        let items = detail_items(data.snapshot.as_ref());
+        let area = self.view_area(bounds, ctx.theme);
 
-        draw_details_row(scene, inner_x, y, inner_width, &items, ctx);
+        match self.active_tab {
+            WeatherTab::Forecast => {
+                if let Some(snapshot) = &self.data.snapshot {
+                    view_forecast::draw(scene, area, snapshot, ctx);
+                }
+            }
+            WeatherTab::AirUv => {
+                let uv = self.data.snapshot.as_ref().and_then(|snapshot| snapshot.uv.as_ref());
 
-        y += tokens.weather_details_row_height;
+                view_air::draw(scene, area, uv, self.data.air.as_ref(), ctx);
+            }
+            WeatherTab::Sea => view_sea::draw(scene, area, self.data.sea.as_ref(), ctx),
+        }
+    }
 
-        DropdownFrame::draw_divider(scene, inner_x, y + tokens.dropdown_section_gap / 2.0, inner_width, theme);
+    fn hit_test_content(&self, point: Point, bounds: Rect, _theme: &Theme) -> Option<Interaction> {
+        let tab_bar = Rect::new(bounds.x + PAD, bounds.y + PAD + HEADER_H + STATS_H + SECTION_GAP, bounds.width - PAD * 2.0, TAB_H);
 
-        y += tokens.dropdown_section_gap;
-
-        let daily = data.snapshot.as_ref().map(|snapshot| snapshot.daily.as_slice()).unwrap_or(&[]);
-        let today = Local::now().date_naive();
-
-        draw_forecast(scene, inner_x, y, inner_width, daily, today, ctx);
+        tab_segment_rects(tab_bar)
+            .into_iter()
+            .find(|(_, rect)| rect.contains_point(point.x, point.y))
+            .map(|(tab, _)| WeatherAction::SelectTab(tab).interaction())
     }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn forecast_height(theme: &Theme) -> f32 {
-    let tokens = theme.tokens;
-
-    tokens.weather_forecast_day_height
-        + tokens.weather_forecast_icon_height
-        + tokens.weather_forecast_max_height
-        + tokens.weather_forecast_min_height
+fn shell_overhead() -> f32 {
+    PAD + HEADER_H + STATS_H + SECTION_GAP + TAB_H + SECTION_GAP + PAD
 }
 
 fn draw_header(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
-    let base = ctx.theme.typography.size_base;
-    let header_height = tokens.dropdown_header_height;
+    let title_size = ctx.theme.typography.size_base * 1.35;
+    let desc_size = ctx.theme.typography.size_base * 0.85;
+    let updated_size = ctx.theme.typography.size_base * 0.75;
 
-    let snapshot = data.snapshot.as_ref();
-
-    let title = data.location_label.as_deref().map(city_name).unwrap_or(FALLBACK_TITLE);
-    let subtitle = snapshot
-        .map(|snapshot| weather_description(snapshot.weather_code))
-        .unwrap_or(VALUE_PLACEHOLDER);
-
-    PanelHeader { title, subtitle }.draw(scene, x, y, ctx);
-
-    let temp_size = base * tokens.weather_temp_scale;
-    let st_size = base * tokens.dropdown_subtitle_scale;
-
-    let temp_text = snapshot
-        .map(|snapshot| format!("{}°", snapshot.temp_c.round() as i32))
-        .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
-
-    let st_text = snapshot
-        .and_then(|snapshot| snapshot.feels_like_c)
-        .map(|value| format!("ST {}°", value.round() as i32));
-
-    let temp_box_height = header_height * 0.6;
-
-    let (temp_width, _) = ctx.text.measure(&temp_text, temp_size, ctx.theme.typography.font_family);
+    let city = data.location_label.as_deref().unwrap_or("Clima");
 
     ctx.text.draw_centered_v(
         scene,
-        &temp_text,
-        x + width - temp_width,
+        city,
+        x,
         y,
-        temp_box_height,
-        TextStyle::new(temp_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        HEADER_TITLE_H,
+        TextStyle::new(title_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
-    let mut block_width = temp_width;
+    let description = data
+        .snapshot
+        .as_ref()
+        .map(|snapshot| weather_description(snapshot.weather_code))
+        .unwrap_or("sin datos todavía");
 
-    if let Some(st_text) = &st_text {
-        let (st_width, _) = ctx.text.measure(st_text, st_size, ctx.theme.typography.font_family);
+    ctx.text.draw_centered_v(
+        scene,
+        description,
+        x,
+        y + HEADER_TITLE_H,
+        HEADER_DESC_H,
+        TextStyle::new(desc_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+    );
+
+    // "Actualizado hace N min" con su puntito verde.
+    if let Some(updated_at) = data.updated_at {
+        let label = updated_label(updated_at);
+        let dot_y = y + HEADER_TITLE_H + HEADER_DESC_H + HEADER_UPDATED_GAP + HEADER_UPDATED_H / 2.0;
+
+        let dot = vello::kurbo::Circle::new(((x + UPDATED_DOT_RADIUS) as f64, dot_y as f64), UPDATED_DOT_RADIUS as f64);
+
+        scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.positive, None, &dot);
 
         ctx.text.draw_centered_v(
             scene,
-            st_text,
-            x + width - st_width,
-            y + temp_box_height,
-            header_height - temp_box_height,
-            TextStyle::new(st_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+            &label,
+            x + UPDATED_DOT_RADIUS * 2.0 + 6.0,
+            y + HEADER_TITLE_H + HEADER_DESC_H + HEADER_UPDATED_GAP,
+            HEADER_UPDATED_H,
+            TextStyle::new(updated_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
         );
-
-        block_width = block_width.max(st_width);
     }
 
-    let icon = snapshot
-        .map(|snapshot| weather_icon(snapshot.weather_code))
-        .unwrap_or(UNKNOWN_WEATHER_ICON);
-    let icon_size = base * tokens.weather_header_icon_scale;
+    // Derecha: icono grande + temperatura + sensación.
+    let Some(snapshot) = &data.snapshot else {
+        return;
+    };
 
+    let temp_size = ctx.theme.typography.size_base * HEADER_TEMP_SCALE;
+    let icon_size = ctx.theme.typography.size_base * HEADER_ICON_SCALE;
+
+    let temp = format!("{}°", snapshot.temp_c.round() as i32);
+    let (temp_width, _) = ctx.text.measure(&temp, temp_size, ctx.theme.typography.font_family);
+    let temp_x = x + width - temp_width;
+
+    ctx.text.draw_centered_v(
+        scene,
+        &temp,
+        temp_x,
+        y,
+        HEADER_TITLE_H + HEADER_DESC_H,
+        TextStyle::new(temp_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+    );
+
+    let icon = weather_icon(snapshot.weather_code);
+    let icon_color = weather_icon_color(snapshot.weather_code, &ctx.theme.palette);
     let (icon_width, _) = ctx.text.measure(icon, icon_size, ctx.theme.typography.icon_font_family);
-    let icon_x = x + width - block_width - tokens.weather_inner_gap * 2.0 - icon_width;
 
     ctx.text.draw_centered_v(
         scene,
         icon,
-        icon_x,
+        temp_x - HEADER_ICON_GAP - icon_width,
         y,
-        header_height,
-        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.accent),
-    );
-}
-
-fn detail_items(snapshot: Option<&WeatherSnapshot>) -> [DetailItem; 3] {
-    let humidity = snapshot
-        .and_then(|snapshot| snapshot.humidity_percent)
-        .map(|value| format!("{value}%"));
-
-    let wind = snapshot
-        .and_then(|snapshot| snapshot.wind_kmh)
-        .map(|value| format!("{} km/h", value.round() as i32));
-
-    let precipitation = snapshot
-        .and_then(|snapshot| snapshot.precipitation_percent)
-        .map(|value| format!("{value}%"));
-
-    let rain_likely = snapshot
-        .and_then(|snapshot| snapshot.precipitation_percent)
-        .is_some_and(|value| value >= PRECIP_EMPHASIS_MIN);
-
-    [
-        DetailItem {
-            glyph: HUMIDITY_GLYPH,
-            text: humidity.unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
-            emphasis: false,
-        },
-        DetailItem {
-            glyph: WIND_GLYPH,
-            text: wind.unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
-            emphasis: false,
-        },
-        DetailItem {
-            glyph: PRECIPITATION_GLYPH,
-            text: precipitation.unwrap_or_else(|| VALUE_PLACEHOLDER.to_string()),
-            emphasis: rain_likely,
-        },
-    ]
-}
-
-fn draw_details_row(scene: &mut Scene, x: f32, y: f32, width: f32, items: &[DetailItem; 3], ctx: &mut RenderCtx<'_>) {
-    let center_width = detail_item_width(&items[1], ctx);
-    let right_width = detail_item_width(&items[2], ctx);
-
-    let positions = [x, x + (width - center_width) / 2.0, x + width - right_width];
-
-    for (item, item_x) in items.iter().zip(positions) {
-        draw_detail_item(scene, item_x, y, item, ctx);
-    }
-}
-
-fn detail_item_width(item: &DetailItem, ctx: &mut RenderCtx<'_>) -> f32 {
-    let icon_size = ctx.theme.typography.size_base * DETAIL_ICON_SCALE;
-    let text_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_body_scale;
-
-    let (icon_width, _) = ctx.text.measure(item.glyph, icon_size, ctx.theme.typography.icon_font_family);
-    let (text_width, _) = ctx.text.measure(&item.text, text_size, ctx.theme.typography.font_family);
-
-    icon_width + ctx.theme.tokens.weather_inner_gap + text_width
-}
-
-fn draw_detail_item(scene: &mut Scene, x: f32, y: f32, item: &DetailItem, ctx: &mut RenderCtx<'_>) {
-    let row_height = ctx.theme.tokens.weather_details_row_height;
-    let icon_size = ctx.theme.typography.size_base * DETAIL_ICON_SCALE;
-    let text_size = ctx.theme.typography.size_base * ctx.theme.tokens.dropdown_body_scale;
-
-    // Emphasized items (e.g. likely rain) light up in accent.
-    let (icon_color, text_color) = if item.emphasis {
-        (ctx.theme.palette.accent, ctx.theme.palette.accent)
-    } else {
-        (ctx.theme.palette.text_secondary, ctx.theme.palette.text_primary)
-    };
-
-    let (icon_width, _) = ctx.text.measure(item.glyph, icon_size, ctx.theme.typography.icon_font_family);
-
-    ctx.text.draw_centered_v(
-        scene,
-        item.glyph,
-        x,
-        y,
-        row_height,
+        HEADER_TITLE_H + HEADER_DESC_H,
         TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, icon_color),
     );
 
-    ctx.text.draw_centered_v(
-        scene,
-        &item.text,
-        x + icon_width + ctx.theme.tokens.weather_inner_gap,
-        y,
-        row_height,
-        TextStyle::new(text_size, ctx.theme.typography.font_family, text_color),
-    );
-}
+    if let Some(feels) = snapshot.feels_like_c {
+        let feels_label = format!("Sensación {}°", feels.round() as i32);
+        let feels_size = ctx.theme.typography.size_base * 0.8;
+        let (feels_width, _) = ctx.text.measure(&feels_label, feels_size, ctx.theme.typography.font_family);
 
-fn forecast_columns(daily: &[DailyForecast], today: NaiveDate, palette: &Palette) -> Vec<ForecastColumn> {
-    let mut columns: Vec<ForecastColumn> = daily
-        .iter()
-        .take(FORECAST_COLUMNS)
-        .map(|forecast| {
-            let is_today = forecast.date == today;
-
-            ForecastColumn {
-                day: if is_today {
-                    TODAY_LABEL
-                } else {
-                    weekday_abbrev(forecast.date.weekday().num_days_from_monday() as usize)
-                },
-                icon: weather_icon(forecast.weather_code),
-                icon_color: weather_icon_color(forecast.weather_code, palette),
-                max: format!("{}°", forecast.max_c.round() as i32),
-                min: format!("{}°", forecast.min_c.round() as i32),
-                is_today,
-            }
-        })
-        .collect();
-
-    while columns.len() < FORECAST_COLUMNS {
-        columns.push(ForecastColumn {
-            day: VALUE_PLACEHOLDER,
-            icon: UNKNOWN_WEATHER_ICON,
-            icon_color: palette.text_secondary,
-            max: VALUE_PLACEHOLDER.to_string(),
-            min: VALUE_PLACEHOLDER.to_string(),
-            is_today: false,
-        });
+        ctx.text.draw_centered_v(
+            scene,
+            &feels_label,
+            x + width - feels_width,
+            y + HEADER_TITLE_H + HEADER_DESC_H + HEADER_UPDATED_GAP,
+            HEADER_UPDATED_H,
+            TextStyle::new(feels_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        );
     }
-
-    columns
 }
 
-fn draw_forecast(scene: &mut Scene, x: f32, y: f32, width: f32, daily: &[DailyForecast], today: NaiveDate, ctx: &mut RenderCtx<'_>) {
-    let columns = forecast_columns(daily, today, &ctx.theme.palette);
-    let column_width = width / FORECAST_COLUMNS as f32;
+/// HUMEDAD | VIENTO | PRECIPITACIÓN, con divisores verticales.
+fn draw_stats(scene: &mut Scene, x: f32, y: f32, width: f32, data: &WeatherData, ctx: &mut RenderCtx<'_>) {
+    let snapshot = data.snapshot.as_ref();
 
-    for (index, column) in columns.iter().enumerate() {
-        let column_x = x + index as f32 * column_width;
+    let humidity = snapshot
+        .and_then(|snapshot| snapshot.humidity_percent)
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "—".to_string());
 
-        if column.is_today {
-            draw_today_highlight(scene, column_x, y, column_width, ctx);
+    let wind = snapshot
+        .and_then(|snapshot| snapshot.wind_kmh)
+        .map(|value| format!("{}", value.round() as i32))
+        .unwrap_or_else(|| "—".to_string());
+
+    let rain = snapshot
+        .and_then(|snapshot| snapshot.precipitation_percent)
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "—".to_string());
+
+    let stats: [(&str, &str, &str, &str); 3] = [
+        (HUMIDITY_GLYPH, "HUMEDAD", &humidity, "%"),
+        (WIND_GLYPH, "VIENTO", &wind, "km/h"),
+        (RAIN_GLYPH, "PRECIPITACIÓN", &rain, "%"),
+    ];
+
+    let column = width / stats.len() as f32;
+
+    DropdownFrame::draw_divider(scene, x, y, width, ctx.theme);
+
+    let label_size = ctx.theme.typography.size_base * 0.68;
+    let icon_size = ctx.theme.typography.size_base * 0.9;
+    let value_size = ctx.theme.typography.size_base * 1.15;
+    let unit_size = ctx.theme.typography.size_base * 0.78;
+
+    for (index, (glyph, label, value, unit)) in stats.iter().enumerate() {
+        let column_x = x + index as f32 * column;
+
+        if index > 0 {
+            let divider =
+                vello::kurbo::Rect::new((column_x - 8.0) as f64, (y + 10.0) as f64, (column_x - 7.0) as f64, (y + STATS_H - 6.0) as f64);
+
+            scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_divider, None, &divider);
         }
 
-        draw_forecast_column(scene, column_x, y, column_width, column, ctx);
+        ctx.text.draw_centered_v(
+            scene,
+            glyph,
+            column_x,
+            y + 8.0,
+            STATS_LABEL_H,
+            TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.text_secondary),
+        );
+
+        ctx.text.draw_centered_v(
+            scene,
+            label,
+            column_x + icon_size + STAT_ICON_GAP,
+            y + 8.0,
+            STATS_LABEL_H,
+            TextStyle::new(label_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        );
+
+        let (value_width, _) = ctx.text.measure(value, value_size, ctx.theme.typography.font_family);
+
+        ctx.text.draw_centered_v(
+            scene,
+            value,
+            column_x,
+            y + 8.0 + STATS_LABEL_H,
+            STATS_H - STATS_LABEL_H - 8.0,
+            TextStyle::new(value_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
+        );
+
+        ctx.text.draw_centered_v(
+            scene,
+            unit,
+            column_x + value_width + 4.0,
+            y + 8.0 + STATS_LABEL_H,
+            STATS_H - STATS_LABEL_H - 8.0,
+            TextStyle::new(unit_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        );
     }
 }
 
-fn draw_today_highlight(scene: &mut Scene, x: f32, y: f32, width: f32, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
+fn tab_segment_rects(bar: Rect) -> [(WeatherTab, Rect); 3] {
+    let inner = Rect::new(bar.x + TAB_INSET, bar.y + TAB_INSET, bar.width - TAB_INSET * 2.0, bar.height - TAB_INSET * 2.0);
+    let count = WeatherTab::ALL.len() as f32;
+    let segment = (inner.width - TAB_SEGMENT_GAP * (count - 1.0)) / count;
 
-    let pill_x = x + tokens.weather_today_pill_padding_x;
-    let pill_width = width - tokens.weather_today_pill_padding_x * 2.0;
-    let pill_y = y - tokens.weather_today_pill_inset_y;
-    let pill_height = forecast_height(ctx.theme) + tokens.weather_today_pill_inset_y * 2.0;
+    std::array::from_fn(|index| {
+        let tab = WeatherTab::ALL[index];
+        let rect = Rect::new(inner.x + index as f32 * (segment + TAB_SEGMENT_GAP), inner.y, segment, inner.height);
 
-    let body = RoundedRect::new(
-        pill_x as f64,
-        pill_y as f64,
-        (pill_x + pill_width) as f64,
-        (pill_y + pill_height) as f64,
-        tokens.weather_today_pill_radius as f64,
-    );
-
-    let color = ctx.theme.palette.accent.with_alpha(tokens.date_week_highlight_alpha);
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &body);
+        (tab, rect)
+    })
 }
 
-fn draw_forecast_column(scene: &mut Scene, x: f32, y: f32, width: f32, column: &ForecastColumn, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
-    let base = ctx.theme.typography.size_base;
+fn draw_tab_bar(scene: &mut Scene, bar: Rect, active: WeatherTab, ctx: &mut RenderCtx<'_>) {
+    let container = RoundedRect::new(bar.x as f64, bar.y as f64, (bar.x + bar.width) as f64, (bar.y + bar.height) as f64, TAB_BAR_RADIUS);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_inset, None, &container);
 
-    let mut cell_y = y;
+    let text_size = ctx.theme.typography.size_base * TAB_TEXT_SCALE;
 
-    // Today's label speaks for itself and picks up the accent.
-    let day_color = if column.is_today {
-        ctx.theme.palette.accent
-    } else {
-        ctx.theme.palette.text_secondary
-    };
+    for (tab, rect) in tab_segment_rects(bar) {
+        let is_active = tab == active;
+        let hovered = ctx.hovered_interaction == Some(WeatherAction::SelectTab(tab).interaction());
 
-    ctx.text.draw_centered(
-        scene,
-        column.day,
-        Rect::new(x, cell_y, width, tokens.weather_forecast_day_height),
-        TextStyle::new(base * FORECAST_DAY_SCALE, ctx.theme.typography.font_family, day_color),
-    );
+        if is_active || hovered {
+            let background = if is_active {
+                ctx.theme.palette.pill_hover_bg
+            } else {
+                ctx.theme.palette.panel_raised
+            };
 
-    cell_y += tokens.weather_forecast_day_height;
+            let segment =
+                RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, TAB_RADIUS);
 
-    ctx.text.draw_centered(
-        scene,
-        column.icon,
-        Rect::new(x, cell_y, width, tokens.weather_forecast_icon_height),
-        TextStyle::new(base * FORECAST_ICON_SCALE, ctx.theme.typography.icon_font_family, column.icon_color),
-    );
+            scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &segment);
 
-    cell_y += tokens.weather_forecast_icon_height;
+            if is_active {
+                scene.stroke(&vello::kurbo::Stroke::new(1.0), Affine::IDENTITY, ctx.theme.palette.accent, None, &segment);
+            }
+        }
 
-    ctx.text.draw_centered(
-        scene,
-        &column.max,
-        Rect::new(x, cell_y, width, tokens.weather_forecast_max_height),
-        TextStyle::new(base * tokens.dropdown_body_scale, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
-    );
+        let color = if is_active {
+            ctx.theme.palette.text_primary
+        } else {
+            ctx.theme.palette.text_secondary
+        };
 
-    cell_y += tokens.weather_forecast_max_height;
-
-    ctx.text.draw_centered(
-        scene,
-        &column.min,
-        Rect::new(x, cell_y, width, tokens.weather_forecast_min_height),
-        TextStyle::new(base * tokens.dropdown_subtitle_scale, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-    );
+        ctx.text
+            .draw_centered(scene, tab.label(), rect, TextStyle::new(text_size, ctx.theme.typography.font_family, color));
+    }
 }
 
-fn city_name(label: &str) -> &str {
-    label.split(',').next().map(str::trim).unwrap_or(label)
+fn updated_label(updated_at: Instant) -> String {
+    let minutes = updated_at.elapsed().as_secs() / 60;
+
+    match minutes {
+        0 => "Actualizado recién".to_string(),
+        1 => "Actualizado hace 1 min".to_string(),
+        minutes => format!("Actualizado hace {minutes} min"),
+    }
 }

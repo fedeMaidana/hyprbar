@@ -71,6 +71,7 @@ pub struct Tokens {
     pub clock_chip_radius: f32,
     pub clock_icon_slot: f32,
 
+    pub weather_panel_width: f32,
     pub weather_temp_scale: f32,
     pub weather_header_icon_scale: f32,
     pub weather_details_row_height: f32,
@@ -203,14 +204,15 @@ impl Default for Tokens {
 
             clock_panel_width: 340.0,
             clock_header_time_scale: 1.8,
-            clock_row_height: 18.0,
-            clock_row_gap: 10.0,
+            clock_row_height: 24.0,
+            clock_row_gap: 8.0,
             clock_row_inner_gap: 8.0,
             clock_chip_padding_x: 5.0,
             clock_chip_padding_y: 1.5,
             clock_chip_radius: 5.0,
-            clock_icon_slot: 20.0,
+            clock_icon_slot: 30.0,
 
+            weather_panel_width: 380.0,
             weather_temp_scale: 1.8,
             weather_header_icon_scale: 2.0,
             weather_details_row_height: 16.0,

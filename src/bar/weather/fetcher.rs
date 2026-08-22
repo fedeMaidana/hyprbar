@@ -7,10 +7,12 @@ use calloop::channel::Sender;
 
 use crate::app::{ShutdownToken, WorkerHandle};
 
+use chrono::Timelike;
+
 use super::config::WeatherConfig;
 use super::location::{Coordinates, detect_location};
-use super::mapper::parse_weather_snapshot;
-use super::state::{WeatherSnapshot, WeatherStore};
+use super::mapper::{parse_air_quality, parse_sea_info, parse_weather_snapshot};
+use super::state::{AirQuality, SeaInfo, WeatherSnapshot, WeatherStore};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -87,6 +89,18 @@ fn fetcher_loop(config: WeatherConfig, store: WeatherStore, redraw: Sender<()>, 
             }
         }
 
+        // Aire y mar son extras: si fallan (p. ej. tierra adentro para
+        // el mar), el panel simplemente muestra que no hay datos.
+        match fetch_air(&agent, current_coordinates) {
+            Ok(air) => store.replace_air(air),
+            Err(error) => log::debug!("sin calidad del aire: {error}"),
+        }
+
+        match fetch_sea(&agent, current_coordinates) {
+            Ok(sea) => store.replace_sea(sea),
+            Err(error) => log::debug!("sin datos del mar: {error}"),
+        }
+
         if shutdown.sleep(config.fetch_interval) {
             break;
         }
@@ -101,7 +115,7 @@ fn http_agent() -> ureq::Agent {
 
 fn fetch_once(agent: &ureq::Agent, coordinates: Coordinates) -> Result<WeatherSnapshot> {
     let url = format!(
-        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days={}&timezone=auto",
+        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&hourly=temperature_2m,weather_code,uv_index&forecast_days={}&timezone=auto",
         coordinates.latitude, coordinates.longitude, FORECAST_DAYS
     );
 
@@ -109,4 +123,28 @@ fn fetch_once(agent: &ureq::Agent, coordinates: Coordinates) -> Result<WeatherSn
     let body = response.body_mut().read_to_string()?;
 
     parse_weather_snapshot(&body)
+}
+
+fn fetch_air(agent: &ureq::Agent, coordinates: Coordinates) -> Result<AirQuality> {
+    let url = format!(
+        "https://air-quality-api.open-meteo.com/v1/air-quality?latitude={}&longitude={}&current=us_aqi&timezone=auto",
+        coordinates.latitude, coordinates.longitude
+    );
+
+    let mut response = agent.get(&url).call()?;
+    let body = response.body_mut().read_to_string()?;
+
+    parse_air_quality(&body)
+}
+
+fn fetch_sea(agent: &ureq::Agent, coordinates: Coordinates) -> Result<SeaInfo> {
+    let url = format!(
+        "https://marine-api.open-meteo.com/v1/marine?latitude={}&longitude={}&current=sea_surface_temperature,wave_height,wave_direction&hourly=sea_level_height_msl&forecast_days=1&timezone=auto",
+        coordinates.latitude, coordinates.longitude
+    );
+
+    let mut response = agent.get(&url).call()?;
+    let body = response.body_mut().read_to_string()?;
+
+    parse_sea_info(&body, chrono::Local::now().hour() as u8)
 }

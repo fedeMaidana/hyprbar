@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Local, Offset, Timelike, Utc};
 use vello::Scene;
-use vello::kurbo::{Affine, RoundedRect};
+use vello::kurbo::{Affine, Circle, RoundedRect};
 use vello::peniko::Fill;
 
 use crate::components::{DropdownFrame, RenderCtx};
@@ -14,11 +14,21 @@ use super::zones::{WORLD_ZONES, is_daytime, local_zone_display_name, offset_labe
 // ─── < Constants > ────────────────────────────────────────────────────
 
 const OFFSET_TEXT_SCALE: f32 = 0.78;
-const ZONE_ICON_SCALE: f32 = 0.9;
+const ZONE_ICON_SCALE: f32 = 0.95;
 const SECONDS_TEXT_SCALE: f32 = 0.62;
 
 const DAY_GLYPH: &str = "\u{f0599}";
-const NIGHT_GLYPH: &str = "\u{f0594}";
+const NIGHT_GLYPH: &str = "\u{f0f61}";
+
+/// Header con altura propia: la hora grande y la ciudad necesitan aire.
+const HEADER_H: f32 = 54.0;
+const HEADER_TIME_H: f32 = 30.0;
+const HEADER_SUBTITLE_GAP: f32 = 6.0;
+const HEADER_SUBTITLE_H: f32 = 16.0;
+
+/// Chip circular detrás del sol/luna de cada ciudad.
+const ICON_BADGE_RADIUS: f32 = 11.0;
+const ICON_BADGE_ALPHA: f32 = 0.16;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
@@ -36,7 +46,7 @@ pub(crate) fn height(theme: &Theme) -> f32 {
     let tokens = theme.tokens;
     let rows = WORLD_ZONES.len() as f32;
 
-    tokens.dropdown_header_height + tokens.dropdown_section_gap + tokens.clock_row_height * rows + tokens.clock_row_gap * (rows - 1.0)
+    HEADER_H + tokens.dropdown_section_gap + tokens.clock_row_height * rows + tokens.clock_row_gap * (rows - 1.0)
 }
 
 pub(crate) fn draw(scene: &mut Scene, area: Rect, ctx: &mut RenderCtx<'_>) {
@@ -50,7 +60,7 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, ctx: &mut RenderCtx<'_>) {
 
     draw_header(scene, area.x, y, now_local, local_offset_minutes, ctx);
 
-    y += tokens.dropdown_header_height;
+    y += HEADER_H;
 
     DropdownFrame::draw_divider(scene, area.x, y + tokens.dropdown_section_gap / 2.0, area.width, ctx.theme);
 
@@ -90,7 +100,6 @@ fn zone_rows(now_utc: DateTime<Utc>, local_offset_minutes: i32) -> Vec<ZoneRow> 
 
 fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, local_offset_minutes: i32, ctx: &mut RenderCtx<'_>) {
     let tokens = ctx.theme.tokens;
-    let header_height = tokens.dropdown_header_height;
 
     let time_size = ctx.theme.typography.size_base * tokens.clock_header_time_scale;
     let subtitle_size = ctx.theme.typography.size_base * tokens.dropdown_subtitle_scale;
@@ -98,7 +107,6 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, lo
     let time_prefix = now_local.format("%H:%M").to_string();
     let time_seconds = now_local.format(":%S").to_string();
 
-    let time_box_height = header_height * 0.6;
     let seconds_size = time_size * SECONDS_TEXT_SCALE;
 
     let (prefix_width, prefix_height) = ctx.text.measure(&time_prefix, time_size, ctx.theme.typography.font_family);
@@ -109,7 +117,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, lo
         &time_prefix,
         x,
         y,
-        time_box_height,
+        HEADER_TIME_H,
         TextStyle::new(time_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
     );
 
@@ -121,7 +129,7 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, lo
         &time_seconds,
         x + prefix_width,
         seconds_y,
-        time_box_height,
+        HEADER_TIME_H,
         TextStyle::new(seconds_size, ctx.theme.typography.font_family, ctx.theme.palette.accent),
     );
 
@@ -131,8 +139,8 @@ fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, lo
         scene,
         &subtitle,
         x,
-        y + time_box_height,
-        header_height - time_box_height,
+        y + HEADER_TIME_H + HEADER_SUBTITLE_GAP,
+        HEADER_SUBTITLE_H,
         TextStyle::new(subtitle_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 }
@@ -166,12 +174,16 @@ fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, c
         ctx.theme.palette.clock_night
     };
 
-    ctx.text.draw_centered_v(
+    // Chip circular teñido con el color del momento del día.
+    let badge_center = ((x + ICON_BADGE_RADIUS) as f64, (y + row_height / 2.0) as f64);
+    let badge = Circle::new(badge_center, ICON_BADGE_RADIUS as f64);
+
+    scene.fill(Fill::NonZero, Affine::IDENTITY, icon_color.with_alpha(ICON_BADGE_ALPHA), None, &badge);
+
+    ctx.text.draw_centered(
         scene,
         icon_glyph,
-        x,
-        y,
-        row_height,
+        Rect::new(x, y, ICON_BADGE_RADIUS * 2.0, row_height),
         TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, icon_color),
     );
 

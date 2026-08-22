@@ -5,10 +5,11 @@ use vello::Scene;
 use vello::peniko::Color;
 
 use crate::app::WorkerHandle;
-use crate::components::{Component, DropdownId, Interaction, Panel, Pill, Point, RenderCtx};
+use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
+use super::action::{WeatherAction, WeatherTab};
 use super::config::WeatherConfig;
 use super::fetcher::spawn_fetcher;
 use super::icons::{UNKNOWN_WEATHER_ICON, weather_icon};
@@ -30,6 +31,7 @@ pub struct WeatherPill {
     data: WeatherData,
     seen_generation: u64,
     frame_parts: Option<WeatherParts>,
+    active_tab: WeatherTab,
 }
 
 struct WeatherParts {
@@ -50,6 +52,7 @@ impl WeatherPill {
             data: WeatherData::default(),
             seen_generation: 0,
             frame_parts: None,
+            active_tab: WeatherTab::default(),
         }
     }
 
@@ -116,6 +119,11 @@ impl Component for WeatherPill {
     }
 
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
+        // Panel cerrado: la próxima apertura arranca en Pronóstico.
+        if !self.is_active(ctx) {
+            self.active_tab = WeatherTab::default();
+        }
+
         Pill::draw_with_background(scene, bounds, ctx.theme, self.background_color(ctx));
 
         let parts = self.take_frame_parts();
@@ -134,15 +142,41 @@ impl Component for WeatherPill {
     }
 
     fn dropdown_max_height(&self, theme: &Theme) -> f32 {
-        WeatherPanel::height(theme)
+        WeatherPanel::max_height(theme)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        WeatherPanel { data: &self.data }.render(scene, surface, anchor, ctx);
+        WeatherPanel {
+            data: &self.data,
+            active_tab: self.active_tab,
+        }
+        .render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(WeatherPanel { data: &self.data }.bounds(surface, anchor, theme))
+        Some(
+            WeatherPanel {
+                data: &self.data,
+                active_tab: self.active_tab,
+            }
+            .bounds(surface, anchor, theme),
+        )
+    }
+
+    fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
+        WeatherPanel {
+            data: &self.data,
+            active_tab: self.active_tab,
+        }
+        .hit_test(point, surface, anchor, theme)
+    }
+
+    fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
+        let WeatherAction::SelectTab(tab) = WeatherAction::from_interaction(interaction)?;
+
+        self.active_tab = tab;
+
+        Some(InteractionOutcome::redraw())
     }
 }
 
