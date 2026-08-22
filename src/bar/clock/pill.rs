@@ -2,31 +2,60 @@
 
 use std::time::Duration;
 
+use calloop::channel::Sender;
 use chrono::Local;
 use vello::Scene;
 use vello::peniko::Color;
 
-use crate::components::{Component, DropdownId, Interaction, Panel, Pill, Point, RenderCtx};
+use crate::app::WorkerHandle;
+use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
+use super::action::{ClockAction, ClockTab};
+use super::alarms;
 use super::panel::ClockPanel;
+use super::state::{Alarm, AlarmEditor, ClockStore};
+use super::worker::spawn_clock_watcher;
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
 pub(crate) const CLOCK_DROPDOWN: DropdownId = DropdownId::new("clock");
 
+/// Paso de los minutos en el picker de alarmas.
+const MINUTE_STEP: u8 = 5;
+
+const STOPWATCH_TICK: Duration = Duration::from_millis(50);
+const TIMER_TICK: Duration = Duration::from_millis(200);
+const CLOCK_TICK: Duration = Duration::from_secs(1);
+
 // ─── < Structs > ────────────────────────────────────────────────────
 
 pub struct ClockPill {
+    store: ClockStore,
+    _watcher: Option<WorkerHandle>,
+    active_tab: ClockTab,
+    editor: Option<AlarmEditor>,
     frame_text: Option<String>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
 impl ClockPill {
-    pub fn new() -> Self {
-        Self { frame_text: None }
+    pub fn new(redraw_signal: Sender<()>) -> Self {
+        let store = ClockStore::new();
+
+        store.update(|data| data.alarms = alarms::load());
+
+        let watcher = spawn_clock_watcher(store.clone(), redraw_signal);
+
+        Self {
+            store,
+            _watcher: watcher,
+            active_tab: ClockTab::default(),
+            editor: None,
+            frame_text: None,
+        }
     }
 
     fn current_text(&self) -> String {
@@ -54,11 +83,30 @@ impl ClockPill {
             ctx.theme.palette.text_primary
         }
     }
-}
 
-impl Default for ClockPill {
-    fn default() -> Self {
-        Self::new()
+    /// Guarda una alarma del editor: reemplaza o agrega, y persiste.
+    fn save_editor(&mut self, editor: AlarmEditor) {
+        self.store.update(|data| {
+            match editor.index {
+                Some(index) if index < data.alarms.len() => {
+                    let alarm = &mut data.alarms[index];
+
+                    alarm.hour = editor.hour;
+                    alarm.minute = editor.minute;
+                    alarm.repeat = editor.repeat;
+                }
+                _ => data.alarms.push(Alarm {
+                    hour: editor.hour,
+                    minute: editor.minute,
+                    repeat: editor.repeat,
+                    enabled: true,
+                    label: None,
+                }),
+            }
+
+            data.alarms.sort_by_key(|alarm| (alarm.hour, alarm.minute));
+            alarms::save(&data.alarms);
+        });
     }
 }
 
@@ -78,6 +126,12 @@ impl Component for ClockPill {
     }
 
     fn render(&mut self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
+        // Panel cerrado: la próxima apertura arranca limpia.
+        if !self.is_active(ctx) {
+            self.active_tab = ClockTab::default();
+            self.editor = None;
+        }
+
         Pill::draw_with_background(scene, bounds, ctx.theme, self.background_color(ctx));
 
         let text = self.take_frame_text();
@@ -103,20 +157,133 @@ impl Component for ClockPill {
     }
 
     fn dropdown_max_height(&self, theme: &Theme) -> f32 {
-        ClockPanel::height(theme)
+        ClockPanel::max_height(theme)
     }
 
-    /// El panel muestra segundos: pide un repintado por segundo mientras
-    /// está abierto.
+    /// Cadencia según lo que se mira: centésimas del cronómetro, anillo
+    /// del temporizador o el segundero del reloj.
     fn dropdown_tick(&self) -> Option<Duration> {
-        Some(Duration::from_secs(1))
+        let data = self.store.snapshot();
+
+        let interval = match self.active_tab {
+            ClockTab::Stopwatch if data.stopwatch.running() => STOPWATCH_TICK,
+            ClockTab::Timer if data.timer.running() => TIMER_TICK,
+            _ => CLOCK_TICK,
+        };
+
+        Some(interval)
     }
 
     fn render_dropdown(&mut self, scene: &mut Scene, surface: Rect, anchor: Rect, ctx: &mut RenderCtx<'_>) {
-        ClockPanel.render(scene, surface, anchor, ctx);
+        let data = self.store.snapshot();
+
+        ClockPanel {
+            data: &data,
+            active_tab: self.active_tab,
+            editor: self.editor.as_ref(),
+        }
+        .render(scene, surface, anchor, ctx);
     }
 
     fn dropdown_bounds(&self, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Rect> {
-        Some(ClockPanel.bounds(surface, anchor, theme))
+        let data = self.store.snapshot();
+
+        Some(
+            ClockPanel {
+                data: &data,
+                active_tab: self.active_tab,
+                editor: self.editor.as_ref(),
+            }
+            .bounds(surface, anchor, theme),
+        )
+    }
+
+    fn hit_test_dropdown(&self, point: Point, surface: Rect, anchor: Rect, theme: &Theme) -> Option<Interaction> {
+        let data = self.store.snapshot();
+
+        ClockPanel {
+            data: &data,
+            active_tab: self.active_tab,
+            editor: self.editor.as_ref(),
+        }
+        .hit_test(point, surface, anchor, theme)
+    }
+
+    fn handle_interaction(&mut self, interaction: Interaction) -> Option<InteractionOutcome> {
+        let action = ClockAction::from_interaction(interaction)?;
+
+        match action {
+            ClockAction::SelectTab(tab) => {
+                self.active_tab = tab;
+                self.editor = None;
+            }
+            ClockAction::ToggleAlarm(index) => {
+                self.store.update(|data| {
+                    if let Some(alarm) = data.alarms.get_mut(index) {
+                        alarm.enabled = !alarm.enabled;
+                        alarms::save(&data.alarms);
+                    }
+                });
+            }
+            ClockAction::EditAlarm(index) => {
+                let data = self.store.snapshot();
+
+                if let Some(alarm) = data.alarms.get(index) {
+                    self.editor = Some(AlarmEditor::for_alarm(index, alarm));
+                }
+            }
+            ClockAction::NewAlarm => self.editor = Some(AlarmEditor::blank()),
+            ClockAction::EditorCancel => self.editor = None,
+            ClockAction::EditorHourUp => {
+                if let Some(editor) = &mut self.editor {
+                    editor.hour = (editor.hour + 1) % 24;
+                }
+            }
+            ClockAction::EditorHourDown => {
+                if let Some(editor) = &mut self.editor {
+                    editor.hour = (editor.hour + 23) % 24;
+                }
+            }
+            ClockAction::EditorMinuteUp => {
+                if let Some(editor) = &mut self.editor {
+                    editor.minute = (editor.minute + MINUTE_STEP) % 60;
+                }
+            }
+            ClockAction::EditorMinuteDown => {
+                if let Some(editor) = &mut self.editor {
+                    editor.minute = (editor.minute + 60 - MINUTE_STEP) % 60;
+                }
+            }
+            ClockAction::EditorRepeat(repeat) => {
+                if let Some(editor) = &mut self.editor {
+                    editor.repeat = repeat;
+                }
+            }
+            ClockAction::EditorSave => {
+                if let Some(editor) = self.editor.take() {
+                    self.save_editor(editor);
+                }
+            }
+            ClockAction::DeleteAlarm => {
+                if let Some(editor) = self.editor.take()
+                    && let Some(index) = editor.index
+                {
+                    self.store.update(|data| {
+                        if index < data.alarms.len() {
+                            data.alarms.remove(index);
+                            alarms::save(&data.alarms);
+                        }
+                    });
+                }
+            }
+            ClockAction::StopwatchToggle => self.store.update(|data| data.stopwatch.toggle()),
+            ClockAction::StopwatchLap => self.store.update(|data| data.stopwatch.lap()),
+            ClockAction::StopwatchReset => self.store.update(|data| data.stopwatch.reset()),
+            ClockAction::TimerToggle => self.store.update(|data| data.timer.toggle()),
+            ClockAction::TimerReset => self.store.update(|data| data.timer.reset()),
+            ClockAction::TimerPreset(minutes) => self.store.update(|data| data.timer.set_minutes(minutes)),
+        }
+
+        Some(InteractionOutcome::redraw())
     }
 }

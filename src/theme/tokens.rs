@@ -61,6 +61,7 @@ pub struct Tokens {
     pub date_week_col_width: f32,
     pub date_footer_height: f32,
 
+    pub clock_panel_width: f32,
     pub clock_header_time_scale: f32,
     pub clock_row_height: f32,
     pub clock_row_gap: f32,
@@ -200,6 +201,7 @@ impl Default for Tokens {
             date_week_col_width: 22.0,
             date_footer_height: 30.0,
 
+            clock_panel_width: 340.0,
             clock_header_time_scale: 1.8,
             clock_row_height: 18.0,
             clock_row_gap: 10.0,

@@ -24,7 +24,7 @@ pub fn default_bar(redraw_signal: Sender<()>) -> Bar {
         vec![
             component(ArchLogoPill::new(redraw_signal.clone())),
             component(DatePill::new()),
-            component(ClockPill::new()),
+            component(ClockPill::new(redraw_signal.clone())),
             component(WeatherPill::new(WeatherConfig::auto_detect(), redraw_signal.clone())),
         ],
         vec![

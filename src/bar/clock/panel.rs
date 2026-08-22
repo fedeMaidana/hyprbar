@@ -1,242 +1,156 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use chrono::{DateTime, Local, Offset, Timelike, Utc};
 use vello::Scene;
 use vello::kurbo::{Affine, RoundedRect};
 use vello::peniko::Fill;
 
-use crate::components::{DropdownFrame, Panel, RenderCtx};
+use crate::components::{DropdownFrame, Interaction, Panel, Point, RenderCtx};
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
-use super::zones::{WORLD_ZONES, is_daytime, local_zone_display_name, offset_label, utc_label, zone_offset_minutes};
+use super::action::{ClockAction, ClockTab};
+use super::state::{AlarmEditor, ClockData};
+use super::{view_alarms, view_clock, view_stopwatch, view_timer};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
-const OFFSET_TEXT_SCALE: f32 = 0.78;
-const ZONE_ICON_SCALE: f32 = 0.9;
-const SECONDS_TEXT_SCALE: f32 = 0.62;
+const PAD: f32 = 14.0;
 
-const DAY_GLYPH: &str = "\u{f0599}";
-const NIGHT_GLYPH: &str = "\u{f0594}";
+const TAB_H: f32 = 30.0;
+const TAB_INSET: f32 = 3.0;
+const TAB_SEGMENT_GAP: f32 = 6.0;
+const TAB_BAR_RADIUS: f64 = 10.0;
+const TAB_RADIUS: f64 = 8.0;
+const TAB_TEXT_SCALE: f32 = 0.78;
+const TAB_GAP: f32 = 14.0;
 
 // ─── < Structs > ────────────────────────────────────────────────────
 
-pub struct ClockPanel;
-
-struct ZoneRow {
-    name: &'static str,
-    offset_minutes: i32,
-    offset_text: String,
-    time_text: String,
-    daytime: bool,
+pub struct ClockPanel<'a> {
+    pub data: &'a ClockData,
+    pub active_tab: ClockTab,
+    pub editor: Option<&'a AlarmEditor>,
 }
 
 // ─── < Implementations > ────────────────────────────────────────────────────
 
-impl ClockPanel {
-    pub fn height(theme: &Theme) -> f32 {
-        let tokens = theme.tokens;
-        let rows = WORLD_ZONES.len() as f32;
+impl ClockPanel<'_> {
+    /// Altura con la pestaña más alta; dimensiona la superficie de la barra.
+    pub fn max_height(theme: &Theme) -> f32 {
+        let tallest = view_clock::height(theme)
+            .max(view_alarms::max_height(theme))
+            .max(view_stopwatch::max_height(theme))
+            .max(view_timer::height(theme));
 
-        tokens.dropdown_panel_padding_y * 2.0
-            + tokens.dropdown_header_height
-            + tokens.dropdown_section_gap
-            + tokens.clock_row_height * rows
-            + tokens.clock_row_gap * (rows - 1.0)
+        shell_overhead() + tallest
+    }
+
+    fn height(&self, theme: &Theme) -> f32 {
+        shell_overhead() + self.view_height(theme)
+    }
+
+    fn view_height(&self, theme: &Theme) -> f32 {
+        match self.active_tab {
+            ClockTab::Clock => view_clock::height(theme),
+            ClockTab::Alarms => view_alarms::height(&self.data.alarms, self.editor, theme),
+            ClockTab::Stopwatch => view_stopwatch::height(&self.data.stopwatch, theme),
+            ClockTab::Timer => view_timer::height(theme),
+        }
+    }
+
+    fn view_area(&self, bounds: Rect, theme: &Theme) -> Rect {
+        Rect::new(bounds.x + PAD, bounds.y + PAD + TAB_H + TAB_GAP, bounds.width - PAD * 2.0, self.view_height(theme))
     }
 }
 
-impl Panel for ClockPanel {
+impl Panel for ClockPanel<'_> {
     fn frame(&self, theme: &Theme) -> DropdownFrame {
-        DropdownFrame::new(theme.tokens.dropdown_panel_width, Self::height(theme))
+        DropdownFrame::new(theme.tokens.clock_panel_width, self.height(theme))
     }
 
     fn draw_content(&self, scene: &mut Scene, bounds: Rect, ctx: &mut RenderCtx<'_>) {
-        let theme = ctx.theme;
-        let tokens = theme.tokens;
+        let tab_bar = Rect::new(bounds.x + PAD, bounds.y + PAD, bounds.width - PAD * 2.0, TAB_H);
+        draw_tab_bar(scene, tab_bar, self.active_tab, ctx);
 
-        let now_local = Local::now();
-        let now_utc = now_local.with_timezone(&Utc);
-        let local_offset_minutes = now_local.offset().fix().local_minus_utc() / 60;
+        let area = self.view_area(bounds, ctx.theme);
 
-        let inner_x = bounds.x + tokens.dropdown_panel_padding_x;
-        let inner_width = bounds.width - tokens.dropdown_panel_padding_x * 2.0;
-        let mut y = bounds.y + tokens.dropdown_panel_padding_y;
+        match self.active_tab {
+            ClockTab::Clock => view_clock::draw(scene, area, ctx),
+            ClockTab::Alarms => view_alarms::draw(scene, area, &self.data.alarms, self.editor, ctx),
+            ClockTab::Stopwatch => view_stopwatch::draw(scene, area, &self.data.stopwatch, ctx),
+            ClockTab::Timer => view_timer::draw(scene, area, &self.data.timer, ctx),
+        }
+    }
 
-        draw_header(scene, inner_x, y, now_local, local_offset_minutes, ctx);
+    fn hit_test_content(&self, point: Point, bounds: Rect, theme: &Theme) -> Option<Interaction> {
+        let tab_bar = Rect::new(bounds.x + PAD, bounds.y + PAD, bounds.width - PAD * 2.0, TAB_H);
 
-        y += tokens.dropdown_header_height;
+        for (tab, rect) in tab_segment_rects(tab_bar) {
+            if rect.contains_point(point.x, point.y) {
+                return Some(ClockAction::SelectTab(tab).interaction());
+            }
+        }
 
-        DropdownFrame::draw_divider(scene, inner_x, y + tokens.dropdown_section_gap / 2.0, inner_width, theme);
+        let area = self.view_area(bounds, theme);
 
-        y += tokens.dropdown_section_gap;
-
-        let rows = zone_rows(now_utc, local_offset_minutes);
-
-        for (index, row) in rows.iter().enumerate() {
-            let row_y = y + index as f32 * (tokens.clock_row_height + tokens.clock_row_gap);
-            draw_zone_row(scene, inner_x, row_y, inner_width, row, ctx);
+        match self.active_tab {
+            ClockTab::Clock => None,
+            ClockTab::Alarms => view_alarms::hit_test(point, area, &self.data.alarms, self.editor, theme),
+            ClockTab::Stopwatch => view_stopwatch::hit_test(point, area, theme),
+            ClockTab::Timer => view_timer::hit_test(point, area, theme),
         }
     }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
-fn zone_rows(now_utc: DateTime<Utc>, local_offset_minutes: i32) -> Vec<ZoneRow> {
-    let mut rows: Vec<ZoneRow> = WORLD_ZONES
-        .iter()
-        .map(|&(name, tz)| {
-            let remote = now_utc.with_timezone(&tz);
-            let offset_minutes = zone_offset_minutes(now_utc, tz) - local_offset_minutes;
-
-            ZoneRow {
-                name,
-                offset_minutes,
-                offset_text: offset_label(offset_minutes),
-                time_text: remote.format("%H:%M").to_string(),
-                daytime: is_daytime(remote.hour()),
-            }
-        })
-        .collect();
-
-    rows.sort_by_key(|row| row.offset_minutes);
-
-    rows
+fn shell_overhead() -> f32 {
+    PAD + TAB_H + TAB_GAP + PAD
 }
 
-fn draw_header(scene: &mut Scene, x: f32, y: f32, now_local: DateTime<Local>, local_offset_minutes: i32, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
-    let header_height = tokens.dropdown_header_height;
+fn tab_segment_rects(bar: Rect) -> [(ClockTab, Rect); 4] {
+    let inner = Rect::new(bar.x + TAB_INSET, bar.y + TAB_INSET, bar.width - TAB_INSET * 2.0, bar.height - TAB_INSET * 2.0);
+    let count = ClockTab::ALL.len() as f32;
+    let segment = (inner.width - TAB_SEGMENT_GAP * (count - 1.0)) / count;
 
-    let time_size = ctx.theme.typography.size_base * tokens.clock_header_time_scale;
-    let subtitle_size = ctx.theme.typography.size_base * tokens.dropdown_subtitle_scale;
+    std::array::from_fn(|index| {
+        let tab = ClockTab::ALL[index];
+        let rect = Rect::new(inner.x + index as f32 * (segment + TAB_SEGMENT_GAP), inner.y, segment, inner.height);
 
-    let time_prefix = now_local.format("%H:%M").to_string();
-    let time_seconds = now_local.format(":%S").to_string();
-
-    let time_box_height = header_height * 0.6;
-    let seconds_size = time_size * SECONDS_TEXT_SCALE;
-
-    let (prefix_width, prefix_height) = ctx.text.measure(&time_prefix, time_size, ctx.theme.typography.font_family);
-    let (_, seconds_height) = ctx.text.measure(&time_seconds, seconds_size, ctx.theme.typography.font_family);
-
-    ctx.text.draw_centered_v(
-        scene,
-        &time_prefix,
-        x,
-        y,
-        time_box_height,
-        TextStyle::new(time_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
-    );
-
-    // Smaller seconds, baseline-aligned with the main time.
-    let seconds_y = y + (prefix_height - seconds_height) / 2.0;
-
-    ctx.text.draw_centered_v(
-        scene,
-        &time_seconds,
-        x + prefix_width,
-        seconds_y,
-        time_box_height,
-        TextStyle::new(seconds_size, ctx.theme.typography.font_family, ctx.theme.palette.accent),
-    );
-
-    let subtitle = format!("{} · {}", local_zone_display_name(), utc_label(local_offset_minutes));
-
-    ctx.text.draw_centered_v(
-        scene,
-        &subtitle,
-        x,
-        y + time_box_height,
-        header_height - time_box_height,
-        TextStyle::new(subtitle_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-    );
+        (tab, rect)
+    })
 }
 
-fn draw_zone_row(scene: &mut Scene, x: f32, y: f32, width: f32, row: &ZoneRow, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
-    let row_height = tokens.clock_row_height;
+fn draw_tab_bar(scene: &mut Scene, bar: Rect, active: ClockTab, ctx: &mut RenderCtx<'_>) {
+    let container = RoundedRect::new(bar.x as f64, bar.y as f64, (bar.x + bar.width) as f64, (bar.y + bar.height) as f64, TAB_BAR_RADIUS);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_inset, None, &container);
 
-    let name_size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
-    let time_size = ctx.theme.typography.size_base * tokens.dropdown_body_scale;
+    let text_size = ctx.theme.typography.size_base * TAB_TEXT_SCALE;
 
-    let (time_width, _) = ctx.text.measure(&row.time_text, time_size, ctx.theme.typography.font_family);
-    let time_x = x + width - time_width;
+    for (tab, rect) in tab_segment_rects(bar) {
+        let is_active = tab == active;
+        let hovered = ctx.hovered_interaction == Some(ClockAction::SelectTab(tab).interaction());
 
-    ctx.text.draw_centered_v(
-        scene,
-        &row.time_text,
-        time_x,
-        y,
-        row_height,
-        TextStyle::new(time_size, ctx.theme.typography.font_family, ctx.theme.palette.text_primary),
-    );
+        if is_active || hovered {
+            let background = if is_active {
+                ctx.theme.palette.pill_hover_bg
+            } else {
+                ctx.theme.palette.panel_raised
+            };
 
-    draw_offset_chip(scene, time_x - tokens.clock_row_inner_gap, y, row_height, &row.offset_text, ctx);
+            let segment =
+                RoundedRect::new(rect.x as f64, rect.y as f64, (rect.x + rect.width) as f64, (rect.y + rect.height) as f64, TAB_RADIUS);
 
-    let icon_glyph = if row.daytime { DAY_GLYPH } else { NIGHT_GLYPH };
-    let icon_size = ctx.theme.typography.size_base * ZONE_ICON_SCALE;
-    let icon_color = if row.daytime {
-        ctx.theme.palette.clock_day
-    } else {
-        ctx.theme.palette.clock_night
-    };
+            scene.fill(Fill::NonZero, Affine::IDENTITY, background, None, &segment);
+        }
 
-    ctx.text.draw_centered_v(
-        scene,
-        icon_glyph,
-        x,
-        y,
-        row_height,
-        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, icon_color),
-    );
+        let color = if is_active {
+            ctx.theme.palette.text_primary
+        } else {
+            ctx.theme.palette.text_secondary
+        };
 
-    let name_color = if row.daytime {
-        ctx.theme.palette.text_primary
-    } else {
-        ctx.theme.palette.text_secondary
-    };
-
-    // Fixed slot keeps city names aligned regardless of glyph width.
-    ctx.text.draw_centered_v(
-        scene,
-        row.name,
-        x + tokens.clock_icon_slot,
-        y,
-        row_height,
-        TextStyle::new(name_size, ctx.theme.typography.font_family, name_color),
-    );
-}
-
-fn draw_offset_chip(scene: &mut Scene, right: f32, row_y: f32, row_height: f32, text: &str, ctx: &mut RenderCtx<'_>) {
-    let tokens = ctx.theme.tokens;
-    let text_size = ctx.theme.typography.size_base * OFFSET_TEXT_SCALE;
-
-    let (text_width, text_height) = ctx.text.measure(text, text_size, ctx.theme.typography.font_family);
-
-    let chip_width = text_width + tokens.clock_chip_padding_x * 2.0;
-    let chip_height = text_height + tokens.clock_chip_padding_y * 2.0;
-
-    let chip_x = right - chip_width;
-    let chip_y = row_y + (row_height - chip_height) / 2.0;
-
-    let body = RoundedRect::new(
-        chip_x as f64,
-        chip_y as f64,
-        (chip_x + chip_width) as f64,
-        (chip_y + chip_height) as f64,
-        tokens.clock_chip_radius as f64,
-    );
-
-    scene.fill(Fill::NonZero, Affine::IDENTITY, ctx.theme.palette.panel_raised, None, &body);
-
-    ctx.text.draw_centered_v(
-        scene,
-        text,
-        chip_x + tokens.clock_chip_padding_x,
-        chip_y,
-        chip_height,
-        TextStyle::new(text_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-    );
+        ctx.text
+            .draw_centered(scene, tab.label(), rect, TextStyle::new(text_size, ctx.theme.typography.font_family, color));
+    }
 }
