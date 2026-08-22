@@ -33,7 +33,7 @@ const DASH_FILL_RATIO: f32 = 0.7;
 const DASH_OLD_ALPHA: f32 = 0.35;
 
 const CARD_RADIUS: f64 = 12.0;
-pub(crate) const CARD_ROW_HEIGHT: f32 = 32.0;
+pub(crate) const CARD_ROW_HEIGHT: f32 = 28.0;
 const CARD_PADDING_X: f32 = 12.0;
 
 // Glifo opcional al final de cada fila de una tarjeta (p. ej. copiar).
@@ -42,7 +42,7 @@ const TRAILING_ICON_GAP: f32 = 8.0;
 
 // Tarjetas de sección: cada métrica vive en su propio contenedor.
 const SECTION_PADDING_X: f32 = 12.0;
-const SECTION_PADDING_Y: f32 = 10.0;
+const SECTION_PADDING_Y: f32 = 8.0;
 
 // Degradados y resaltados de los gráficos.
 const BAR_PEAK_ALPHA: f32 = 0.85;

@@ -21,21 +21,21 @@ const WIFI_GLYPH: &str = "\u{f05a9}";
 const STRENGTH_GLYPH: &str = "\u{f0928}";
 const COPY_GLYPH: &str = "\u{f018f}";
 
-const LABEL_H: f32 = 16.0;
-const MAIN_H: f32 = 34.0;
-const SUB_H: f32 = 16.0;
+const LABEL_H: f32 = 14.0;
+const MAIN_H: f32 = 30.0;
+const SUB_H: f32 = 14.0;
 const CHART_H: f32 = 26.0;
-const INNER_GAP: f32 = 6.0;
+const INNER_GAP: f32 = 4.0;
 
 /// Aire entre tarjetas de sección.
-const CARD_GAP: f32 = 12.0;
+const CARD_GAP: f32 = 10.0;
 
 const UP_COLUMN_X: f32 = 108.0;
 
 /// El histograma de bajada va a todo el ancho, gemelo del de cpu.
-const NET_CHART_H: f32 = 40.0;
+const NET_CHART_H: f32 = 36.0;
 
-const WIFI_CARD_H: f32 = 54.0;
+const WIFI_CARD_H: f32 = 48.0;
 const CARD_PADDING_X: f32 = 12.0;
 
 const INFO_ROWS: usize = 3;

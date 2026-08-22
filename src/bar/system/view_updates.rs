@@ -19,18 +19,22 @@ use super::state::SystemData;
 const VALUE_PLACEHOLDER: &str = "—";
 
 const TERMINAL_GLYPH: &str = "\u{f018d}";
+const CHECK_GLYPH: &str = "\u{f05e0}";
 const UPDATE_COMMAND_LABEL: &str = "pacman -Syu";
 
-const LABEL_H: f32 = 16.0;
-const MAIN_H: f32 = 34.0;
-const META_H: f32 = 16.0;
-const INNER_GAP: f32 = 6.0;
-const SECTION_GAP: f32 = 12.0;
+/// Aire entre el tilde y su mensaje.
+const CHECK_GAP: f32 = 8.0;
 
-const BUTTON_H: f32 = 42.0;
+const LABEL_H: f32 = 14.0;
+const MAIN_H: f32 = 30.0;
+const META_H: f32 = 14.0;
+const INNER_GAP: f32 = 4.0;
+const SECTION_GAP: f32 = 10.0;
+
+const BUTTON_H: f32 = 38.0;
 const BUTTON_RADIUS: f64 = 12.0;
 
-const EMPTY_LIST_H: f32 = 40.0;
+const EMPTY_LIST_H: f32 = 36.0;
 
 /// Cuántos paquetes entran en la lista (el resto va al "+N more").
 const VISIBLE_PACKAGES: usize = 5;
@@ -81,20 +85,44 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     if updates.packages.is_empty() {
         let size = ctx.theme.typography.size_base * 0.9;
 
-        let message = match updates.pending {
-            Some(0) => "todo al día",
-            _ => "sin datos todavía",
-        };
-
         let empty_card = Rect::new(area.x, y, area.width, EMPTY_LIST_H);
         draw_card_background(scene, empty_card, ctx.theme);
 
-        ctx.text.draw_centered(
-            scene,
-            message,
-            empty_card,
-            TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-        );
+        if updates.pending == Some(0) {
+            // Al día: tilde verde + mensaje, centrados como grupo.
+            let message = "no hay paquetes por actualizar";
+            let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
+
+            let (icon_width, _) = ctx.text.measure(CHECK_GLYPH, icon_size, ctx.theme.typography.icon_font_family);
+            let (text_width, _) = ctx.text.measure(message, size, ctx.theme.typography.font_family);
+
+            let group_x = empty_card.x + (empty_card.width - icon_width - CHECK_GAP - text_width) / 2.0;
+
+            ctx.text.draw_centered_v(
+                scene,
+                CHECK_GLYPH,
+                group_x,
+                empty_card.y,
+                empty_card.height,
+                TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.positive),
+            );
+
+            ctx.text.draw_centered_v(
+                scene,
+                message,
+                group_x + icon_width + CHECK_GAP,
+                empty_card.y,
+                empty_card.height,
+                TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+            );
+        } else {
+            ctx.text.draw_centered(
+                scene,
+                "sin datos todavía",
+                empty_card,
+                TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+            );
+        }
 
         y += EMPTY_LIST_H + SECTION_GAP;
     } else {

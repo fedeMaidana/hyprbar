@@ -18,23 +18,23 @@ const VALUE_PLACEHOLDER: &str = "—";
 
 const BATTERY_GLYPH: &str = "\u{f0079}";
 
-const LABEL_H: f32 = 16.0;
-const MAIN_H: f32 = 34.0;
-const SUB_H: f32 = 16.0;
+const LABEL_H: f32 = 14.0;
+const MAIN_H: f32 = 30.0;
+const SUB_H: f32 = 14.0;
 const CHART_H: f32 = 26.0;
 const BAR_H: f32 = 6.0;
-const INNER_GAP: f32 = 6.0;
-const BAR_GAP: f32 = 8.0;
+const INNER_GAP: f32 = 4.0;
+const BAR_GAP: f32 = 6.0;
 
 /// Aire entre tarjetas de sección.
-const CARD_GAP: f32 = 12.0;
+const CARD_GAP: f32 = 10.0;
 
 const INFO_ROWS: usize = 4;
 
 /// Debajo de este porcentaje, la barra de batería pasa a crítica.
 const LOW_BATTERY_PERCENT: u8 = 20;
 
-const EMPTY_HEIGHT: f32 = 48.0;
+const EMPTY_HEIGHT: f32 = 44.0;
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 

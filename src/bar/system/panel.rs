@@ -18,21 +18,21 @@ use super::{view_network, view_power, view_system, view_updates};
 const ARCH_GLYPH: &str = "\u{f08c7}";
 const VALUE_PLACEHOLDER: &str = "—";
 
-const PAD: f32 = 16.0;
+const PAD: f32 = 14.0;
 
-const HEADER_H: f32 = 44.0;
-const HEADER_GAP: f32 = 14.0;
+const HEADER_H: f32 = 40.0;
+const HEADER_GAP: f32 = 10.0;
 const TILE_RADIUS: f64 = 12.0;
 const TILE_TEXT_GAP: f32 = 12.0;
 const TITLE_SCALE: f32 = 1.3;
 const SUBTITLE_SCALE: f32 = 0.8;
 
-const BADGE_H: f32 = 22.0;
+const BADGE_H: f32 = 20.0;
 const BADGE_PADDING_X: f32 = 9.0;
 const BADGE_DOT_RADIUS: f32 = 2.5;
 const BADGE_TEXT_SCALE: f32 = 0.72;
 
-const TAB_H: f32 = 34.0;
+const TAB_H: f32 = 30.0;
 const TAB_INSET: f32 = 3.0;
 /// Aire entre los segmentos de la barra de tabs.
 const TAB_SEGMENT_GAP: f32 = 6.0;
@@ -40,10 +40,10 @@ const TAB_BAR_RADIUS: f64 = 10.0;
 const TAB_RADIUS: f64 = 8.0;
 const TAB_TEXT_SCALE: f32 = 0.85;
 const TAB_DOT_RADIUS: f32 = 2.5;
-const TAB_GAP: f32 = 16.0;
+const TAB_GAP: f32 = 12.0;
 
-const FOOTER_GAP: f32 = 12.0;
-const FOOTER_H: f32 = 46.0;
+const FOOTER_GAP: f32 = 10.0;
+const FOOTER_H: f32 = 40.0;
 const FOOTER_BUTTON_GAP: f32 = 10.0;
 const FOOTER_BUTTON_RADIUS: f64 = 12.0;
 

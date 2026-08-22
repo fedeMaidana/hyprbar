@@ -16,20 +16,20 @@ use super::state::SystemData;
 
 const VALUE_PLACEHOLDER: &str = "—";
 
-const LABEL_H: f32 = 16.0;
-const MAIN_H: f32 = 34.0;
-const SUB_H: f32 = 16.0;
+const LABEL_H: f32 = 14.0;
+const MAIN_H: f32 = 30.0;
+const SUB_H: f32 = 14.0;
 const CHART_H: f32 = 26.0;
-const INNER_GAP: f32 = 6.0;
+const INNER_GAP: f32 = 4.0;
 
 /// Aire entre tarjetas de sección.
-const CARD_GAP: f32 = 12.0;
+const CARD_GAP: f32 = 10.0;
 
 /// Procesador y temperatura llevan gráficos más altos que el resto.
-const CPU_CHART_H: f32 = 40.0;
-const TEMP_CHART_H: f32 = 40.0;
+const CPU_CHART_H: f32 = 36.0;
+const TEMP_CHART_H: f32 = 36.0;
 
-const DISK_ROW_H: f32 = 20.0;
+const DISK_ROW_H: f32 = 18.0;
 const DISK_BAR_H: f32 = 6.0;
 const DISK_LABEL_SLOT: f32 = 52.0;
 const DISK_VALUE_SLOT: f32 = 86.0;
