@@ -14,4 +14,4 @@ pub use pill::DatePill;
 // ─── < Tests > ────────────────────────────────────────────────────
 
 #[doc(hidden)]
-pub use grid::{GRID_CELLS, GRID_COLUMNS, GRID_ROWS, days_in_month, monday_offset, month_grid, shift_month};
+pub use grid::{GRID_CELLS, GRID_COLUMNS, GRID_ROWS, days_in_month, month_grid, shift_month, sunday_offset, week_number};

@@ -1,6 +1,6 @@
 // ─── < Imports > ────────────────────────────────────────────────────
 
-use chrono::{Datelike, NaiveDate};
+use chrono::{Datelike, Duration, NaiveDate};
 
 // ─── < Constants > ────────────────────────────────────────────────────
 
@@ -25,22 +25,33 @@ pub fn days_in_month(year: i32, month: u32) -> u32 {
         .unwrap_or(30)
 }
 
-pub fn monday_offset(year: i32, month: u32) -> u32 {
+/// Celdas vacías antes del día 1: la semana arranca en domingo.
+pub fn sunday_offset(year: i32, month: u32) -> u32 {
     NaiveDate::from_ymd_opt(year, month, 1)
-        .map(|date| date.weekday().num_days_from_monday())
+        .map(|date| date.weekday().num_days_from_sunday())
         .unwrap_or(0)
 }
 
 pub fn rows_in_month(year: i32, month: u32) -> usize {
-    let cells = monday_offset(year, month) as usize + days_in_month(year, month) as usize;
+    let cells = sunday_offset(year, month) as usize + days_in_month(year, month) as usize;
 
     cells.div_ceil(GRID_COLUMNS).clamp(1, GRID_ROWS)
+}
+
+/// Número de semana ISO de una fila del grid. El ancla es el sábado que
+/// cierra la fila: así el domingo suelto no arrastra la semana anterior.
+pub fn week_number(year: i32, month: u32, row: usize) -> Option<u32> {
+    let first = NaiveDate::from_ymd_opt(year, month, 1)?;
+    let days_to_saturday = row as i64 * 7 + 6 - sunday_offset(year, month) as i64;
+    let saturday = first.checked_add_signed(Duration::days(days_to_saturday))?;
+
+    Some(saturday.iso_week().week())
 }
 
 pub fn month_grid(year: i32, month: u32) -> [Option<u8>; GRID_CELLS] {
     let mut grid = [None; GRID_CELLS];
 
-    let start = monday_offset(year, month) as usize;
+    let start = sunday_offset(year, month) as usize;
     let days = days_in_month(year, month);
 
     for day in 1..=days {
