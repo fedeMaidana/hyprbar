@@ -22,8 +22,12 @@ const TERMINAL_GLYPH: &str = "\u{f018d}";
 const CHECK_GLYPH: &str = "\u{f05e0}";
 const UPDATE_COMMAND_LABEL: &str = "pacman -Syu";
 
-/// Aire entre el tilde y su mensaje.
-const CHECK_GAP: f32 = 8.0;
+// Estado "al día": solo un tilde grande centrado con su mensaje debajo.
+const ALL_CLEAR_ICON_SCALE: f32 = 2.6;
+const ALL_CLEAR_ICON_H: f32 = 44.0;
+const ALL_CLEAR_GAP: f32 = 6.0;
+const ALL_CLEAR_TEXT_H: f32 = 18.0;
+const ALL_CLEAR_H: f32 = ALL_CLEAR_ICON_H + ALL_CLEAR_GAP + ALL_CLEAR_TEXT_H;
 
 const LABEL_H: f32 = 14.0;
 const MAIN_H: f32 = 30.0;
@@ -46,10 +50,20 @@ pub(crate) fn max_height(_theme: &Theme) -> f32 {
 }
 
 pub(crate) fn height(data: &SystemData, _theme: &Theme) -> f32 {
+    if is_all_clear(data) {
+        return ALL_CLEAR_H;
+    }
+
     header_height() + SECTION_GAP + list_height(data) + SECTION_GAP + meta_height(data) + BUTTON_H
 }
 
 pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut RenderCtx<'_>) {
+    if is_all_clear(data) {
+        draw_all_clear(scene, area, ctx);
+
+        return;
+    }
+
     let updates = &data.updates;
     let mut y = area.y;
 
@@ -88,41 +102,12 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         let empty_card = Rect::new(area.x, y, area.width, EMPTY_LIST_H);
         draw_card_background(scene, empty_card, ctx.theme);
 
-        if updates.pending == Some(0) {
-            // Al día: tilde verde + mensaje, centrados como grupo.
-            let message = "no hay paquetes por actualizar";
-            let icon_size = ctx.theme.typography.size_base * ctx.theme.tokens.icon_scale;
-
-            let (icon_width, _) = ctx.text.measure(CHECK_GLYPH, icon_size, ctx.theme.typography.icon_font_family);
-            let (text_width, _) = ctx.text.measure(message, size, ctx.theme.typography.font_family);
-
-            let group_x = empty_card.x + (empty_card.width - icon_width - CHECK_GAP - text_width) / 2.0;
-
-            ctx.text.draw_centered_v(
-                scene,
-                CHECK_GLYPH,
-                group_x,
-                empty_card.y,
-                empty_card.height,
-                TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.positive),
-            );
-
-            ctx.text.draw_centered_v(
-                scene,
-                message,
-                group_x + icon_width + CHECK_GAP,
-                empty_card.y,
-                empty_card.height,
-                TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-            );
-        } else {
-            ctx.text.draw_centered(
-                scene,
-                "sin datos todavía",
-                empty_card,
-                TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
-            );
-        }
+        ctx.text.draw_centered(
+            scene,
+            "sin datos todavía",
+            empty_card,
+            TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+        );
 
         y += EMPTY_LIST_H + SECTION_GAP;
     } else {
@@ -166,6 +151,10 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
 }
 
 pub(crate) fn hit_test(point: Point, area: Rect, data: &SystemData, _theme: &Theme) -> Option<Interaction> {
+    if is_all_clear(data) {
+        return None;
+    }
+
     let button_y = area.y + header_height() + SECTION_GAP + list_height(data) + SECTION_GAP + meta_height(data);
     let button = Rect::new(area.x, button_y, area.width, BUTTON_H);
 
@@ -178,6 +167,40 @@ pub(crate) fn hit_test(point: Point, area: Rect, data: &SystemData, _theme: &The
 
 fn header_height() -> f32 {
     section_card_height(LABEL_H + INNER_GAP + MAIN_H)
+}
+
+/// Al día confirmado: cero pendientes. Sin datos todavía no cuenta.
+fn is_all_clear(data: &SystemData) -> bool {
+    data.updates.pending == Some(0) && data.updates.packages.is_empty()
+}
+
+/// Tilde grande centrado con el mensaje debajo; reemplaza toda la vista.
+fn draw_all_clear(scene: &mut Scene, area: Rect, ctx: &mut RenderCtx<'_>) {
+    let icon_size = ctx.theme.typography.size_base * ALL_CLEAR_ICON_SCALE;
+    let text_size = ctx.theme.typography.size_base * 0.95;
+
+    let (icon_width, _) = ctx.text.measure(CHECK_GLYPH, icon_size, ctx.theme.typography.icon_font_family);
+
+    ctx.text.draw_centered_v(
+        scene,
+        CHECK_GLYPH,
+        area.x + (area.width - icon_width) / 2.0,
+        area.y,
+        ALL_CLEAR_ICON_H,
+        TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.positive),
+    );
+
+    let message = "no hay paquetes por actualizar";
+    let (text_width, _) = ctx.text.measure(message, text_size, ctx.theme.typography.font_family);
+
+    ctx.text.draw_centered_v(
+        scene,
+        message,
+        area.x + (area.width - text_width) / 2.0,
+        area.y + ALL_CLEAR_ICON_H + ALL_CLEAR_GAP,
+        ALL_CLEAR_TEXT_H,
+        TextStyle::new(text_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
+    );
 }
 
 fn list_height(data: &SystemData) -> f32 {
