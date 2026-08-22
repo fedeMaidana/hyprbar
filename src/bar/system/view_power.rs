@@ -8,7 +8,7 @@ use crate::theme::Theme;
 
 use super::charts::{
     card_height, draw_bar_chart, draw_big_value, draw_info_card, draw_progress, draw_row_value, draw_section_label, draw_sub_row,
-    format_minutes,
+    format_minutes, section_card, section_card_height,
 };
 use super::state::{BatteryData, SystemData};
 
@@ -25,7 +25,9 @@ const CHART_H: f32 = 26.0;
 const BAR_H: f32 = 6.0;
 const INNER_GAP: f32 = 6.0;
 const BAR_GAP: f32 = 8.0;
-const SECTION_GAP: f32 = 16.0;
+
+/// Aire entre tarjetas de sección.
+const CARD_GAP: f32 = 12.0;
 
 const INFO_ROWS: usize = 4;
 
@@ -37,7 +39,7 @@ const EMPTY_HEIGHT: f32 = 48.0;
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
 pub(crate) fn max_height(_theme: &Theme) -> f32 {
-    battery_block_height() + SECTION_GAP + draw_block_height() + SECTION_GAP + card_height(INFO_ROWS)
+    battery_block_height() + CARD_GAP + draw_block_height() + CARD_GAP + card_height(INFO_ROWS)
 }
 
 pub(crate) fn height(data: &SystemData, theme: &Theme) -> f32 {
@@ -64,15 +66,18 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     let mut y = area.y;
 
     // BATTERY: porcentaje grande + tiempo restante + barra.
-    draw_section_label(scene, area.x, y, LABEL_H, "BATTERY", ctx);
-    y += LABEL_H + INNER_GAP;
+    let card = section_card(scene, Rect::new(area.x, y, area.width, battery_block_height()), ctx.theme);
+    let mut row = card.y;
+
+    draw_section_label(scene, card.x, row, LABEL_H, "BATTERY", ctx);
+    row += LABEL_H + INNER_GAP;
 
     let percent_text = battery
         .percent
         .map(|value| value.to_string())
         .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
 
-    let end_x = draw_big_value(scene, area.x, y, MAIN_H, &percent_text, "%", ctx);
+    let end_x = draw_big_value(scene, card.x, row, MAIN_H, &percent_text, "%", ctx);
 
     if let Some(minutes) = battery.minutes_left {
         let detail = format!("· {} left", format_minutes(minutes));
@@ -82,7 +87,7 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
             scene,
             &detail,
             end_x + 8.0,
-            y,
+            row,
             MAIN_H,
             TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
         );
@@ -94,13 +99,13 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     ctx.text.draw_centered_v(
         scene,
         BATTERY_GLYPH,
-        area.x + area.width - icon_width,
-        y,
+        card.x + card.width - icon_width,
+        row,
         MAIN_H,
         TextStyle::new(icon_size, ctx.theme.typography.icon_font_family, ctx.theme.palette.text_secondary),
     );
 
-    y += MAIN_H + BAR_GAP;
+    row += MAIN_H + BAR_GAP;
 
     let fraction = battery.percent.map(|value| value as f32 / 100.0).unwrap_or(0.0);
 
@@ -109,8 +114,8 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         _ => ctx.theme.palette.positive,
     };
 
-    draw_progress(scene, Rect::new(area.x, y, area.width, BAR_H), fraction, bar_color, ctx.theme);
-    y += BAR_H + BAR_GAP;
+    draw_progress(scene, Rect::new(card.x, row, card.width, BAR_H), fraction, bar_color, ctx.theme);
+    row += BAR_H + BAR_GAP;
 
     let status = battery.status.clone().unwrap_or_else(|| VALUE_PLACEHOLDER.into());
 
@@ -120,21 +125,24 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         _ => VALUE_PLACEHOLDER.to_string(),
     };
 
-    draw_sub_row(scene, Rect::new(area.x, y, area.width, SUB_H), &status, &identity, ctx);
-    y += SUB_H + SECTION_GAP;
+    draw_sub_row(scene, Rect::new(card.x, row, card.width, SUB_H), &status, &identity, ctx);
+    y += battery_block_height() + CARD_GAP;
 
     // POWER DRAW.
+    let card = section_card(scene, Rect::new(area.x, y, area.width, draw_block_height()), ctx.theme);
+    let mut row = card.y;
+
     let draw_value = battery
         .power_w
         .map(|watts| format!("{watts:.1} W"))
         .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
 
-    draw_section_label(scene, area.x, y, LABEL_H, "POWER DRAW", ctx);
-    draw_row_value(scene, area.x, y, area.width, LABEL_H, &draw_value, ctx);
-    y += LABEL_H + INNER_GAP;
+    draw_section_label(scene, card.x, row, LABEL_H, "POWER DRAW", ctx);
+    draw_row_value(scene, card.x, row, card.width, LABEL_H, &draw_value, ctx);
+    row += LABEL_H + INNER_GAP;
 
-    draw_bar_chart(scene, Rect::new(area.x, y, area.width, CHART_H), &battery.power_history, 1.0, accent);
-    y += CHART_H + INNER_GAP;
+    draw_bar_chart(scene, Rect::new(card.x, row, card.width, CHART_H), &battery.power_history, 1.0, accent);
+    row += CHART_H + INNER_GAP;
 
     let adapter = match battery.adapter_online {
         Some(true) => "adapter connected",
@@ -144,8 +152,8 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
 
     let cell = battery.cell_temp_c.map(|value| format!("cell {value:.0} °C")).unwrap_or_default();
 
-    draw_sub_row(scene, Rect::new(area.x, y, area.width, SUB_H), adapter, &cell, ctx);
-    y += SUB_H + SECTION_GAP;
+    draw_sub_row(scene, Rect::new(card.x, row, card.width, SUB_H), adapter, &cell, ctx);
+    y += draw_block_height() + CARD_GAP;
 
     // Tarjeta de detalles.
     let rows = info_rows(battery);
@@ -155,11 +163,11 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn battery_block_height() -> f32 {
-    LABEL_H + INNER_GAP + MAIN_H + BAR_GAP + BAR_H + BAR_GAP + SUB_H
+    section_card_height(LABEL_H + INNER_GAP + MAIN_H + BAR_GAP + BAR_H + BAR_GAP + SUB_H)
 }
 
 fn draw_block_height() -> f32 {
-    LABEL_H + INNER_GAP + CHART_H + INNER_GAP + SUB_H
+    section_card_height(LABEL_H + INNER_GAP + CHART_H + INNER_GAP + SUB_H)
 }
 
 fn info_rows(battery: &BatteryData) -> [(&'static str, String); INFO_ROWS] {

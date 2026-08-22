@@ -9,7 +9,9 @@ use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
 
 use super::action::SystemAction;
-use super::charts::{card_height, draw_big_value, draw_info_card, draw_section_label};
+use super::charts::{
+    card_height, draw_big_value, draw_card_background, draw_info_card, draw_section_label, section_card, section_card_height,
+};
 use super::state::SystemData;
 
 // ─── < Constants > ────────────────────────────────────────────────────
@@ -47,16 +49,19 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     let updates = &data.updates;
     let mut y = area.y;
 
-    // PENDING: contador grande.
-    draw_section_label(scene, area.x, y, LABEL_H, "PENDING", ctx);
-    y += LABEL_H + INNER_GAP;
+    // PENDING: contador grande en su tarjeta.
+    let card = section_card(scene, Rect::new(area.x, y, area.width, header_height()), ctx.theme);
+    let mut row = card.y;
+
+    draw_section_label(scene, card.x, row, LABEL_H, "PENDING", ctx);
+    row += LABEL_H + INNER_GAP;
 
     let count_text = updates
         .pending
         .map(|count| count.to_string())
         .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
 
-    let end_x = draw_big_value(scene, area.x, y, MAIN_H, &count_text, "", ctx);
+    let end_x = draw_big_value(scene, card.x, row, MAIN_H, &count_text, "", ctx);
 
     let word = if updates.pending == Some(1) { "package" } else { "packages" };
     let word_size = ctx.theme.typography.size_base * 0.82;
@@ -65,12 +70,12 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         scene,
         word,
         end_x + 6.0,
-        y,
+        row,
         MAIN_H,
         TextStyle::new(word_size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
     );
 
-    y += MAIN_H + SECTION_GAP;
+    y += header_height() + SECTION_GAP;
 
     // Lista de paquetes.
     if updates.packages.is_empty() {
@@ -81,12 +86,13 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
             _ => "sin datos todavía",
         };
 
-        ctx.text.draw_centered_v(
+        let empty_card = Rect::new(area.x, y, area.width, EMPTY_LIST_H);
+        draw_card_background(scene, empty_card, ctx.theme);
+
+        ctx.text.draw_centered(
             scene,
             message,
-            area.x,
-            y,
-            EMPTY_LIST_H,
+            empty_card,
             TextStyle::new(size, ctx.theme.typography.font_family, ctx.theme.palette.text_secondary),
         );
 
@@ -143,7 +149,7 @@ pub(crate) fn hit_test(point: Point, area: Rect, data: &SystemData, _theme: &The
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn header_height() -> f32 {
-    LABEL_H + INNER_GAP + MAIN_H
+    section_card_height(LABEL_H + INNER_GAP + MAIN_H)
 }
 
 fn list_height(data: &SystemData) -> f32 {

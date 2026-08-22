@@ -8,7 +8,7 @@ use crate::theme::Theme;
 
 use super::charts::{
     draw_area_chart, draw_bar_chart, draw_big_value, draw_dash_chart, draw_progress, draw_row_value, draw_section_label, draw_sub_row,
-    format_bytes, format_disk,
+    format_bytes, format_disk, section_card, section_card_height,
 };
 use super::state::SystemData;
 
@@ -21,7 +21,9 @@ const MAIN_H: f32 = 34.0;
 const SUB_H: f32 = 16.0;
 const CHART_H: f32 = 26.0;
 const INNER_GAP: f32 = 6.0;
-const SECTION_GAP: f32 = 18.0;
+
+/// Aire entre tarjetas de sección.
+const CARD_GAP: f32 = 12.0;
 
 /// Procesador y temperatura llevan gráficos más altos que el resto.
 const CPU_CHART_H: f32 = 40.0;
@@ -34,13 +36,13 @@ const DISK_VALUE_SLOT: f32 = 86.0;
 
 // ─── < Public Functions > ────────────────────────────────────────────────────
 
-pub(crate) fn height(_data: &SystemData, _theme: &Theme) -> f32 {
-    max_height(_theme)
+pub(crate) fn height(_data: &SystemData, theme: &Theme) -> f32 {
+    max_height(theme)
 }
 
 pub(crate) fn max_height(_theme: &Theme) -> f32 {
-    // PROCESSOR + MEMORY + TEMPERATURE + DISK, con sus gaps.
-    processor_height() + SECTION_GAP + memory_height() + SECTION_GAP + temperature_height() + SECTION_GAP + DISK_ROW_H
+    // PROCESSOR + MEMORY + TEMPERATURE + DISK, cada una en su tarjeta.
+    processor_height() + CARD_GAP + memory_height() + CARD_GAP + temperature_height() + CARD_GAP + disk_height()
 }
 
 pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut RenderCtx<'_>) {
@@ -48,8 +50,11 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
     let mut y = area.y;
 
     // PROCESSOR: valor grande y el histograma a todo el ancho debajo.
-    draw_section_label(scene, area.x, y, LABEL_H, "PROCESSOR", ctx);
-    y += LABEL_H + INNER_GAP;
+    let card = section_card(scene, Rect::new(area.x, y, area.width, processor_height()), ctx.theme);
+    let mut row = card.y;
+
+    draw_section_label(scene, card.x, row, LABEL_H, "PROCESSOR", ctx);
+    row += LABEL_H + INNER_GAP;
 
     let cpu_text = data
         .metrics
@@ -57,12 +62,11 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         .map(|value| format!("{value:.1}"))
         .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
 
-    draw_big_value(scene, area.x, y, MAIN_H, &cpu_text, "%", ctx);
-    y += MAIN_H + INNER_GAP;
+    draw_big_value(scene, card.x, row, MAIN_H, &cpu_text, "%", ctx);
+    row += MAIN_H + INNER_GAP;
 
-    let cpu_chart = Rect::new(area.x, y, area.width, CPU_CHART_H);
-    draw_bar_chart(scene, cpu_chart, &data.cpu_history, 100.0, accent);
-    y += CPU_CHART_H + INNER_GAP;
+    draw_bar_chart(scene, Rect::new(card.x, row, card.width, CPU_CHART_H), &data.cpu_history, 100.0, accent);
+    row += CPU_CHART_H + INNER_GAP;
 
     let cores_load = format!(
         "{} cores · load {}",
@@ -74,10 +78,13 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
             .unwrap_or_else(|| VALUE_PLACEHOLDER.into()),
     );
 
-    draw_sub_row(scene, Rect::new(area.x, y, area.width, SUB_H), "last 60s", &cores_load, ctx);
-    y += SUB_H + SECTION_GAP;
+    draw_sub_row(scene, Rect::new(card.x, row, card.width, SUB_H), "last 60s", &cores_load, ctx);
+    y += processor_height() + CARD_GAP;
 
     // MEMORY: valor a la derecha + área rellena.
+    let card = section_card(scene, Rect::new(area.x, y, area.width, memory_height()), ctx.theme);
+    let mut row = card.y;
+
     let memory = data.metrics.and_then(|metrics| metrics.memory);
 
     let memory_value = memory
@@ -86,13 +93,12 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         )
         .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
 
-    draw_section_label(scene, area.x, y, LABEL_H, "MEMORY", ctx);
-    draw_row_value(scene, area.x, y, area.width, LABEL_H, &memory_value, ctx);
-    y += LABEL_H + INNER_GAP;
+    draw_section_label(scene, card.x, row, LABEL_H, "MEMORY", ctx);
+    draw_row_value(scene, card.x, row, card.width, LABEL_H, &memory_value, ctx);
+    row += LABEL_H + INNER_GAP;
 
-    let memory_chart = Rect::new(area.x, y, area.width, CHART_H);
-    draw_area_chart(scene, memory_chart, &data.memory_history, 1.0, accent);
-    y += CHART_H + INNER_GAP;
+    draw_area_chart(scene, Rect::new(card.x, row, card.width, CHART_H), &data.memory_history, 1.0, accent);
+    row += CHART_H + INNER_GAP;
 
     let swap = match data.swap_used_kb {
         Some(0) | None => "swap 0 B".to_string(),
@@ -103,38 +109,42 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         .map(|memory| format!("{:.0}% used", memory.used_fraction() * 100.0))
         .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
 
-    draw_sub_row(scene, Rect::new(area.x, y, area.width, SUB_H), &swap, &used_percent, ctx);
-    y += SUB_H + SECTION_GAP;
+    draw_sub_row(scene, Rect::new(card.x, row, card.width, SUB_H), &swap, &used_percent, ctx);
+    y += memory_height() + CARD_GAP;
 
     // TEMPERATURE: valor a la derecha + línea punteada.
+    let card = section_card(scene, Rect::new(area.x, y, area.width, temperature_height()), ctx.theme);
+    let mut row = card.y;
+
     let temperature = data.metrics.and_then(|metrics| metrics.temperature_c);
 
     let temperature_value = temperature
         .map(|value| format!("{value:.0} °C"))
         .unwrap_or_else(|| VALUE_PLACEHOLDER.to_string());
 
-    draw_section_label(scene, area.x, y, LABEL_H, "TEMPERATURE", ctx);
-    draw_row_value(scene, area.x, y, area.width, LABEL_H, &temperature_value, ctx);
-    y += LABEL_H + INNER_GAP;
+    draw_section_label(scene, card.x, row, LABEL_H, "TEMPERATURE", ctx);
+    draw_row_value(scene, card.x, row, card.width, LABEL_H, &temperature_value, ctx);
+    row += LABEL_H + INNER_GAP;
 
-    let temp_chart = Rect::new(area.x, y, area.width, TEMP_CHART_H);
-    draw_dash_chart(scene, temp_chart, &data.temp_history, accent);
-    y += TEMP_CHART_H + INNER_GAP;
+    draw_dash_chart(scene, Rect::new(card.x, row, card.width, TEMP_CHART_H), &data.temp_history, accent);
+    row += TEMP_CHART_H + INNER_GAP;
 
     let fan = data.fan_rpm.map(|rpm| format!("fan {rpm} rpm")).unwrap_or_default();
     let max_temp = data.session_max_temp_c.map(|value| format!("max {value:.0}°C")).unwrap_or_default();
 
-    draw_sub_row(scene, Rect::new(area.x, y, area.width, SUB_H), &fan, &max_temp, ctx);
-    y += SUB_H + SECTION_GAP;
+    draw_sub_row(scene, Rect::new(card.x, row, card.width, SUB_H), &fan, &max_temp, ctx);
+    y += temperature_height() + CARD_GAP;
 
-    // DISK: etiqueta + barra + valor.
-    draw_section_label(scene, area.x, y, DISK_ROW_H, "DISK", ctx);
+    // DISK: etiqueta + barra + valor en una sola fila.
+    let card = section_card(scene, Rect::new(area.x, y, area.width, disk_height()), ctx.theme);
+
+    draw_section_label(scene, card.x, card.y, DISK_ROW_H, "DISK", ctx);
 
     if let Some(disk) = data.disk {
         let bar = Rect::new(
-            area.x + DISK_LABEL_SLOT,
-            y + (DISK_ROW_H - DISK_BAR_H) / 2.0,
-            area.width - DISK_LABEL_SLOT - DISK_VALUE_SLOT,
+            card.x + DISK_LABEL_SLOT,
+            card.y + (DISK_ROW_H - DISK_BAR_H) / 2.0,
+            card.width - DISK_LABEL_SLOT - DISK_VALUE_SLOT,
             DISK_BAR_H,
         );
 
@@ -147,22 +157,26 @@ pub(crate) fn draw(scene: &mut Scene, area: Rect, data: &SystemData, ctx: &mut R
         draw_progress(scene, bar, fraction, accent, ctx.theme);
 
         let value = format!("{} / {}G", format_disk(disk.used_bytes), format_disk(disk.total_bytes));
-        draw_row_value(scene, area.x, y, area.width, DISK_ROW_H, &value, ctx);
+        draw_row_value(scene, card.x, card.y, card.width, DISK_ROW_H, &value, ctx);
     } else {
-        draw_row_value(scene, area.x, y, area.width, DISK_ROW_H, VALUE_PLACEHOLDER, ctx);
+        draw_row_value(scene, card.x, card.y, card.width, DISK_ROW_H, VALUE_PLACEHOLDER, ctx);
     }
 }
 
 // ─── < Private Functions > ────────────────────────────────────────────────────
 
 fn processor_height() -> f32 {
-    LABEL_H + INNER_GAP + MAIN_H + INNER_GAP + CPU_CHART_H + INNER_GAP + SUB_H
+    section_card_height(LABEL_H + INNER_GAP + MAIN_H + INNER_GAP + CPU_CHART_H + INNER_GAP + SUB_H)
 }
 
 fn memory_height() -> f32 {
-    LABEL_H + INNER_GAP + CHART_H + INNER_GAP + SUB_H
+    section_card_height(LABEL_H + INNER_GAP + CHART_H + INNER_GAP + SUB_H)
 }
 
 fn temperature_height() -> f32 {
-    LABEL_H + INNER_GAP + TEMP_CHART_H + INNER_GAP + SUB_H
+    section_card_height(LABEL_H + INNER_GAP + TEMP_CHART_H + INNER_GAP + SUB_H)
+}
+
+fn disk_height() -> f32 {
+    section_card_height(DISK_ROW_H)
 }

@@ -40,6 +40,10 @@ const CARD_PADDING_X: f32 = 12.0;
 const TRAILING_ICON_SCALE: f32 = 0.8;
 const TRAILING_ICON_GAP: f32 = 8.0;
 
+// Tarjetas de sección: cada métrica vive en su propio contenedor.
+const SECTION_PADDING_X: f32 = 12.0;
+const SECTION_PADDING_Y: f32 = 10.0;
+
 // Degradados y resaltados de los gráficos.
 const BAR_PEAK_ALPHA: f32 = 0.85;
 const BAR_BASE_ALPHA: f32 = 0.3;
@@ -307,6 +311,23 @@ pub(crate) fn draw_progress(scene: &mut Scene, rect: Rect, fraction: f32, color:
 
 pub(crate) fn card_height(rows: usize) -> f32 {
     rows as f32 * CARD_ROW_HEIGHT
+}
+
+/// Fondo de tarjeta para una sección; devuelve el área interior utilizable.
+pub(crate) fn section_card(scene: &mut Scene, rect: Rect, theme: &Theme) -> Rect {
+    draw_card_background(scene, rect, theme);
+
+    Rect::new(
+        rect.x + SECTION_PADDING_X,
+        rect.y + SECTION_PADDING_Y,
+        rect.width - SECTION_PADDING_X * 2.0,
+        rect.height - SECTION_PADDING_Y * 2.0,
+    )
+}
+
+/// Altura exterior de una tarjeta de sección para un contenido dado.
+pub(crate) fn section_card_height(content_height: f32) -> f32 {
+    content_height + SECTION_PADDING_Y * 2.0
 }
 
 pub(crate) fn draw_card_background(scene: &mut Scene, rect: Rect, theme: &Theme) {
