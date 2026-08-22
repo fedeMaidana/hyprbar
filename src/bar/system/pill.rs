@@ -5,7 +5,7 @@ use vello::Scene;
 use vello::peniko::Color;
 
 use crate::app::WorkerHandle;
-use crate::components::{Component, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
+use crate::components::{Component, ConfirmRequest, DropdownId, Interaction, InteractionOutcome, Panel, Pill, Point, RenderCtx};
 use crate::proc::spawn_detached;
 use crate::render::{Rect, TextStyle};
 use crate::theme::Theme;
@@ -168,7 +168,15 @@ impl Component for ArchLogoPill {
 
                 Some(InteractionOutcome::quiet())
             }
-            SystemAction::Power(_) | SystemAction::RunUpdate => {
+            // Las acciones de power no se ejecutan directo: piden el
+            // modal de confirmación con sus textos y la acción confirmada.
+            SystemAction::Power(power) => Some(InteractionOutcome::confirm(ConfirmRequest {
+                action: SystemAction::ConfirmedPower(power).component_action(),
+                glyph: power.glyph(),
+                title: power.confirm_title(),
+                destructive: power.is_destructive(),
+            })),
+            SystemAction::ConfirmedPower(_) | SystemAction::RunUpdate => {
                 match action.execute() {
                     Ok(()) => log::info!("acción de sistema {action:?} lanzada"),
                     Err(error) => log::warn!("falló la acción de sistema {action:?}: {error}"),

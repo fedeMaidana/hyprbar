@@ -53,11 +53,17 @@ impl InputRegionRect {
 impl WaylandState {
     /// Creates a fresh bar layer surface with the given config applied.
     pub(crate) fn create_bar_layer(&self, qh: &QueueHandle<AppState>, config: &LayerConfig) -> LayerSurface {
+        self.create_layer(qh, config, "hyprbar")
+    }
+
+    /// Crea una layer surface con su propio namespace (la barra o el
+    /// overlay de confirmación; el namespace permite layerrules aparte).
+    pub(crate) fn create_layer(&self, qh: &QueueHandle<AppState>, config: &LayerConfig, namespace: &str) -> LayerSurface {
         let surface = self.compositor_state.create_surface(qh);
 
         let layer = self
             .layer_shell
-            .create_layer_surface(qh, surface, config.layer.into(), Some("hyprbar"), None);
+            .create_layer_surface(qh, surface, config.layer.into(), Some(namespace), None);
 
         config.apply_to(&layer);
         layer.commit();

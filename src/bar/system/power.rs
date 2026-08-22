@@ -35,6 +35,21 @@ impl PowerAction {
         }
     }
 
+    /// Título del modal de confirmación.
+    pub(crate) fn confirm_title(self) -> &'static str {
+        match self {
+            Self::Suspend => "¿Suspender el equipo?",
+            Self::Hibernate => "¿Hibernar el equipo?",
+            Self::Reboot => "¿Reiniciar el equipo?",
+            Self::Shutdown => "¿Apagar el equipo?",
+        }
+    }
+
+    /// Las que cortan la sesión llevan el confirmar en rojo.
+    pub(crate) fn is_destructive(self) -> bool {
+        matches!(self, Self::Reboot | Self::Shutdown)
+    }
+
     pub fn execute(self) -> Result<()> {
         let (program, arguments) = self.command();
 

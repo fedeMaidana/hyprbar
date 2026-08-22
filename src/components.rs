@@ -10,7 +10,7 @@ pub mod text_fit;
 // ─── < Public API > ────────────────────────────────────────────────────
 
 pub use button_row::evenly_spaced_rects;
-pub use component::{Component, ComponentAction, ComponentTag, Interaction, InteractionOutcome, Point, RenderCtx};
+pub use component::{Component, ComponentAction, ComponentTag, ConfirmRequest, Interaction, InteractionOutcome, Point, RenderCtx};
 pub use dropdown::{Dropdown, DropdownFrame, DropdownId, DropdownItem};
 pub use panel::{Panel, PanelHeader};
 pub use pill::Pill;

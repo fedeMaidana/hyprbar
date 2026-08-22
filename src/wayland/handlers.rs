@@ -34,6 +34,23 @@ use crate::components::Point;
 
 impl CompositorHandler for AppState {
     fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, surface: &wl_surface::WlSurface, new_factor: i32) {
+        // El overlay de confirmación escala por su cuenta.
+        if let Some(overlay) = &mut self.confirm
+            && surface == overlay.surface.layer.wl_surface()
+        {
+            if overlay.surface.fractional.is_none() {
+                let new_factor = new_factor.max(1);
+
+                if new_factor != overlay.surface.scale {
+                    overlay.surface.scale = new_factor;
+                    overlay.surface.pending_resize = true;
+                    self.needs_redraw = true;
+                }
+            }
+
+            return;
+        }
+
         if surface != self.layer_surface().wl_surface() {
             return;
         }
@@ -99,7 +116,17 @@ impl OutputHandler for AppState {
 }
 
 impl LayerShellHandler for AppState {
-    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
+    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, layer: &LayerSurface) {
+        // Si murió el overlay de confirmación, solo se cierra el modal.
+        if let Some(overlay) = &self.confirm
+            && layer.wl_surface() == overlay.surface.layer.wl_surface()
+        {
+            log::warn!("el compositor cerró el overlay de confirmación");
+            self.close_confirm();
+
+            return;
+        }
+
         log::warn!("superficie cerrada por el compositor (¿output apagado?); se recrea");
         self.surface.lost = true;
         self.surface.configured = false;
@@ -113,11 +140,26 @@ impl LayerShellHandler for AppState {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _layer: &LayerSurface,
+        layer: &LayerSurface,
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
         let (w, h) = configure.new_size;
+
+        if let Some(overlay) = &mut self.confirm
+            && layer.wl_surface() == overlay.surface.layer.wl_surface()
+        {
+            if w > 0 && h > 0 && (w != overlay.surface.width || h != overlay.surface.height) {
+                overlay.surface.width = w;
+                overlay.surface.height = h;
+                overlay.surface.pending_resize = true;
+            }
+
+            overlay.surface.configured = true;
+            self.needs_redraw = true;
+
+            return;
+        }
 
         if w > 0 && h > 0 && (w != self.surface.width || h != self.surface.height) {
             self.surface.width = w;
@@ -176,6 +218,30 @@ impl SeatHandler for AppState {
 impl PointerHandler for AppState {
     fn pointer_frame(&mut self, conn: &Connection, _qh: &QueueHandle<Self>, _pointer: &wl_pointer::WlPointer, events: &[PointerEvent]) {
         for event in events {
+            // El overlay de confirmación captura sus propios eventos.
+            if self
+                .confirm
+                .as_ref()
+                .is_some_and(|overlay| &event.surface == overlay.surface.layer.wl_surface())
+            {
+                let (x, y) = event.position;
+                let point = Point::new(x as f32, y as f32);
+
+                match event.kind {
+                    PointerEventKind::Enter { .. } => self.confirm_pointer_motion(conn, point, true),
+                    PointerEventKind::Motion { .. } => self.confirm_pointer_motion(conn, point, false),
+                    PointerEventKind::Leave { .. } => self.confirm_pointer_leave(),
+                    PointerEventKind::Press { button, .. } => {
+                        if button == BTN_LEFT {
+                            self.confirm_pointer_press(point);
+                        }
+                    }
+                    PointerEventKind::Release { .. } | PointerEventKind::Axis { .. } => {}
+                }
+
+                continue;
+            }
+
             if &event.surface != self.layer_surface().wl_surface() {
                 continue;
             }
@@ -250,14 +316,29 @@ impl Dispatch<WpFractionalScaleV1, ()> for AppState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
+        let wp_fractional_scale_v1::Event::PreferredScale { scale } = event else {
+            return;
+        };
+
+        // El overlay de confirmación tiene su propio objeto fractional.
+        if let Some(overlay) = &mut state.confirm
+            && overlay.surface.fractional.as_ref() == Some(proxy)
+        {
+            if overlay.surface.scale120 != Some(scale) {
+                overlay.surface.scale120 = Some(scale);
+                overlay.surface.pending_resize = true;
+                state.needs_redraw = true;
+            }
+
+            return;
+        }
+
         // Ignore stragglers from an already-destroyed object (surface recreated).
         if state.surface.fractional.as_ref() != Some(proxy) {
             return;
         }
 
-        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event
-            && state.surface.scale120 != Some(scale)
-        {
+        if state.surface.scale120 != Some(scale) {
             log::info!("fractional scale: {:?} -> {scale}/120", state.surface.scale120);
 
             state.surface.scale120 = Some(scale);

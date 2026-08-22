@@ -1,5 +1,6 @@
 // ─── < Modules > ────────────────────────────────────────────────────
 
+mod confirm;
 mod input;
 mod pointer;
 mod render;

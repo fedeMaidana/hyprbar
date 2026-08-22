@@ -110,13 +110,17 @@ impl AppState {
         }
     }
 
-    fn apply_outcome(&mut self, outcome: InteractionOutcome) {
+    pub(crate) fn apply_outcome(&mut self, outcome: InteractionOutcome) {
         if outcome.close_dropdown {
             self.close_dropdown();
         }
 
         if outcome.toggle_theme {
             self.toggle_theme();
+        }
+
+        if let Some(request) = outcome.confirm {
+            self.open_confirm(request);
         }
 
         if outcome.redraw {
@@ -133,7 +137,7 @@ impl AppState {
         self.needs_redraw = true;
     }
 
-    fn set_cursor_icon(&mut self, conn: &Connection, icon: CursorIcon, force_reload: bool) {
+    pub(crate) fn set_cursor_icon(&mut self, conn: &Connection, icon: CursorIcon, force_reload: bool) {
         if !force_reload && self.pointer.icon == icon {
             return;
         }

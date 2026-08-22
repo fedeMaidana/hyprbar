@@ -143,6 +143,14 @@ fn run_main_loop(mut event_loop: EventLoop<AppState>, mut app: AppState) -> Resu
             match app.render() {
                 Ok(()) => {
                     render_failures = 0;
+
+                    // El overlay de confirmación renderiza aparte; si no
+                    // puede, se cierra en vez de degradar la barra.
+                    if let Err(error) = app.render_confirm() {
+                        log::warn!("no se pudo renderizar el overlay de confirmación: {error:?}; se cierra");
+                        app.close_confirm();
+                    }
+
                     app.needs_redraw = false;
                 }
                 Err(e) => {

@@ -94,6 +94,27 @@ impl LayerConfig {
         }
     }
 
+    /// Overlay a pantalla completa (modales de confirmación): anclado a
+    /// los cuatro bordes y sin reservar lugar.
+    pub fn fullscreen_overlay() -> Self {
+        Self {
+            layer: LayerPosition::Overlay,
+            anchor: Anchor {
+                top: true,
+                bottom: true,
+                left: true,
+                right: true,
+            },
+            exclusive_zone: -1,
+            initial_width: 0,
+            initial_height: 0,
+            margin_top: 0,
+            margin_bottom: 0,
+            margin_left: 0,
+            margin_right: 0,
+        }
+    }
+
     pub fn apply_to(&self, layer: &LayerSurface) {
         layer.set_anchor(self.anchor.to_sctk());
         layer.set_size(self.initial_width, self.initial_height);

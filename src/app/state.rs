@@ -12,6 +12,7 @@ use crate::theme::Theme;
 use crate::wayland::LayerConfig;
 use crate::wayland::init::WaylandInit;
 
+use super::confirm::ConfirmOverlay;
 use super::pointer::PointerState;
 use super::sources;
 use super::surface::SurfaceState;
@@ -40,6 +41,10 @@ pub struct AppState {
     pub(crate) open_dropdown: Option<DropdownId>,
     /// Whether the open dropdown's periodic repaint timer is alive.
     pub(crate) dropdown_tick_armed: bool,
+
+    /// Overlay modal de confirmación (superficie propia a pantalla
+    /// completa); vive solo mientras el diálogo está abierto.
+    pub(crate) confirm: Option<ConfirmOverlay>,
 
     pub needs_redraw: bool,
     pub should_close: bool,
@@ -98,6 +103,8 @@ impl AppState {
 
             open_dropdown: None,
             dropdown_tick_armed: false,
+
+            confirm: None,
 
             needs_redraw: true,
             should_close: false,

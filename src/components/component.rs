@@ -40,12 +40,25 @@ pub struct ComponentAction {
     draggable: bool,
 }
 
+/// Pedido de confirmación modal: el componente aporta los textos y la
+/// acción opaca que la app debe despachar de vuelta si el usuario
+/// confirma. Todo `'static` y Copy para viajar dentro del outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConfirmRequest {
+    pub action: ComponentAction,
+    pub glyph: &'static str,
+    pub title: &'static str,
+    /// Pinta el botón de confirmar como acción destructiva.
+    pub destructive: bool,
+}
+
 /// What the app should do after a component handled an interaction.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct InteractionOutcome {
     pub redraw: bool,
     pub close_dropdown: bool,
     pub toggle_theme: bool,
+    pub confirm: Option<ConfirmRequest>,
 }
 
 // ─── < Enums > ────────────────────────────────────────────────────
@@ -137,6 +150,15 @@ impl InteractionOutcome {
     pub fn toggle_theme() -> Self {
         Self {
             toggle_theme: true,
+            ..Self::default()
+        }
+    }
+
+    /// Cierra el dropdown y le pide a la app el modal de confirmación.
+    pub fn confirm(request: ConfirmRequest) -> Self {
+        Self {
+            close_dropdown: true,
+            confirm: Some(request),
             ..Self::default()
         }
     }
